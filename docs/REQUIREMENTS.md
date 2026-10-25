@@ -26,3 +26,11 @@ Visitors can view public content; signed-in users access permitted apps; invitat
 
 ## Open questions
 Initial feature scope; UI and language support; login providers and invitation flow; permission granularity; audit logs and backups; China access benchmarks; production approval and testing workflow.
+
+## Confirmed phase 1 scope — 2026-10-26
+- pnpm Monorepo with one Next.js + TypeScript static homepage, Chinese content, navigation and empty app collection.
+- Local lint, type checking, static build and Cloudflare preview/deployment configuration.
+- Run/deployment instructions and updated architectural decisions.
+- No login, Admin, database, backend, other apps, paid services or formal domain binding.
+- Acceptance: lockfile install, local build, homepage/navigation/404 work in Cloudflare local preview; cloud deployment remains manual.
+- This resolves the initial feature scope question above; future feature details remain open.

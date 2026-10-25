@@ -1,0 +1,16 @@
+{
+  "name": "squirrelapi",
+  "private": true,
+  "packageManager": "pnpm@12.15.0",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "dev": "pnpm --filter @squirrelapi/web dev",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build",
+    "check": "pnpm lint && pnpm typecheck && pnpm build",
+    "preview": "pnpm --filter @squirrelapi/web preview",
+    "deploy:check": "pnpm build && pnpm --filter @squirrelapi/web deploy:check",
+    "deploy:preview": "pnpm build && pnpm --filter @squirrelapi/web deploy:preview"
+  }
+}

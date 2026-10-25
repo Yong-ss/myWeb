@@ -19,3 +19,12 @@ Updated: 2026-10-26.
 
 ## Decision hygiene
 For new decisions, record date, reason, scope and status. Never mark undecided matters confirmed. Preserve history and rationale when superseding decisions.
+
+## Phase 1 confirmation — 2026-10-26
+The user accepted the static-first proposal and authorized implementation.
+- D-011 is now Confirmed: Next.js + TypeScript, static export; supersedes Candidate status above.
+- D-012 is now Confirmed for static assets on Cloudflare Workers; dynamic hosting remains unvalidated.
+- D-014 Confirmed: pnpm workspace with apps/web only; no Turborepo/Nx or empty shared modules.
+- D-015 Confirmed: no login, Admin, database or backend in phase 1.
+- D-016 Confirmed: local checks, manual workers.dev deployment instructions, no paid services/domain binding. D-013 stays open for future production publishing.
+- Implementation choice: ESLint 9.39.5 temporarily retained because bundled React/import/accessibility plugins do not declare ESLint 10 support; migration deferred until compatible.

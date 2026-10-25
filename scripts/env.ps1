@@ -1,0 +1,20 @@
+$ErrorActionPreference = 'Stop'
+$portableRoot = 'C:\Users\sungs\OneDrive\Desktop\Global_Env'
+$env:PIP_CACHE_DIR = "$portableRoot\cache\pip"
+$env:ULTRALYTICS_CONFIG_DIR = "$portableRoot\cache\ultralytics"
+$env:MPLCONFIGDIR = "$portableRoot\cache\matplotlib"
+$env:TORCH_HOME = "$portableRoot\cache\torch"
+$env:HF_HOME = "$portableRoot\cache\huggingface"
+$env:COREPACK_HOME = "$portableRoot\cache\corepack"
+$env:PNPM_HOME = "$portableRoot\cache\pnpm"
+$env:npm_config_cache = "$portableRoot\cache\npm"
+$env:npm_config_store_dir = "$portableRoot\cache\pnpm-store"
+$env:XDG_CONFIG_HOME = "$portableRoot\cache\config"
+$env:XDG_CACHE_HOME = "$portableRoot\cache"
+$env:XDG_DATA_HOME = "$portableRoot\cache\data"
+$env:WRANGLER_HOME = "$portableRoot\cache\wrangler"
+$env:WRANGLER_SEND_METRICS = 'false'
+$env:NEXT_TELEMETRY_DISABLED = '1'
+$env:TEMP = "$portableRoot\temp_work\squirrelapi"
+$env:TMP = $env:TEMP
+New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null

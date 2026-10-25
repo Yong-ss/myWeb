@@ -1,50 +1,24 @@
-# SquirrelAPI — Architecture (Draft v0.1)
-Date: 2026-10-26. Technology choices remain subject to proof-of-concept validation.
+# SquirrelAPI — Architecture
+Updated: 2026-10-26. Phase 1 confirmed by user.
 
-## Goals
-Manage multiple independently developable applications in one private GitHub Monorepo. Share foundational services where appropriate, while keeping clear boundaries and minimizing maintenance and cost.
+## Current architecture
+- Private Monorepo Yong-ss/myWeb; actual local folder: myWeb.
+- pnpm workspace, one application: apps/web.
+- Next.js App Router + TypeScript + plain CSS; static export to apps/web/out.
+- Cloudflare Workers Static Assets, local Wrangler preview, custom 404.
+- Manual workers.dev deployment only; no domain routes, paid bindings or automatic publishing.
+- Root commands: lint, typecheck, build, check, preview, deploy:check and deploy:preview.
+- Local quality checks only; hosted CI deferred to avoid adding account/billing configuration.
+- Node.js 24, pinned direct dependencies and lockfile.
+- scripts/env.ps1 directs caches/config/temp into Global_Env; project files remain in workspace.
 
-## Agreed direction
-- Repository: Yong-ss/myWeb (private), local root folder 'my web'.
-- Monorepo organization, new apps primarily developed by Codex.
-- Domain: squirrelapi.org, managed in Cloudflare; paths and subdomains can route to different apps.
-- Data: prefer one Supabase project initially, with logical data separation and enforced permissions.
-- Identity: shared Supabase Auth by default; allow special future apps to use their own identity design.
-- Admin Console: manage registration policy, user permissions and app availability through configuration.
+## Boundaries
+No login, Admin, backend, database, registry, shared packages or other applications in phase 1. Homepage correctly shows zero available apps. Static output contains no secrets. noindex is not access control.
 
-## Candidate stack (not final)
-- Next.js + TypeScript for web apps.
-- Cloudflare Workers free tier for suitable deployments; validate compatibility and limits first.
-- Supabase Free for PostgreSQL, authentication and storage.
-- GitHub Actions for CI within available free quota.
-Workers may not suit all Node.js dependencies, long-running jobs or GPU workloads.
+## Future direction, not implemented
+Add apps/<name> when there is a real application; prefer subdomains for independent deployments and paths for small in-app features. Each application needs its own deployment configuration. Shared packages follow actual reuse.
 
-## Proposed structure (illustrative, create only when needed)
-```text
-my web/
-  apps/
-    web/
-    admin/
-    tools/
-  packages/
-    auth/
-    ui/
-    config/
-  docs/
-    REQUIREMENTS.md
-    ARCHITECTURE.md
-    DECISIONS.md
-  AGENTS.md
-```
+Prefer one Supabase project with shared identity. Data separation needs database permissions and RLS, not merely table prefixes. Shared Auth does not automatically share sessions across subdomains. Admin can initially live at /admin. Add a lightweight Worker backend only for real server-side needs.
 
-## Engineering principles
-- Admin configuration governs business policy, not database schemas or core security guarantees.
-- Enforce authorization on server and through appropriate Supabase RLS and least privilege.
-- Shared database does not imply unrestricted cross-app data access.
-- Separate deployments require explicit CI/deployment setup; Monorepo alone does not provide isolation.
-- Keep local/test and production data separate. Prefer local testing where free-plan project limits apply.
-- Cross-subdomain single sign-on needs deliberate session, cookie or OAuth design.
-- China access and performance must be tested on actual networks.
-
-## Open architecture decisions
-Hosting compatibility, routing, database schema boundaries, app registration contract, secrets and environments, deployment approval, monitoring, backups and recovery.
+## Pending decisions and validation
+Dynamic hosting compatibility/CPU costs, auth, email, backups and cross-app sessions remain future work. Account quotas, actual cloud deployment and mainland China access are not verified. RM0 means staying within free limits and accepting reduced availability or disabled functions on exhaustion. No production domain binding in phase 1.
