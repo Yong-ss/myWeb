@@ -58,3 +58,11 @@ ESLint 暂用 9.39.5：Next.js 的 React/import/accessibility 插件尚未声明
 - 本地 Cloudflare：首页 200，不存在页面 404，首页引用的 CSS/JS 均为 200。
 - 内置浏览器窄屏显示与应用锚点导航通过，首页未捕获到控制台 warning/error。
 - 输出约 0.60 MiB；未实际上传 Cloudflare、未绑定域名，桌面宽屏和大陆网络尚未实测。
+
+## 首次云端部署（2026-10-26）
+- 已根据用户提供的订阅截图确认 Workers Free 为 Active。
+- 实际地址：https://squirrelapi-web-preview.sungshen1.workers.dev
+- 部署源码提交：ef0fc7e；Cloudflare 版本：3791a61d-c72a-415f-b6c0-ac10298d9024。
+- HTTPS 首页与引用的 CSS/JS 均为 200；不存在路径返回自定义 404；线上浏览器显示正常，未捕获 warning/error。
+- 仅部署静态文件，未绑定正式域名、未创建 Supabase 项目、未启用付费服务。
+- 上述结果更新了此前“尚未云端部署”的状态；大陆网络仍需实测。
