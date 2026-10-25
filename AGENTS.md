@@ -1,20 +1,22 @@
-# Codex Guidelines — SquirrelAPI
+# Codex Working Guidelines
 
-This repository is a long-term, extensible personal platform. Optimize for reliability, clarity, security and zero additional monthly cost; avoid unnecessary complexity.
+This is a long-term project. Keep changes simple, secure, maintainable and proportional to the task.
 
-## Working rules
-1. Read docs/REQUIREMENTS.md, docs/ARCHITECTURE.md and docs/DECISIONS.md before relevant changes.
-2. Inspect existing code first. Follow established conventions; don't replace frameworks or introduce paid services without approval.
-3. Small changes may proceed directly. For authentication, authorization, database migrations, cross-app interfaces, deployment or major refactors, briefly explain tradeoffs and ask before disruptive changes.
-4. Keep app boundaries clear. Share only stable, genuinely reusable code; avoid speculative abstractions.
-5. Enforce permissions server-side and in database policies. Never expose privileged Supabase keys in client code or commit secrets.
-6. Run relevant type checks, lint and tests. State clearly what passed, failed or could not run; never claim unperformed tests passed.
-7. Do not change production data, execute destructive migrations or deploy to production without explicit authorization.
-8. After each task, summarize in simple Chinese what changed, affected apps, data flow, verification and remaining risks.
-9. Suggest updates to requirement, architecture and decision docs when decisions change. Never promote proposals to confirmed decisions.
-10. These are guiding principles, not rigid constraints. Propose better alternatives with clear reasons when appropriate.
+## Before changing code
+- Inspect the relevant existing code and conventions.
+- Read the relevant parts of `docs/REQUIREMENTS.md`, `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`; don't assume proposals are finalized.
+- If requirements are unclear or a change has significant consequences, briefly explain options and ask. Otherwise, proceed without unnecessary questions.
 
-## Current constraints
-- Extra monthly budget: RM0 (domain already purchased).
-- GitHub private Monorepo, Cloudflare and Supabase Free are preferred starting points, subject to validation.
-- New apps are coded by Codex and integrated through documented interfaces, not installed via a plugin marketplace.
+## While working
+- Prefer small, focused changes. Reuse existing patterns; avoid premature abstractions, needless dependencies and unrelated refactors.
+- Respect module boundaries and enforce access control on the server/database, not just in the UI.
+- Never commit secrets or expose privileged credentials to clients.
+- Do not introduce paid services, modify production data, perform destructive migrations or deploy to production without explicit approval.
+- For substantial changes to authentication, database structure, deployment or shared interfaces, explain the impact before proceeding.
+
+## After changes
+- Run checks appropriate to the change (for example type checks, lint or tests). Never claim a check passed unless it ran.
+- Summarize in simple Chinese: what changed, what was tested, and any remaining risks or decisions.
+- When an agreed requirement or architectural decision changes, update the relevant docs; keep unconfirmed ideas clearly marked as proposals.
+
+These guidelines are defaults, not rigid rules. Suggest better approaches when justified, and explain the tradeoffs.
