@@ -34,3 +34,6 @@ Initial feature scope; UI and language support; login providers and invitation f
 - No login, Admin, database, backend, other apps, paid services or formal domain binding.
 - Acceptance: lockfile install, local build, homepage/navigation/404 work in Cloudflare local preview; cloud deployment remains manual.
 - This resolves the initial feature scope question above; future feature details remain open.
+
+## Scope update — 2026-10-26
+The user subsequently authorized binding the root domain squirrelapi.org. Production and preview deploy independently from the same application. This supersedes the initial restriction on formal domain binding; all other scope limits remain.

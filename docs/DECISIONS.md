@@ -28,3 +28,8 @@ The user accepted the static-first proposal and authorized implementation.
 - D-015 Confirmed: no login, Admin, database or backend in phase 1.
 - D-016 Confirmed: local checks, manual workers.dev deployment instructions, no paid services/domain binding. D-013 stays open for future production publishing.
 - Implementation choice: ESLint 9.39.5 temporarily retained because bundled React/import/accessibility plugins do not declare ESLint 10 support; migration deferred until compatible.
+
+## Root domain authorization — 2026-10-26
+- D-017 Confirmed: user explicitly authorized binding squirrelapi.org; supersedes the domain restriction in D-016 and the initial phase 1 scope.
+- Separate production Worker squirrelapi-web from squirrelapi-web-preview using the same static app and a dedicated Wrangler configuration; no new application or dependencies.
+- Publish manually with deploy:production; preview publishing does not update production. No www binding, paid upgrade or Supabase project. Keep noindex until indexing is separately decided.

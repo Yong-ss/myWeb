@@ -11,6 +11,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm build",
     "preview": "pnpm --filter @squirrelapi/web preview",
     "deploy:check": "pnpm build && pnpm --filter @squirrelapi/web deploy:check",
-    "deploy:preview": "pnpm build && pnpm --filter @squirrelapi/web deploy:preview"
+    "deploy:preview": "pnpm build && pnpm --filter @squirrelapi/web deploy:preview",
+    "deploy:production": "pnpm build && pnpm --filter @squirrelapi/web exec wrangler deploy --config wrangler.production.jsonc"
   }
 }

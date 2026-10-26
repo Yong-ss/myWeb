@@ -6,7 +6,7 @@ Updated: 2026-10-26. Phase 1 confirmed by user.
 - pnpm workspace, one application: apps/web.
 - Next.js App Router + TypeScript + plain CSS; static export to apps/web/out.
 - Cloudflare Workers Static Assets, local Wrangler preview, custom 404.
-- Manual workers.dev deployment only; no domain routes, paid bindings or automatic publishing.
+- Separate manual deployments from the same app: squirrelapi-web at https://squirrelapi.org (wrangler.production.jsonc) and squirrelapi-web-preview on workers.dev (wrangler.jsonc). No paid bindings or automatic publishing.
 - Root commands: lint, typecheck, build, check, preview, deploy:check and deploy:preview.
 - Local quality checks only; hosted CI deferred to avoid adding account/billing configuration.
 - Node.js 24, pinned direct dependencies and lockfile.
@@ -21,4 +21,4 @@ Add apps/<name> when there is a real application; prefer subdomains for independ
 Prefer one Supabase project with shared identity. Data separation needs database permissions and RLS, not merely table prefixes. Shared Auth does not automatically share sessions across subdomains. Admin can initially live at /admin. Add a lightweight Worker backend only for real server-side needs.
 
 ## Pending decisions and validation
-Dynamic hosting compatibility/CPU costs, auth, email, backups and cross-app sessions remain future work. Workers Free Active was confirmed from the user's subscription screenshot on 2026-10-26. The static site is deployed at https://squirrelapi-web-preview.sungshen1.workers.dev and HTTPS homepage/assets/custom 404 checks passed. Remaining account quotas and mainland China access are not verified. RM0 means staying within free limits and accepting reduced availability or disabled functions on exhaustion. No production domain binding in phase 1.
+Dynamic hosting compatibility/CPU costs, auth, email, backups and cross-app sessions remain future work. Workers Free Active was confirmed from the user's subscription screenshot on 2026-10-26. HTTPS homepage/assets/custom 404 checks passed for the preview and the user-authorized root domain deployment. Remaining account quotas and mainland China access are not verified. RM0 means staying within free limits and accepting reduced availability or disabled functions on exhaustion. Search indexing remains disabled pending a separate decision.

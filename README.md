@@ -39,7 +39,22 @@ pnpm deploy:preview
 
 该命令会真实发布到公开的 squirrelapi-web-preview.<账户子域>.workers.dev，以输出 URL 为准；再次执行更新同名站点，不会自动删除。这不是私密预览。仅上传 apps/web/out，不上传仓库源码和 docs。
 
-没有正式域名配置、付费服务或自动部署。页面 noindex 只是避免搜索索引，不是访问控制。部署后确认首页返回 200、随机不存在路径返回 404、CSS/JS 正常加载，再请朋友从大陆网络验证。
+此预览命令不会更新正式站，没有付费服务或自动部署。页面 noindex 只是避免搜索索引，不是访问控制。部署后确认首页返回 200、随机不存在路径返回 404、CSS/JS 正常加载，再请朋友从大陆网络验证。
+
+## 根域名正式站
+
+地址：https://squirrelapi.org 。2026-10-26 经用户授权绑定，使用独立 Worker `squirrelapi-web` 和 `apps/web/wrangler.production.jsonc`；原 workers.dev 测试站继续保留。
+
+仅在确认需要发布正式站时执行：
+
+```powershell
+. ./scripts/env.ps1
+pnpm deploy:production
+```
+
+这会构建并更新根域名站点。`pnpm deploy:preview` 只更新测试站。两者共用源码但独立发布，无需复制应用。Cloudflare 管理根域名 DNS 与 HTTPS 证书；没有配置 www 跳转。
+
+本次正式部署版本：`b2761717-7c15-4708-9d15-cee2e3b22783`。HTTPS 首页及引用资源为 200、自定义 404 正常，原测试站仍为 200；仍保留 noindex。
 
 ## 项目边界
 
