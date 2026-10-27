@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { baseURL, clubId, foreignClubId, playerId, foreignPlayerId, users, password, auth, rest, state, localFetch, sql } from './local.mjs';
 
 const member={name:'集成测试玩家',position:'正式会员',level:70,pathway:null,extraordinary_score:142,prosperity:null,weekly_activity:0,group:null,join_days:null};
-const confirmation=/我已逐行核对身份/;
+const confirmation=/我已核对名单/;
 test.beforeEach(async({context})=>{
   // Requests go to the real Worker. Only non-local destinations are blocked.
   await context.route('**/*',route=>new URL(route.request().url()).origin===baseURL?route.continue():route.abort('blockedbyclient'));

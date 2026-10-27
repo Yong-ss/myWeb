@@ -18,7 +18,7 @@ async function prepare(page,date,members) {
 }
 async function save(page) {
   await page.getByRole('button',{name:'生成最终预览',exact:true}).click();
-  await page.getByRole('checkbox',{name:/我已逐行核对身份/}).check();
+  await page.getByRole('checkbox',{name:/我已核对名单/}).check();
   const request=page.waitForRequest(r=>r.url().endsWith('/api/imports')&&r.method()==='POST');
   await page.getByRole('button',{name:'确认导入',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('已保存');
