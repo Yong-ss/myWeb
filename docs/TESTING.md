@@ -94,3 +94,28 @@ B 身份匹配另有纯函数测试：79 人准确匹配、确认／未确认别
 每轮使用专用锁避免并行重置；正常结束和测试失败都会停止专用栈并删除其数据卷，其他本地项目不受影响。强制终止进程或断电可能留下锁／容器；确认没有测试运行后，可执行 `supabase stop --project-id squirrelapi-club-integration --no-backup`，再删除 `.test-runtime/integration/run.lock`。不要使用 `--all`。
 
 成功只输出简短结论；失败保留 Playwright Trace、截图及已去除 key／JWT 的专用服务尾部日志，CI 保留 3 天。状态文件及生成配置在 `.test-runtime/`，不会进入 Git；测试结束清除运行状态和临时变量文件。
+
+## C 名单查询测试
+新增 Worker 测试覆盖登录边界、固定俱乐部过滤、只读版本查询、非法参数、分页和超限拒绝；Playwright 覆盖日期、旧版本、搜索及 0 显示；现有真实导入测试增加查询实际保存名单及页面读取断言。沿用隔离测试栈，不写正式测试数据。本轮按用户此前指示未运行测试，发布前仍需执行相关检查和真实集成测试。
+
+## Club 动效样板 — 2026-10-28
+成员页新增 members-motion.spec.mjs：四种尺寸、hover/active/focus、初始 loading、禁用、失败重试、菜单键盘循环和焦点归还、触摸反复开关、reduced-motion，以及返回旧首页的主题隔离。合成数据由 Playwright 拦截提供，不连接正式 Auth／数据库。已使用本地 Next dev 页面和真实 Chromium 运行 8 项浏览器检查（含原有成员查询 UI 测试），以及 4 项成员 Worker 单元测试；Club lint 与 TypeScript 检查通过。桌面／手机截图已人工审阅。此次未运行 SQL／真实 Supabase 集成／全站回归，因仅呈现层试点及类型标注修正；没有宣称这些套件通过。后续正常静态构建后的 test:e2e 会包含新测试。
+
+
+## 共享组件迁移验证 — 2026-10-28
+
+新增 account-ui.spec.mjs：四种尺寸的账户信息、导航高亮、入口链接、键盘焦点、页面溢出、Loading 期间禁止重复退出、错误恢复及按钮尺寸稳定。沿用 auth.spec.mjs 验证原有登录失败／重载／退出／未授权重定向。fixture 根据 Playwright 配置限定本地来源，可复用静态服务或本地开发服务，仍拦截全部测试 API。迁移不涉及业务契约或数据库结构，不用正式数据库进行自动化操作。
+
+
+## 导入交互视觉验证 — 2026-10-28
+
+import-ui.spec.mjs 补四种尺寸的准备／身份弹窗／最终预览、整页溢出检查，以及定制原生 Select 的打开、键盘选项、Escape 和手机触摸。截图只含合成资料，存放于忽略的测试输出目录。与既有 import.spec.mjs 一起保护 JSON 解析、身份选择、null/0、确认保存、失败重试幂等和同日版本冲突。沿用 Chromium；未验证所有浏览器的 base-select 支持，旧浏览器原生回退不算视觉等价。
+
+
+## C 成员状态与个人历史测试 — 2026-10-28
+
+新增 presence.test.mjs 覆盖不完整不判离会、完整缺席、离会后持续缺席、原 UUID 重返、首次记录之前的日期、null／0／百分比以及周活跃重置提示。public-ui.spec.mjs 与 player-history.spec.mjs 使用合成资料检查首页／登录桌面和手机、档案事件与表格。
+
+presence.spec.mjs 在既有隔离 Supabase 中通过真实 RPC 建立两位合成玩家和四天名单，以真实 Worker／REST 验证暂未识别→暂离→重返、截止日期、Owner/Admin 与未授权／跨俱乐部隔离，并打开个人档案页；所有写入仅发生在现有专用可销毁数据库。集成脚本支持传入测试筛选：`pnpm test:integration -- presence.spec.mjs`；完整命令仍不变。身份／状态推断不能替代管理员正确确认完整名单。
+
+本批验证结果：Club lint、TypeScript、32 项 Club 单元测试、13 项相关浏览器测试通过；首次真实集成运行的既有 9 项通过，新增场景在修正测试用的 Response API 与独立 Cookie 上下文后，使用筛选命令单独通过。未重跑独立 SQL 套件／test:full，不将分批通过描述为一次完整回归。隔离测试栈已自动停止。

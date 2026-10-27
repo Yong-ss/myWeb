@@ -68,3 +68,10 @@ Prefer one Supabase project with shared identity. Data separation needs database
 
 ## Pending decisions and validation
 Dynamic hosting compatibility/CPU costs, auth, email, backups and cross-app sessions remain future work. Workers Free Active was confirmed from the user's subscription screenshot on 2026-10-26. HTTPS homepage/assets/custom 404 checks passed for the preview and the user-authorized root domain deployment. Remaining account quotas and mainland China access are not verified. RM0 means staying within free limits and accepting reduced availability or disabled functions on exhaustion. Search indexing remains disabled pending a separate decision.
+
+
+## Club C read model — 2026-10-28
+
+`GET /api/members` keeps the existing verified-session / active Owner/Admin guard and configured club scope. The roster adds last observed data per historical player using a bounded `club_players -> club_snapshot_players -> club_snapshots` embedding (`last.limit=1`, order by the to-one snapshot date), then compares last-seen date with the latest confirmed complete roster. The selected daily revision overrides completeness for its own day; later snapshots never affect a past view. Current snapshot values and prior-day current versions are the source of truth, with no persistence of inferred presence.
+
+The same endpoint accepts a UUID `player` and optional cutoff `date` for the player archive. Current daily snapshots are paged in chronological order and left-embed that player's row, preserving missing complete days for departure/rejoin reconstruction. `presence.ts` owns pure state transitions and null-safe deltas. All queries include server-selected club scope and use the user's JWT with existing RLS, without a service key or schema migration. Bounds fail explicitly rather than silently truncating. See [PostgREST embedding and related ordering](https://docs.postgrest.org/en/stable/references/api/resource_embedding.html).

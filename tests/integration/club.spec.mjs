@@ -82,6 +82,12 @@ test('owner upload writes real data, idempotency and concurrent stale preview pr
   let versions=await snapshots(date,access);expect(versions).toHaveLength(1);
   const rows=await (await rest(`club_snapshot_players?snapshot_id=eq.${versions[0].id}`,access)).json();
   expect(rows).toHaveLength(1);expect(rows[0]).toMatchObject({player_id:playerId,level:null,weekly_activity:0,extraordinary_score:142});
+  const memberView=await context.request.get(`${baseURL}/api/members?date=${date}&version=${versions[0].id}&club_id=${foreignClubId}`);
+  expect(memberView.status()).toBe(200);
+  expect((await memberView.json()).members).toMatchObject([{player_id:playerId,weekly_activity:0,level:null}]);
+  await page.goto('/members');
+  await page.getByLabel('查看日期').selectOption(date);
+  await expect(page.getByRole('cell',{name:member.name,exact:true})).toBeVisible();
   const repeated=await workerPost(context,payload);expect(repeated.status()).toBe(200);expect((await repeated.json()).replayed).toBe(true);
   expect(await snapshots(date,access)).toHaveLength(1);
   const invalid=await workerPost(context,{...payload,request_id:randomUUID(),members:[{...payload.members[0],level:'invalid'}]});expect(invalid.status()).toBe(400);

@@ -13,7 +13,7 @@
 
 ## 2. 颜色与统一 Tokens
 
-唯一 Token 定义：[tokens.css](../apps/club/src/styles/tokens.css)。当前文件**尚未导入**，不会局部改变现有页面；先完成共享壳与基础控件再统一接入。文档描述用途，数值修改只改该文件并同步规范。
+唯一 Token 定义：[tokens.css](../apps/club/src/styles/tokens.css)。目前账户与成员页通过共享 AppShell 接入，样式限定在 `.club-app`；其他页面继续保留旧样式，后续按批迁移。文档描述用途，数值修改只改该文件并同步规范。
 
 | Token | 色值 | 用途 |
 | --- | --- | --- |
@@ -48,7 +48,7 @@
 
 ## 5. 统一组件与交互契约
 
-先复用已有组件；当前缺少共享组件，迁移时只提取实际重复部分到 `src/components/`，不预建一整套空框架。布局和视觉组件不拥有权限、API 或保存逻辑。
+先复用已有组件；已建立第 10 节共享组件，迁移时继续只提取实际重复部分到 `src/components/`，不预建一整套空框架。布局和视觉组件不拥有权限、API 或保存逻辑。
 
 | 组件 | 统一规范 |
 | --- | --- |
@@ -71,7 +71,7 @@
 - 普通文字对比至少 4.5:1，大字与必要控件边界至少 3:1；铜金细边框主要作装饰，必要控件使用强边框，实际组合迁移时测量。
 - 焦点 2px 浅金描边、2px offset；禁用不能接收提交，理由可读。所有输入有 label，checkbox/radio 与文字同行对齐，触摸目标至少 44×44px。
 - 表格有 caption、列标题，错误用 alert、读取和完成反馈用 polite status；不能对所有内容重复播报。
-- 仅颜色／边框过渡 150ms，不使用 `transition: all`、缩放跳动或持续动画；`prefers-reduced-motion: reduce` 时关闭非必要过渡。
+- 状态过渡使用第 9 节的统一动效 Tokens；禁止 `transition: all`、缩放跳动、持续动画，减少动态效果时立即切换。
 
 ## 7. 当前差异与迁移顺序
 
@@ -89,3 +89,70 @@
 每次 Club UI 工作先读 `apps/club/AGENTS.md`、本规范和原始参考稿，再检查现有组件。新组件必须用 `--club-*` Tokens，不在页面硬编码新配色；需要新增 Token 时先检查现有用途。改变风格或新增字体／图标依赖必须有用户明确授权。
 
 后续迁移完成后用隔离合成数据建立批准后的 Playwright 基准图；基准变更需视觉审阅，不能仅为消除失败直接更新。本轮只做基础规范，不引入新依赖、CI 工作流或假装已存在的自动风格校验。正式部署需要另外授权。
+
+
+## 9. 动效与交互样板 — 2026-10-28
+
+成员名单 `/members` 为本轮唯一迁移页；`ClubPrototypeShell.tsx` 与 `prototype.css` 是样板，其余页面尚未迁移。样板仅负责呈现／导航，不改变查询、认证、身份匹配、数据库或 API。原有 Worker 查询回调仅补齐 TypeScript 参数标注。
+
+已使用现有 `frontend-design`、`emil-design-eng` Skills；本地未找到 `ui-animation`、`web-design-guidelines`，未下载或加入依赖。Skills 的换主题、字体下载、弹性动画等建议不能覆盖已确认规范。
+
+| 场景 | Token／时长 | 规范 |
+| --- | --- | --- |
+| 即时按下 | 0ms | 即时切换按下色，不缩放、不移动布局；松开回到正常／hover 状态 |
+| 快速反馈 | `--club-motion-fast` / 120ms | 文字与表格 hover 颜色反馈；无逐行入场动画 |
+| 常规状态 | `--club-motion` / 150ms | 按钮、导航、输入框的边框／颜色／底色；只列明所需属性 |
+| 弹窗进入 | `--club-motion-enter` / 180ms | opacity 0→1、最多 `--club-dialog-offset` / 6px 位移；CSS transition 配合 `@starting-style`，不支持时直接出现 |
+| 弹窗关闭 | 立即 | 不延迟 Escape 和焦点归还，不为退场动画延后原生 close |
+| 反馈曲线 | `--club-ease-feedback` | cubic-bezier(.2, 0, .2, 1) |
+| 进入曲线 | `--club-ease-enter` | cubic-bezier(.16, 1, .3, 1)，不回弹 |
+
+- Hover 只放在 `(hover: hover) and (pointer: fine)` 下，触摸设备不留下假 hover；Active、Focus 不依赖 hover。
+- Focus-visible 使用 `--club-focus-width` / 2px 浅金描边与 `--club-focus-offset` / 3px 间隔，立即出现；不能用动画延迟键盘反馈。
+- Disabled 用实际 `disabled` 属性，保留可读颜色，不仅降低透明度；Loading 保留操作位置、禁用重复点击并显示状态文字。查询提示保留区域高度，不做闪烁骨架或无限转圈。
+- 高频操作（输入、搜索、排序）立即反馈，不淡入整张表、不插入人为等待，不动画化宽高、内边距或表格布局。大范围动效只考虑 opacity／transform。
+- 手机导航采用原生 dialog：初始焦点为关闭按钮，Tab／Shift+Tab 在菜单内循环，Escape 关闭，焦点回到触发按钮。关闭后可立即重新打开。
+- `prefers-reduced-motion: reduce` 禁用所有样板动画／过渡，信息和操作保持完整；禁止自动播放的装饰动效。当前不需要 Motion for React。
+- 禁止将样板 CSS 末尾复制到每个新页面；迁移下一页时复用壳和 Tokens，并把实际重复样式提取为共享原语。不得把尚未迁移的其他页面说成已统一。
+
+### 验证与视觉基准
+
+`tests/browser/members-motion.spec.mjs` 使用合成名单，检查 1440×900、768×1024、390×844、320×800；覆盖颜色、横向溢出、表格滚动、键盘焦点、触摸反复开关、禁用、失败重试、reduced-motion 和主题隔离。沿用现有 Playwright，可在常规构建后的 `pnpm test:e2e` 中运行。
+
+视觉审查截图在 `.test-artifacts/club-motion/`（不进 Git），只含合成资料。此处因明确视觉审查需要保留正常状态的截图；常规 Trace 与失败截图仍按失败保留。当前截图用于人工审查，不冒充用户已批准的像素基准。原稿是 HTML，不声称已与不存在的参考图片逐像素比对。
+
+
+## 10. 共享组件第一批 — 2026-10-28
+
+原成员页样板已提升为共享实现：`ClubPrototypeShell.tsx` → `components/layout/AppShell.tsx`，`prototype.css` → `styles/components.css`，作用域改为 `.club-app`。账户 `/account` 与名单 `/members` 已使用相同组件；首页、登录、导入仍待后续迁移。第 7／9 节记录前批次状态，不代表所有页面已经迁移。
+
+| 组件 | 使用方式 |
+| --- | --- |
+| Button | 操作用原生 button，默认 type=button；支持 primary／secondary／danger、loading、loadingText、disabled。Loading 保留原文字占位，防止按钮宽度变化，不加旋转装饰 |
+| ButtonLink | 导航用 Next Link，复用按钮视觉；不提供伪 disabled 链接 |
+| Input / Select | 透传原生属性；使用显式 label、aria-invalid 表达错误，不自行实现下拉键盘逻辑 |
+| Panel | 标准语义 section；默认无外边距，由布局 gap 控制，不另建同义 Card |
+| PageHeader | 统一 eyebrow、title、可选 actions；不加入 API 和状态逻辑 |
+| AppShell | 同一份导航数据用于桌面和手机；当前活动项依据 pathname，复用已有菜单键盘与焦点行为 |
+
+账户页以真实账户信息、导入、查阅两个入口组织内容，不编造统计或未实现模块；不改变加载、重载、退出和错误处理逻辑。复杂 Dialog 的依赖评估留待导入页迁移，不在此批安装 Radix 或框架。表格仍使用原生 table 加共享 CSS，避免为目前没有的功能增加复杂抽象。
+
+后续新增页面必须先检查这些组件，不能复制旧页独立定义按钮／输入／导航样式。配色和动效仍以 Tokens 为准。全站主题切换尚未完成，不把共享样式作用到旧页；逐页迁移后再删除旧 globals.css 中对应规则。
+
+
+## 11. 导入流程与下拉交互迁移 — 2026-10-28
+
+账户、名单和导入三个路由现已共用 AppShell、PageHeader、Button、Input、Select；Textarea 补入共享表单控件。导入准备、身份核对、最终预览、成功反馈和两个原生 Dialog 均使用暗色铜金样式，保留所有既有状态与业务事件。
+
+交互补齐 summary 的 hover／键盘焦点、radio／checkbox 的选中与焦点、分段按钮的 aria-pressed 状态、候选玩家按钮、上传按钮、表格行反馈和 Dialog 短进入过渡。checkbox/radio 控件保持 20px 标记和整行 label 触摸目标，不套用文本输入的满宽／44px 内框。步骤条是进度展示，不伪装成可点击导航。
+
+Select 使用 CSS `appearance: base-select` 和 `::picker(select)` 在支持的浏览器中呈现暗色铜金菜单、44px 选项、选中标记与短淡入；交互仍由浏览器处理。用 @supports 渐进启用，旧浏览器保留可用的原生菜单；不声称所有浏览器都支持相同弹层外观。减少动态效果时连 picker 和箭头过渡一并关闭。依据：[Chrome 官方定制 Select 说明](https://developer.chrome.com/blog/a-customizable-select)。
+
+验证使用本地 Chromium、四种视口和合成测试资料：覆盖导入三步截图、身份弹窗、最终确认、错误 JSON、重复请求恢复、同日冲突、下拉键盘／Escape／手机触摸。测试不写正式 Supabase。首页与登录仍未视觉迁移，不宣称全站统一。
+
+
+## 12. 公共页面及个人档案 — 2026-10-28
+
+首页与登录使用 AppShell publicPage 模式及同一 Button／Input／Panel，公开页不显示业务侧栏。个人档案复用业务壳与原生历史表格；玩家详情在导航中归属于成员名单。现有路由均已接入共享主题，后续只完善组件和必要页面布局，不重选视觉方向。
+
+成员名单的状态、历史数据日期必须可见；离会昵称红色删除线且排末尾。历史表格的缺失日期不补 0；不把首次观察叫作真实加入日期，也不把周活跃下降断言为业务倒退。

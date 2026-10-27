@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 export const id = '00000000-0000-4000-8000-000000000001';
 export const member = {name:'冷丶月',position:null,level:71,pathway:null,extraordinary_score:120,prosperity:null,weekly_activity:0,group:null,join_days:null};
 // Deliberately incorrect AI metadata must not replace the operator's choices.
@@ -8,7 +8,7 @@ export async function mockApp(page) {
   const state = { signedIn:false, submissions:[], failNext:false, conflict:false };
   await page.context().route('**/*',async route => {
     const url = new URL(route.request().url());
-    if (url.origin !== 'http://127.0.0.1:8791') return route.abort('blockedbyclient');
+    if (url.origin !== new URL(test.info().project.use.baseURL ?? 'http://127.0.0.1:8791').origin) return route.abort('blockedbyclient');
     if (!url.pathname.startsWith('/api/')) return route.continue();
     const respond=(status,body)=>route.fulfill({status,json:body,headers:{'Cache-Control':'no-store'}});
     if (url.pathname === '/api/login') {
@@ -36,7 +36,7 @@ export async function login(page) {
   await page.getByLabel('邮箱',{exact:true}).fill('fixture@example.invalid');
   await page.getByLabel('密码',{exact:true}).fill('local-test-only');
   await page.getByRole('button',{name:'登录',exact:true}).click();
-  await expect(page.getByText('你的身份：公会长',{exact:false})).toBeVisible();
+  await expect(page.getByText('公会长',{exact:true})).toBeVisible();
 }
 export async function prepare(page,upload=false) {
   await open(page,'/import');
@@ -55,7 +55,7 @@ export async function preview(page) {
     await dialog.getByRole('button',{name:/^冷月/}).click();
     await dialog.getByRole('button',{name:'确认',exact:true}).click();
   }
-  await page.getByLabel('这天已导入过',{exact:true}).selectOption('merge');
+  await page.getByRole('radio',{name:/^只补充／修正部分玩家/}).check();
   await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await expect(page.getByRole('heading',{name:'最终预览 · 1 人'})).toBeVisible();
 }

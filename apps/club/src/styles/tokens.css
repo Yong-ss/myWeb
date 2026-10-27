@@ -1,4 +1,4 @@
-/* Approved Club theme. Not imported until the shared-shell migration. */
+/* Approved Club theme; consumed by shared components on migrated account and members pages. */
 :root {
   --club-bg: #141718;
   --club-surface: #1b2021;
@@ -7,6 +7,7 @@
   --club-surface-nav: #151b1d;
   --club-gold: #dbc08e;
   --club-border: #655943;
+  --club-divider: color-mix(in srgb, #655943 55%, transparent);
   --club-border-strong: #b5965f;
   --club-text: #d9d1bd;
   --club-text-secondary: #a8a294;
@@ -47,6 +48,14 @@
   --club-content-max: 1280px;
   --club-touch-target: 44px;
   --club-motion: 150ms;
+  --club-motion-fast: 120ms;
+  --club-motion-enter: 180ms;
+  --club-ease-feedback: cubic-bezier(.2, 0, .2, 1);
+  --club-ease-enter: cubic-bezier(.16, 1, .3, 1);
+  --club-dialog-offset: 6px;
+  --club-focus-width: 2px;
+  --club-focus-offset: 3px;
+  --club-backdrop: rgb(0 0 0 / .65);
   --club-z-sticky: 20;
   --club-z-overlay: 30;
   --club-z-dialog: 40;
