@@ -31,7 +31,9 @@ test('same-name different people, duplicate rows and two names for one identity 
 test('decoration and similar characters suggest only; numeric evidence never proves identity',()=>{
   for(const name of ['冷丶泠月','冷冷月','完全不相关']) {
     const m=match([{...row,name}],[player],{observations:[{...row,player_id:'a',snapshot_date:'2026-10-26'}]})[0];
-    assert.equal(m.identity,'');assert.ok(m.candidates.length);
+    assert.equal(m.identity,'');
+    if(name==='完全不相关') { assert.equal(m.candidates.length,0);assert.equal(m.tier,'C'); }
+    else assert.ok(m.candidates.length);
   }
   assert.equal(match([{...row,name:null}])[0].identity,'');
 });

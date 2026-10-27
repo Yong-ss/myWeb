@@ -40,17 +40,22 @@ export async function login(page) {
 }
 export async function prepare(page,upload=false) {
   await open(page,'/import');
-  await page.getByLabel('实际截图日期（可补录）',{exact:true}).fill('2026-10-27');
-  if (upload) await page.getByLabel('上传 .json（最大 128 KiB）',{exact:true}).setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(source)});
-  else await page.getByLabel('JSON 原文',{exact:true}).fill(source);
-  await page.getByRole('button',{name:'校验并准备预览',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'2026-10-27 · 核对 1 条记录'})).toBeVisible();
+  await page.getByLabel('截图日期',{exact:true}).fill('2026-10-27');
+  if (upload) { await page.getByRole('button',{name:'上传文件',exact:true}).click();await page.getByLabel('JSON 文件',{exact:true}).setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(source)}); }
+  else await page.getByLabel('JSON 内容',{exact:true}).fill(source);
+  await page.getByRole('button',{name:'下一步',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'核对成员',exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
 }
 export async function preview(page) {
-  const matched=page.getByText(/查看或手动修正已匹配/);
-  if(await page.getByLabel('第 1 行玩家身份',{exact:true}).isHidden()) await matched.click();
-  await page.getByLabel('第 1 行玩家身份',{exact:true}).selectOption(id);
-  await page.getByLabel('同日处理方式（必须选择）',{exact:true}).selectOption('merge');
-  await page.getByRole('button',{name:'生成最终预览',exact:true}).click();
+  if(await page.getByText('还有 1 人没对上',{exact:true}).isVisible()) {
+    await page.locator('.identity-launcher').first().click();
+    const dialog=page.getByRole('dialog',{name:'这是新玩家，还是已有玩家？'});
+    await dialog.getByRole('button',{name:'选择已有玩家',exact:true}).click();
+    await dialog.getByRole('button',{name:/^冷月/}).click();
+    await dialog.getByRole('button',{name:'确认',exact:true}).click();
+  }
+  await page.getByLabel('这天已导入过',{exact:true}).selectOption('merge');
+  await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await expect(page.getByRole('heading',{name:'最终预览 · 1 人'})).toBeVisible();
 }

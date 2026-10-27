@@ -47,15 +47,15 @@ export function matchPlayers(rows: Member[], players: Player[], context: Identit
       const names = [p.display_name, ...aliases.filter(a => a.player_id === p.id).map(a => a.alias_name), prior?.name];
       const gap = normalized ? Math.min(...names.filter(Boolean).map(n => distance(normalized, similarName(n)))) : Infinity;
       const nameRelated = normalized.length > 0 && (gap === 0 || gap <= (Array.from(normalized).length > 4 ? 2 : 1) && normalized.length > 1);
-      const reasons = reliable.some(x => x.id === p.id) ? ["准确昵称或确认别名"] : nameRelated ? [gap === 0 ? "仅装饰符号／格式不同" : `昵称编辑距离 ${gap}`] : [];
+      const reasons = reliable.some(x => x.id === p.id) ? ["名字或已记住的写法相符"] : nameRelated ? [gap === 0 ? "只是符号不同" : "名字相似"] : [];
       const supports = (["level", "pathway", "extraordinary_score", "prosperity"] as const).filter(k => row[k] !== null && prior?.[k] === row[k]);
       if (supports.length >= 2) reasons.push("多项历史属性相同（仅供参考）");
-      return { id: p.id, label: p.display_name, reasons: [...reasons, ...anomalies(row, prior, date)], gap, related: reasons.length > 0 };
+      return { id: p.id, label: p.display_name, reasons: [...reasons, ...anomalies(row, prior, date)], gap, nameRelated, related: reasons.length > 0 };
     }).filter(p => p.related).sort((a,b) => Number(!reliable.some(x => x.id === a.id)) - Number(!reliable.some(x => x.id === b.id)) || a.gap - b.gap || a.id.localeCompare(b.id));
     const reasons = !name ? ["缺少昵称，请修正或人工选择既有玩家"] : reliable.length > 1 ? ["准确昵称／别名指向多个玩家，必须人工处理"] : [];
     const identity = reliable.length === 1 ? reliable[0].id : "";
     const warnings = identity ? anomalies(row, observations.find(o => o.player_id === identity), date) : [];
-    return { identity: warnings.length ? "" : identity, tier: identity && !warnings.length ? (exact.length ? "A" : "B") : ranked.length ? "C" : "D", reasons: [...reasons, ...warnings], candidates: ranked.slice(0, 5) };
+    return { identity: warnings.length ? "" : identity, tier: identity && !warnings.length ? (exact.length ? "A" : "B") : ranked.length ? "C" : "D", reasons: [...reasons, ...warnings], candidates: ranked.filter(p => p.nameRelated || reliable.some(x => x.id === p.id)).slice(0, 5) };
   });
   return matches.map((match, i) => {
     const duplicate = similarName(rows[i].name) && rows.some((r,j) => j !== i && similarName(r.name) === similarName(rows[i].name));

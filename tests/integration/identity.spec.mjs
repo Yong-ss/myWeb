@@ -11,13 +11,15 @@ test.beforeEach(async({context,page})=>{
 });
 async function prepare(page,date,members) {
   await page.goto('/import');await page.waitForLoadState('networkidle');
-  await page.getByLabel('实际截图日期（可补录）',{exact:true}).fill(date);
-  await page.getByLabel('JSON 原文',{exact:true}).fill(JSON.stringify({schema_version:1,snapshot_date:null,is_complete_roster:false,members}));
-  await page.getByRole('button',{name:'校验并准备预览',exact:true}).click();
-  await expect(page.getByRole('heading',{name:`${date} · 核对 ${members.length} 条记录`})).toBeVisible();
+  await page.getByLabel('截图日期',{exact:true}).fill(date);
+  await page.getByLabel('JSON 内容',{exact:true}).fill(JSON.stringify({schema_version:1,snapshot_date:null,is_complete_roster:false,members}));
+  await page.getByRole('button',{name:'下一步',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'核对成员',exact:true})).toBeVisible();
 }
-async function save(page) {
-  await page.getByRole('button',{name:'生成最终预览',exact:true}).click();
+async function save(page,{complete=false}={}) {
+  await page.getByRole('button',{name:'下一步 →',exact:true}).click();
+  await expect(page.getByRole('checkbox',{name:'完整名单，没有漏人',exact:true})).not.toBeChecked();
+  if(complete)await page.getByRole('checkbox',{name:'完整名单，没有漏人',exact:true}).check();
   await page.getByRole('checkbox',{name:/我已核对名单/}).check();
   const request=page.waitForRequest(r=>r.url().endsWith('/api/imports')&&r.method()==='POST');
   await page.getByRole('button',{name:'确认导入',exact:true}).click();
@@ -27,41 +29,44 @@ async function save(page) {
 test('79 players bulk-confirm once, then next-day exact matching needs no individual choices',async({page})=>{
   const members=Array.from({length:79},(_,i)=>row(`首批建档${String(i).padStart(3,'0')}号`));
   await prepare(page,'2026-10-10',members);
-  await page.getByRole('button',{name:'批量确认无冲突的疑似新玩家',exact:true}).click();
-  await expect(page.getByText('已匹配 0 人 · 已确认新增 79 人 · 待确认 0 人',{exact:true})).toBeVisible();
-  await page.getByRole('checkbox',{name:/已提供完整成员名单/}).check();
-  await save(page);
+  await page.getByRole('button',{name:'确认这 79 人是新玩家',exact:true}).click();
+  await expect(page.getByText('新增 79 人',{exact:true})).toBeVisible();
+  await save(page,{complete:true});
   const access=(await auth('owner')).access_token;
   const players=await (await rest('club_players?display_name=like.首批建档*',access)).json();expect(players).toHaveLength(79);
   await prepare(page,'2026-10-11',members);
-  await expect(page.getByText('已匹配 79 人 · 已确认新增 0 人 · 待确认 0 人',{exact:true})).toBeVisible();
+  await expect(page.getByText('全部已对上',{exact:true})).toBeVisible();
   expect(await page.getByLabel('第 1 行玩家身份',{exact:true}).isVisible()).toBe(false);
   const payload=await save(page);expect(payload.members.every(m=>m.player_id&&m.identity_confirmed===false)).toBe(true);
   expect(new Set(payload.members.map(m=>m.player_id)).size).toBe(79);
   expect(await (await rest('club_players?display_name=like.首批建档*',access)).json()).toHaveLength(79);
   await prepare(page,'2026-10-12',members.slice(0,71));
-  await expect(page.getByText(/本次只有 71 人，请检查截图遗漏/)).toBeVisible();
-  await expect(page.getByRole('checkbox',{name:/已提供完整成员名单/})).not.toBeChecked();
+  await expect(page.getByText(/比上次少 8 人，请检查是否漏图/)).toBeVisible();
+  await page.getByRole('button',{name:'下一步 →',exact:true}).click();
+  await expect(page.getByRole('checkbox',{name:'完整名单，没有漏人',exact:true})).not.toBeChecked();
 });
 test('similar typo is confirmed and remembered, auto-matches next day, and wrong alias can be revoked',async({page,context})=>{
   const typo='集成测式玩家';
   await prepare(page,'2026-10-13',[row(typo)]);
-  await expect(page.getByText(/待确认 1 人/)).toBeVisible();
-  await page.getByLabel('第 1 行玩家身份',{exact:true}).selectOption(playerId);
-  await page.getByText(/查看或手动修正已匹配/).click();
-  await page.getByRole('checkbox',{name:/记住第 1 行原始昵称/}).check();
+  await expect(page.getByText(/还有 1 人没对上/)).toBeVisible();
+  await page.locator('.identity-launcher').first().click();
+  const dialog=page.getByRole('dialog',{name:'这是新玩家，还是已有玩家？'});
+  await dialog.getByRole('button',{name:'选择已有玩家',exact:true}).click();
+  await dialog.locator('.identity-picker-list button').filter({hasText:'集成测试玩家'}).click();
+  await dialog.getByRole('checkbox',{name:/记住这个AI错名/}).check();
+  await dialog.getByRole('button',{name:'确认',exact:true}).click();
   await save(page);
   const access=(await auth('owner')).access_token;
   expect((await (await rest(`club_players?id=eq.${playerId}`,access)).json())[0].display_name).toBe('集成测试玩家');
   await prepare(page,'2026-10-14',[row(typo)]);
-  await expect(page.getByText('已匹配 1 人 · 已确认新增 0 人 · 待确认 0 人',{exact:true})).toBeVisible();
+  await expect(page.getByText('全部已对上',{exact:true})).toBeVisible();
   const payload=await save(page);expect(payload.members[0]).toMatchObject({player_id:playerId,source_name:typo,identity_confirmed:false});
   const snaps=await (await rest(`club_snapshots?snapshot_date=eq.2026-10-14&club_id=eq.${clubId}`,access)).json();
   expect((await (await rest(`club_snapshot_players?snapshot_id=eq.${snaps[0].id}`,access)).json())[0].source_name).toBe(typo);
   await prepare(page,'2026-10-15',[row(typo)]);
-  await page.getByText(/查看与解除确认别名/).click();await page.getByRole('button',{name:'解除错误关联',exact:true}).click();await page.getByRole('button',{name:'确认解除此别名',exact:true}).click();
+  await page.getByText('更多设置',{exact:true}).click();await page.getByText(/已记住的名字/).click();await page.getByRole('button',{name:'解除错误关联',exact:true}).click();await page.getByRole('button',{name:'确认解除此别名',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('别名关联已解除');
-  await expect(page.getByText('已匹配 0 人 · 已确认新增 0 人 · 待确认 1 人',{exact:true})).toBeVisible();
+  await expect(page.getByText('还有 1 人没对上',{exact:true})).toBeVisible();
   // The actual API enforces same-origin and tenant scope too.
   expect((await context.request.post(baseURL+'/api/player-aliases',{headers:{Origin:'https://wrong.invalid'},data:{player_id:playerId,alias_name:'越权',confirmed:true}})).status()).toBe(403);
   expect((await context.request.post(baseURL+'/api/player-aliases',{headers:{Origin:baseURL},data:{player_id:foreignPlayerId,alias_name:'越权',confirmed:true}})).status()).toBe(403);
@@ -73,7 +78,11 @@ test('real alias conflicts and same-name people cannot silently merge; explicit 
   const snapshot=(await first.json()).snapshot_id;
   const people=await (await rest(`club_snapshot_players?snapshot_id=eq.${snapshot}`,access)).json();expect(people).toHaveLength(2);expect(people[0].player_id).not.toBe(people[1].player_id);
   for(const person of people) expect((await rest('rpc/club_manage_alias',access,{p_club_id:clubId,p_player_id:person.player_id,p_alias:'冲突别名'})).status).toBe(200);
-  await prepare(page,'2026-10-17',[row('冲突别名')]);await expect(page.getByText(/准确昵称／别名指向多个玩家/)).toBeVisible();
+  await prepare(page,'2026-10-17',[row('冲突别名')]);await expect(page.getByText('还有 1 人没对上',{exact:true})).toBeVisible();
+  await page.locator('.identity-launcher').first().click();const conflictDialog=page.getByRole('dialog',{name:'这是新玩家，还是已有玩家？'});
+  await conflictDialog.getByRole('button',{name:'选择已有玩家',exact:true}).click();
+  await expect(conflictDialog.locator('.identity-picker-list button').filter({hasText:'同名玩家'})).toHaveCount(2);
+  await conflictDialog.getByRole('button',{name:'稍后处理',exact:true}).click();
   const rejected=await commit('2026-10-17',[{...row('冲突别名'),player_id:people[0].player_id,identity_confirmed:false}]);expect(rejected.status).toBe(409);
   // Wrong mapping corrected by revoking only that alias, without touching snapshots.
   const aliases=await (await rest(`club_player_aliases?alias_name=eq.冲突别名&player_id=eq.${people[1].player_id}`,access)).json();

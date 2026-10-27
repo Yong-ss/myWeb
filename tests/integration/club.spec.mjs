@@ -18,21 +18,28 @@ async function login(page,role='owner',allowed=true) {
 }
 async function preview(page,date,{isNew=false,upload=false}={}) {
   await page.goto('/import'); await page.waitForLoadState('networkidle');
-  await page.getByLabel('实际截图日期（可补录）',{exact:true}).fill(date);
+  await page.getByLabel('截图日期',{exact:true}).fill(date);
   const raw=JSON.stringify({schema_version:1,snapshot_date:null,is_complete_roster:false,members:[{...member,name:isNew?'管理员新增测试玩家':member.name}]});
-  if(upload) await page.getByLabel('上传 .json（最大 128 KiB）',{exact:true}).setInputFiles({name:'real-local.json',mimeType:'application/json',buffer:Buffer.from(raw)});
-  else await page.getByLabel('JSON 原文',{exact:true}).fill(raw);
-  await page.getByRole('button',{name:'校验并准备预览',exact:true}).click();
-  await expect(page.getByRole('heading',{name:`${date} · 核对 1 条记录`})).toBeVisible();
-  if(await page.getByLabel('第 1 行玩家身份',{exact:true}).isHidden()) await page.getByText(/查看或手动修正已匹配/).click();
-  await page.getByLabel('第 1 行玩家身份',{exact:true}).selectOption(isNew?'new':playerId);
-  if(await page.getByLabel('第 1 行等级',{exact:true}).isHidden()) {
-    const details=page.getByText(/查看或手动修正已匹配/).locator('..');
-    if(await details.getAttribute('open') === null) await page.getByText(/查看或手动修正已匹配/).click();
-    await page.getByText('修正第 1 行数据',{exact:true}).click();
+  if(upload) {await page.getByRole('button',{name:'上传文件',exact:true}).click();await page.getByLabel('JSON 文件',{exact:true}).setInputFiles({name:'real-local.json',mimeType:'application/json',buffer:Buffer.from(raw)});}
+  else await page.getByLabel('JSON 内容',{exact:true}).fill(raw);
+  await page.getByRole('button',{name:'下一步',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'核对成员',exact:true})).toBeVisible();
+  if(isNew) {
+    await page.locator('.identity-launcher').first().click();
+    const dialog=page.getByRole('dialog',{name:'这是新玩家，还是已有玩家？'});
+    await dialog.getByRole('button',{name:'新增玩家',exact:true}).click();
+    await dialog.getByText('修改识别数据',{exact:true}).click();
+    await dialog.getByLabel('等级',{exact:true}).fill('');
+    await dialog.getByRole('button',{name:'确认',exact:true}).click();
+  } else {
+    await page.locator('.matched-list > summary').click();
+    const item=page.locator('.matched-list .identity-compact').first();
+    await item.locator(':scope > summary').click();
+    await item.getByText('更多操作',{exact:true}).click();
+    await item.getByText('修正第 1 行数据',{exact:true}).click();
+    await item.getByLabel('第 1 行等级',{exact:true}).fill('');
   }
-  await page.getByLabel('第 1 行等级',{exact:true}).fill('');
-  await page.getByRole('button',{name:'生成最终预览',exact:true}).click();
+  await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await page.getByRole('checkbox',{name:confirmation}).check();
   return raw;
 }
