@@ -30,6 +30,15 @@ This is a long-term project. Keep changes simple, secure, maintainable and propo
 - SQL fixtures must use `pnpm test:db` against disposable local/CI PostgreSQL only. Never run the SQL fixtures against the production Supabase project, even with a rollback.
 - Authentication, database and important Club flows also require `pnpm test:integration`, which starts its own local Supabase/HTTPS Worker and synthetic data. Simple styling changes retain the fast tests. Never link this test stack to a hosted project or substitute production URLs/keys.
 
+### Testing and Delivery Efficiency
+- Batch related code, migration, and test changes before expensive verification.
+- Run fast, relevant checks first; run real integration tests once changes are reasonably stable.
+- If a test fails, diagnose and fix the cause, then rerun focused tests before repeating the full suite.
+- Reuse running test environments when safe; avoid unnecessary rebuilds and repeated setup/cleanup.
+- Finalize migration filenames before applying them to production; never rename an already applied migration.
+- Avoid triggering redundant CI runs solely for documentation or metadata changes when no relevant code or configuration changed.
+- Never skip necessary security, database, or regression checks to save time.
+
 These guidelines are defaults, not rigid rules. Suggest better approaches when justified, and explain the tradeoffs.
 
 <!-- CODEGRAPH_START -->
