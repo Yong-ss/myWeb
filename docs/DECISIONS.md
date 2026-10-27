@@ -1,5 +1,12 @@
 # SquirrelAPI — Decision Log
 
+## Automatic production delivery — 2026-10-27
+
+- D-031 Confirmed: user requested GitHub Actions to deploy automatically after tests pass, superseding the manual-only publishing policy for main-branch application changes.
+- Extend the existing job without another install/build or service: successful `push` to `main` deploys only affected apps, using the exact built assets from that run. PRs, tags, manual test runs, failed/cancelled checks and documentation-only changes do not deploy.
+- Use repository Secret `CLOUDFLARE_API_TOKEN` and Variable `CLOUDFLARE_ACCOUNT_ID`; credentials are supplied only to main-branch deployment steps. No OAuth refresh token, database admin credential or secret is stored in source.
+- Production SQL remains manual. Club deployment requires repository Variable `CLUB_SCHEMA_VERSION` to match the latest migration filename, and maintainers update this marker only after applying that migration successfully. The existing verified production version is `20261027101032`. Pending schema changes therefore stop the release rather than silently deploying an incompatible client.
+
 ## Club B identity matching — 2026-10-27
 
 - D-030 Confirmed: user authorized first-time bulk identity confirmation, subsequent unique exact/confirmed-alias auto matching, explicit ambiguous/new-player decisions, revocable aliases and anomaly warnings; no ML/API fees or stage C expansion.

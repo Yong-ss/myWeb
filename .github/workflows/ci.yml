@@ -1,4 +1,4 @@
-name: Tests
+name: Tests and Deploy
 
 on:
   push:
@@ -111,6 +111,37 @@ jobs:
           if command -v supabase >/dev/null 2>&1; then
             supabase stop --project-id squirrelapi-club-integration --no-backup
           fi
+      - name: Validate production deployment configuration
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && (steps.scope.outputs.web == 'true' || steps.scope.outputs.club == 'true')
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLUB_SCHEMA_VERSION: ${{ vars.CLUB_SCHEMA_VERSION }}
+          DEPLOY_CLUB: ${{ steps.scope.outputs.club }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo '::error::Configure CLOUDFLARE_API_TOKEN in repository Secrets and CLOUDFLARE_ACCOUNT_ID in repository Variables before deployment.'
+            exit 1
+          fi
+          if [ "$DEPLOY_CLUB" = "true" ]; then
+            expected=$(node -e "const fs=require('node:fs'); console.log(fs.readdirSync('supabase/migrations').filter(f=>/^\d{14}_.*\.sql$/.test(f)).sort().at(-1).slice(0,14))")
+            if [ "$CLUB_SCHEMA_VERSION" != "$expected" ]; then
+              echo '::error::Production database migrations require manual application first. Update CLUB_SCHEMA_VERSION only after the production migration succeeds, then rerun this workflow.'
+              exit 1
+            fi
+          fi
+      - name: Deploy main site to squirrelapi.org
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.scope.outputs.web == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @squirrelapi/web exec wrangler deploy --config wrangler.production.jsonc
+      - name: Deploy Club to club.squirrelapi.org
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.scope.outputs.club == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @squirrelapi/club exec wrangler deploy --config wrangler.jsonc
       - name: Failure traces and screenshots only
         if: failure()
         uses: actions/upload-artifact@v4

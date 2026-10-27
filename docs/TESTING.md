@@ -1,5 +1,13 @@
 # 自动化测试
 
+## 测试通过后自动上线
+
+Push 到 `main` 后，现有相关检查全部成功，才自动发布受改动影响的应用：Club → `club.squirrelapi.org`，主站 → `squirrelapi.org`。复用当前构建，不重复安装／构建。PR、标签、手动测试、纯文档改动和失败的检查不发布；没有新增付费服务。
+
+一次性在 GitHub 仓库 Settings → Secrets and variables → Actions 配置：Secret `CLOUDFLARE_API_TOKEN`；Variables `CLOUDFLARE_ACCOUNT_ID`、`CLUB_SCHEMA_VERSION`。API Token 仅授予当前账户的 Workers 发布权限及 `squirrelapi.org` 的路由管理／读取权限，不能使用 Supabase 管理密钥或把 Token 写进仓库。[Cloudflare 官方配置说明](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
+
+数据库迁移仍单独人工执行；生产迁移成功后，将 `CLUB_SCHEMA_VERSION` 更新为已应用的最新迁移文件编号，再重跑该次 main Push 的工作流。版本不一致或缺少部署凭据时明确报错并停止发布。仅点“Run workflow”仍只执行测试，不发布。
+
 ## 日常命令
 
 Windows 每个新终端先运行 `. ./scripts/env.ps1`，将缓存和临时文件放在 Global_Env 或工作区。
