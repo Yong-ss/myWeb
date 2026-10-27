@@ -1,0 +1,15 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #21392d; background: #f5f5ee; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.shell { width: min(100% - 40px, 640px); margin: 12vh auto; }
+.brand { display: inline-block; font-weight: 700; letter-spacing: .04em; }
+h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.2; }
+p { line-height: 1.8; }
+a { color: #28563e; text-underline-offset: 4px; }
+.auth-form { display: grid; gap: 12px; max-width: 420px; margin-top: 28px; }
+input { font: inherit; padding: 12px; border: 1px solid #8d9b8e; border-radius: 8px; background: white; min-width: 0; }
+.button { display: inline-block; font: inherit; padding: 12px 20px; border: 0; border-radius: 8px; background: #28563e; color: white; text-decoration: none; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+:focus-visible { outline: 3px solid #ac651a; outline-offset: 3px; }
+[role="alert"] { color: #a32f21; }
+.auth-note { font-size: .9rem; }

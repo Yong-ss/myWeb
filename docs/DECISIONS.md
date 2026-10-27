@@ -1,5 +1,13 @@
 # SquirrelAPI — Decision Log
 
+## Club safety foundation — 2026-10-27
+
+- D-022 Confirmed: independent `apps/club` and Worker, existing Supabase project/Auth, isolated host-only sessions; main-site login remains unchanged.
+- D-023 Confirmed: revision history for same-day corrections, explicit human identity confirmation, no automatic Super Admin access to other clubs' business data.
+- D-024 Confirmed: initial delivery target A–C, but only stage A authorized now; stages B/C need a follow-up instruction and D/E remain deferred. First club only; no invitation system.
+- D-025 Confirmed: after local checks, direct deployment to `club.squirrelapi.org` is authorized for this delivery; RM0, no paid service or automatic deployment.
+- Implementation: no client business writes in stage A. Use active per-club membership for SELECT RLS, composite tenant foreign keys, explicit owner bootstrap and no privileged browser/server runtime key. Management APIs are deferred, so platform administration cannot bypass business RLS.
+
 ## Direct production updates — 2026-10-27
 - D-021 Confirmed: user verified preview login, session persistence and logout, and authorized rollout to squirrelapi.org.
 - While the owner is the only user, routine changes may deploy directly to production after appropriate checks; supersedes D-020's mandatory preview-first workflow. Keep preview available but optional. Paid services, destructive changes and material new access still require separate authorization.

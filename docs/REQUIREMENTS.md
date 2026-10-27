@@ -1,5 +1,8 @@
 # SquirrelAPI — Requirements (Draft v0.1)
 
+## Club implementation authorization — 2026-10-27
+The owner approved the architecture and Club stage A implementation/deployment. `docs/CLUB_REQUIREMENTS.md` records the scope: independent app and Worker, existing Supabase Auth with isolated sessions, database constraints/RLS, only the owner's first club. A–C remain the first-version target; B/C are not part of this delivery, and D/E are deferred. Main-site authentication is unchanged. Direct deployment to `club.squirrelapi.org` after checks is authorized; no paid services.
+
 ## Deployment workflow update — 2026-10-27
 The owner confirmed preview login/session/logout works and authorized production rollout. While only the owner uses the site, ordinary updates can publish directly to the main domain after appropriate checks, without mandatory preview deployment. This supersedes the preview-first requirement below; RM0 and minimal feature scope remain.
 

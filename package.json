@@ -5,6 +5,10 @@
   "engines": { "node": ">=24 <25" },
   "scripts": {
     "dev": "pnpm --filter @squirrelapi/web dev",
+    "club:dev": "pnpm --filter @squirrelapi/club dev",
+    "club:preview": "pnpm --filter @squirrelapi/club preview",
+    "club:check": "pnpm --filter @squirrelapi/club lint && pnpm --filter @squirrelapi/club typecheck && pnpm --filter @squirrelapi/club test && pnpm --filter @squirrelapi/club build && pnpm --filter @squirrelapi/club deploy:check",
+    "club:deploy": "pnpm --filter @squirrelapi/club build && pnpm --filter @squirrelapi/club deploy:production",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",

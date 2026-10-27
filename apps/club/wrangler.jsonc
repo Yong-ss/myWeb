@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "squirrelapi-club",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": false,
+  "preview_urls": false,
+  "main": "worker/index.ts",
+  "vars": {
+    "SUPABASE_URL": "https://lnwifbsjfwchshtxyzcu.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_qnVqGW26QAL1MALnz0xu7w_Sz9sc1nU",
+    "CLUB_ID": "ce0c7103-1cdf-4b08-8619-f71d4915f598"
+  },
+  "routes": [{ "pattern": "club.squirrelapi.org", "custom_domain": true }],
+  "assets": {
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  }
+}

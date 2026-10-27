@@ -1,5 +1,15 @@
 # SquirrelAPI — Architecture
 
+## Club stage A — 2026-10-27
+
+`apps/club` is an independent Next.js static export and Cloudflare Worker (`squirrelapi-club`, planned domain `club.squirrelapi.org`). It reuses the pinned web toolchain without new libraries. Only `/api/login`, `/api/account`, `/api/logout` exist. Club uses the same Supabase Auth project, but separate `__Host-club_access` / `__Host-club_refresh` HttpOnly, Secure, SameSite=Strict host-only cookies. Local session verification requires HTTPS. Main-site code and Auth settings are unchanged.
+
+Every account request verifies the Auth user then queries their current active `club_memberships` row using their access token and the configured `CLUB_ID`. Revocation applies without waiting for token expiry. There is no Super Admin business-data bypass, service-role key, registration UI, invitation flow or business API.
+
+Seven `public.club_*` tables use explicit SELECT grants for authenticated users, RLS based on current active membership and composite tenant foreign keys. All client writes are revoked; stage B must add narrowly authorized transactional import operations and corresponding checks. Snapshots have daily revisions and one current version per club/date. Existing owner initialization is explicit, not first-user claiming. Audit entries and historical rows have no client update/delete grants.
+
+Migration history lives in `supabase/migrations/`; rollback-only permission tests live in `supabase/tests/`. No local Postgres runtime was installed: database DDL and RLS are verified in rollback-only transactions against the existing Supabase project before and after migration. Game timezone remains unset pending confirmation. A security scan still reports the pre-existing disabled leaked-password protection setting; Auth configuration is not changed.
+
 ## Phase 2 — 2026-10-27 (supersedes current phase 1 boundaries below)
 Next.js still exports static pages. A small apps/web/worker/index.ts handles only /api/login, /api/account and /api/logout, calling Supabase Auth directly without a new SDK. Cloudflare assets serve all other paths. Account HTML is a public shell; private account data comes only from the server-verified API. HttpOnly, Secure (HTTPS), SameSite=Strict host-only cookies carry sessions; POST requires same-origin JSON. The Worker checks the confirmed user against OWNER_USER_ID; API responses use no-store. No service-role key or business tables.
 
