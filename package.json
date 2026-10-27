@@ -2,8 +2,15 @@
   "name": "squirrelapi",
   "private": true,
   "packageManager": "pnpm@12.15.0",
-  "engines": { "node": ">=24 <25" },
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
+    "test:unit": "node --test tests/*.test.mjs apps/web/worker/*.test.mjs apps/club/worker/*.test.mjs apps/club/src/lib/*.test.mjs",
+    "test:db": "node scripts/test-db.mjs",
+    "test:e2e": "node --import ./tests/runtime-env.mjs ./node_modules/@playwright/test/cli.js test",
+    "test:affected": "node scripts/ci-scope.mjs --run",
+    "test:full": "pnpm check && pnpm test:unit && pnpm test:db && pnpm test:e2e",
     "dev": "pnpm --filter @squirrelapi/web dev",
     "club:dev": "pnpm --filter @squirrelapi/club dev",
     "club:preview": "pnpm --filter @squirrelapi/club preview",
@@ -17,5 +24,8 @@
     "deploy:check": "pnpm build && pnpm --filter @squirrelapi/web deploy:check",
     "deploy:preview": "pnpm build && pnpm --filter @squirrelapi/web deploy:preview",
     "deploy:production": "pnpm build && pnpm --filter @squirrelapi/web exec wrangler deploy --config wrangler.production.jsonc"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0"
   }
 }

@@ -1,5 +1,11 @@
 # SquirrelAPI — Architecture
 
+## Automated testing — 2026-10-27
+
+Node.js tests and `club:check` remain primary. Playwright runs four critical Club browser flows against localhost static assets and per-test API mocks with external requests blocked. PostgreSQL 17 in CI executes actual migrations and existing SQL suites using a minimal test Auth interface, transactions and savepoints; no production Supabase access, credentials or deployment. The local SQL runner permits only a loopback `squirrelapi_test` database and each SQL suite independently rejects other database names.
+
+GitHub Actions selects affected app checks, SQL and browser specs; shared/unknown infrastructure changes, manual full runs and release/checkpoint tags select all checks. One Linux job, ten-minute timeout, concurrency cancellation, one Chromium and failure-only traces/artifacts bound cost and output. This supersedes earlier deferred hosted-CI notes. See TESTING.md for commands and integration gaps.
+
 ## Club stage B — 2026-10-27
 
 Adds `/import`, GET `/api/import-context?date=...` and POST `/api/imports`. Shared dependency-free TypeScript validates v1 keys, types, bounds and explicit identity selections. Preview reads only authorized current-day data and identity candidates; no historical browsing or analysis interface is added. All private responses use no-store and existing session/membership checks; POST remains same-origin JSON. Club ID comes from server configuration.

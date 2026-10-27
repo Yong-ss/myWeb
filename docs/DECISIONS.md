@@ -1,5 +1,11 @@
 # SquirrelAPI — Decision Log
 
+## Automated testing — 2026-10-27
+
+- D-027 Confirmed: owner requested testing infrastructure before C/D/E, with existing Node.js/SQL/club:check preserved, targeted CI, modest Playwright coverage, no production test writes, no deployment or paid services.
+- D-028 Implementation: use a disposable CI PostgreSQL 17 service and guarded SQL runner; browser API mocks plus existing Worker tests avoid real accounts and production traffic. Full Supabase Auth/REST/browser integration remains deferred until a complete isolated stack exists.
+- C/D/E must add valuable tests, run related checks routinely, regress at important stage/release checkpoints and run the complete suite after A–E. Computer Use is reserved for visual or automation gaps; no forced TDD or coverage percentage.
+
 ## Club import implementation — 2026-10-27
 
 - D-026 Confirmed: user instructed continuation after stage A delivery; implement B only, keeping C/D/E deferred. Follow the existing owner-only direct-production workflow after appropriate checks.

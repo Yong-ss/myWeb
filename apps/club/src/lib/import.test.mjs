@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSource, validateRows, matchName, mergePreview } from './import.ts';
+import { parseSource, validateRows, matchName, mergePreview, validDate, MAX_SOURCE_BYTES } from './import.ts';
+import { readFileSync } from 'node:fs';
+import { extractionPrompt } from './prompt.ts';
 
 const member = { name: '玩家甲', position: null, level: 70, pathway: null, extraordinary_score: 100, prosperity: null, weekly_activity: 0, group: null, join_days: null };
 const source = members => JSON.stringify({ members, is_complete_roster: false, snapshot_date: null, schema_version: 1 });
@@ -28,4 +30,17 @@ test('merge retains unsubmitted players but explicit null replaces an old value'
   assert.equal(merged.length, 2);
   assert.equal(merged.find(r => r.player_id === 'a').level, null);
   assert.equal(mergePreview(prior, next, 'replace').length, 1);
+});
+test('source limits and calendar dates reject truncated or impossible imports', () => {
+  assert.throws(() => parseSource(' '.repeat(MAX_SOURCE_BYTES+1)));
+  assert.throws(() => parseSource(source(Array.from({length:201},()=>member))));
+  for (const date of ['2026-02-30','2025-02-29','2026-13-01','1999-12-31',null]) assert.equal(validDate(date),false);
+  assert.equal(validDate('2024-02-29'),true);
+  assert.throws(() => parseSource(source([{...member,extraordinary_score:Number.MAX_SAFE_INTEGER+1}])));
+});
+test('the copied AI prompt stays exactly aligned with the approved requirement', () => {
+  const doc=readFileSync(new URL('../../../../docs/CLUB_REQUIREMENTS.md',import.meta.url),'utf8');
+  const section=doc.split(/^## 4\..*$/m)[1].split(/^## 5\./m)[0];
+  const expected=section.split(/\r?\n/).filter(line=>line.startsWith('>')).map(line=>line.replace(/^> ?/,'')).join('\n');
+  assert.equal(extractionPrompt,expected);
 });

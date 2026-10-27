@@ -1,0 +1,108 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*', 'checkpoint-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run the full regression suite
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: squirrelapi_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only-local
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d squirrelapi_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      WRANGLER_SEND_METRICS: 'false'
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.test-runtime/cache/playwright
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Select affected checks
+        id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          FULL_REGRESSION: ${{ (github.event_name == 'workflow_dispatch' && inputs.full) || startsWith(github.ref, 'refs/tags/') }}
+        run: node scripts/ci-scope.mjs
+      - name: Verify selection and safety rules
+        run: node --test tests/*.test.mjs
+      - uses: pnpm/action-setup@v4
+        if: steps.scope.outputs.web == 'true' || steps.scope.outputs.club == 'true'
+        with:
+          run_install: false
+      - uses: actions/cache@v4
+        if: steps.scope.outputs.web == 'true' || steps.scope.outputs.club == 'true'
+        with:
+          path: .test-runtime/cache/pnpm
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install locked dependencies
+        if: steps.scope.outputs.web == 'true' || steps.scope.outputs.club == 'true'
+        run: pnpm install --frozen-lockfile --store-dir .test-runtime/cache/pnpm
+      - name: Main site checks
+        if: steps.scope.outputs.web == 'true'
+        run: |
+          pnpm --filter @squirrelapi/web lint
+          pnpm --filter @squirrelapi/web typecheck
+          node --test apps/web/worker/auth.test.mjs
+          pnpm --filter @squirrelapi/web build
+      - name: Club checks
+        if: steps.scope.outputs.club == 'true'
+        run: pnpm club:check
+      - name: Isolated PostgreSQL migrations and RLS
+        if: steps.scope.outputs.db == 'true'
+        run: pnpm test:db
+      - uses: actions/cache@v4
+        if: steps.scope.outputs.e2e != 'none'
+        with:
+          path: .test-runtime/cache/playwright
+          key: chromium-shell-${{ runner.os }}-playwright-1.64.0
+      - name: Install Chromium only
+        if: steps.scope.outputs.e2e != 'none'
+        run: node --import ./tests/runtime-env.mjs ./node_modules/@playwright/test/cli.js install --with-deps --only-shell chromium
+      - name: Critical browser flows
+        if: steps.scope.outputs.e2e != 'none'
+        env:
+          E2E_SCOPE: ${{ steps.scope.outputs.e2e }}
+        run: |
+          if [ "$E2E_SCOPE" = "all" ]; then
+            pnpm test:e2e
+          else
+            pnpm test:e2e "$E2E_SCOPE.spec.mjs"
+          fi
+      - name: Failure traces and screenshots only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-${{ github.run_id }}
+          path: .test-artifacts/playwright/
+          if-no-files-found: ignore
+          retention-days: 3

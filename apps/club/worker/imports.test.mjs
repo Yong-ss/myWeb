@@ -39,3 +39,8 @@ test('context uses tenant filters, preserves null and rejects truncated players'
   const tooMany=await handleImport(req,club,async path=>Response.json([],{headers:path.startsWith('club_players?')?{'Content-Range':'0-999/1001'}:{}}));
   assert.equal(tooMany.status,413);
 });
+test('oversized bodies and invalid date never reach the database',async()=>{
+  const never=()=>{throw Error('database must not be called');};
+  assert.equal((await handleImport(request({...payload,raw_text:'x'.repeat(525000)}),club,never)).status,413);
+  assert.equal((await handleImport(new Request('https://club.example/api/import-context?date=2026-02-30'),club,never)).status,400);
+});

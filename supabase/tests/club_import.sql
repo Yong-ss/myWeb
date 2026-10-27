@@ -1,4 +1,5 @@
--- Always execute inside BEGIN / ROLLBACK, never persist test players.
+-- Run only through pnpm test:db on disposable PostgreSQL, never a linked project.
+do $$ begin if current_database() <> 'squirrelapi_test' then raise exception 'Isolated test database required'; end if; end $$;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','d0ddb226-a10a-471c-be4b-d5e5153bd313',true);
 do $$

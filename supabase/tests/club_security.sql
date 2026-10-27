@@ -1,4 +1,5 @@
--- Run within a transaction and ROLLBACK. Fixture IDs must never persist.
+-- Run only through pnpm test:db on disposable PostgreSQL, never a linked project.
+do $$ begin if current_database() <> 'squirrelapi_test' then raise exception 'Isolated test database required'; end if; end $$;
 insert into public.club_clubs(id,name) values ('00000000-0000-4000-8000-000000000001','RLS fixture');
 insert into public.club_players(id,club_id,display_name) values
  ('00000000-0000-4000-8000-000000000002','ce0c7103-1cdf-4b08-8619-f71d4915f598','same name'),

@@ -25,6 +25,9 @@ This is a long-term project. Keep changes simple, secure, maintainable and propo
 - Add focused tests for new features and critical bug fixes. Do not enforce TDD or unnecessary test coverage.
 - Never run tests that modify production data. Use isolated test environments.
 - Keep test reports concise; inspect detailed logs only when tests fail.
+- During C/D/E, add focused tests for each completed feature and use `pnpm test:affected` for routine verification. Run `pnpm test:full` (or the manual full CI run) at significant stage checkpoints and before important releases; run the complete suite after A–E are finished.
+- Browser regression uses Playwright by default. Reserve Computer Use for visual issues or gaps automation cannot cover; do not repeatedly click through flows already tested automatically.
+- SQL automation must use `pnpm test:db` against disposable local/CI PostgreSQL only. Never run the SQL fixtures against the production Supabase project, even with a rollback.
 
 These guidelines are defaults, not rigid rules. Suggest better approaches when justified, and explain the tradeoffs.
 
