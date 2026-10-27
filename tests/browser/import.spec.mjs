@@ -40,5 +40,5 @@ test('invalid JSON and stale previews cannot silently publish a new version',asy
   await page.getByRole('checkbox',{name:/我已核对名单/}).check();
   await page.getByRole('button',{name:'确认导入',exact:true}).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('同日数据已变化');
-  await expect(page.getByRole('status')).not.toContainText('已保存');
+  await expect(page.getByRole('status',{includeHidden:true})).not.toContainText('已保存');
 });
