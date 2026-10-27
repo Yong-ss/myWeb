@@ -4,7 +4,7 @@ export default function Home() {
       <a className="skip-link" href="#main">跳到主要内容</a>
       <header className="site-header shell">
         <Link className="brand" href="/" aria-label="SquirrelAPI 首页"><span className="brand-mark" aria-hidden="true">S</span>SquirrelAPI</Link>
-        <nav aria-label="主导航"><a href="#apps">应用</a><a href="#about">关于</a></nav>
+        <nav aria-label="主导航"><a href="#apps">应用</a><a href="#about">关于</a><Link href="/account">账户</Link></nav>
       </header>
       <main id="main" className="shell">
         <section className="hero" aria-labelledby="hero-title">

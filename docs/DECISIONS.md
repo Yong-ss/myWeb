@@ -1,4 +1,14 @@
 # SquirrelAPI — Decision Log
+
+## Direct production updates — 2026-10-27
+- D-021 Confirmed: user verified preview login, session persistence and logout, and authorized rollout to squirrelapi.org.
+- While the owner is the only user, routine changes may deploy directly to production after appropriate checks; supersedes D-020's mandatory preview-first workflow. Keep preview available but optional. Paid services, destructive changes and material new access still require separate authorization.
+
+## Owner login — 2026-10-27
+- D-018 Confirmed: owner-only email/password login using the existing myWeb's Project, no business features yet; supersedes D-015 for minimal authentication only.
+- D-019 Implementation: static Next.js plus a small Cloudflare Worker Auth API, no full Next.js server adapter or additional dependency. Store tokens in HttpOnly host-only cookies and enforce owner ID on the server.
+- D-020 Preview first: use the existing free Supabase project, disable signup while preserving global email confirmation; production rollout and password recovery verification are still pending. No business tables, Admin or cross-subdomain session framework.
+
 Updated: 2026-10-26.
 
 | ID | Status | Decision | Rationale / constraint |

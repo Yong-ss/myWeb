@@ -1,5 +1,17 @@
 # SquirrelAPI
 
+## 个人登录（2026-10-27）
+
+主站接入 `/login`、`/account` 和登录/退出接口，仅允许已配置的本人账户。用户已确认测试站登录、刷新和退出正常，并授权发布正式域名；目前只有本人使用，后续普通更新可检查后直接发布主站，无需先发测试站。
+
+本地完整验证：先 `. ./scripts/env.ps1`，再 `pnpm build`、`pnpm preview`，访问 http://127.0.0.1:8787/login。仅 `pnpm dev` 不运行 Worker 登录接口。
+本地需在 `apps/web/.dev.vars` 设置 `OWNER_USER_ID="你的 Supabase 用户 ID"`（已忽略，不提交）；URL 和公开 publishable key 在测试配置中，禁止放 service-role key 或密码。
+
+权限测试：`node --test apps/web/worker/auth.test.mjs`。预览发布：`pnpm deploy:preview`。首次需为测试 Worker 配置 `OWNER_USER_ID`。
+用户已确认测试站实际登录、刷新保持登录和退出正常。正式发布使用 `pnpm deploy:production`，正式 Worker 也需配置 `OWNER_USER_ID`。正式站和测试站不共享浏览器登录状态，首次需要重新登录。密码恢复仍未实现或验证。
+
+正式发布记录：2026-10-27，版本 `e2e44250-0fb9-41aa-b272-5d0c4f29e6d3`。构建和正式配置 dry-run 通过；首页、登录页、账户页外壳为 200，无登录账户接口 401 且 no-store，跨来源登录 403，空登录输入 400，不存在页面 404。正式域名实际密码登录尚未由用户验证。
+
 第一阶段：pnpm Monorepo + Next.js 静态主站，没有登录、Admin、数据库或其他应用。
 
 ## 本地运行

@@ -1,4 +1,12 @@
 # SquirrelAPI — Architecture
+
+## Phase 2 — 2026-10-27 (supersedes current phase 1 boundaries below)
+Next.js still exports static pages. A small apps/web/worker/index.ts handles only /api/login, /api/account and /api/logout, calling Supabase Auth directly without a new SDK. Cloudflare assets serve all other paths. Account HTML is a public shell; private account data comes only from the server-verified API. HttpOnly, Secure (HTTPS), SameSite=Strict host-only cookies carry sessions; POST requires same-origin JSON. The Worker checks the confirmed user against OWNER_USER_ID; API responses use no-store. No service-role key or business tables.
+
+Preview and production use the existing free Supabase project, so Auth accounts/settings are shared, not isolated test data. Host-only cookies do not share login between preview and production. Both Worker configurations include the Auth API with their own OWNER_USER_ID setting. The user verified preview login/session/logout and approved production rollout. While only the owner uses the site, routine updates may publish directly to production after relevant checks; preview is optional.
+
+Auth requests now consume Workers Free dynamic request/CPU quotas; assets remain static. No paid bindings. Password recovery by email has not been implemented or verified; default Supabase email is not a production delivery guarantee. Logout clears cookies and revokes refresh access; an already issued access token can remain valid until expiry. Cross-app sessions, Admin and business permissions remain deferred.
+
 Updated: 2026-10-26. Phase 1 confirmed by user.
 
 ## Current architecture

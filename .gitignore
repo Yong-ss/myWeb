@@ -4,5 +4,6 @@ out/
 .wrangler/
 *.tsbuildinfo
 .env*
+.dev.vars*
 !.env.example
 temp_work/

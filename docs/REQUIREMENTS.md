@@ -1,4 +1,11 @@
 # SquirrelAPI — Requirements (Draft v0.1)
+
+## Deployment workflow update — 2026-10-27
+The owner confirmed preview login/session/logout works and authorized production rollout. While only the owner uses the site, ordinary updates can publish directly to the main domain after appropriate checks, without mandatory preview deployment. This supersedes the preview-first requirement below; RM0 and minimal feature scope remain.
+
+## Confirmed phase 2 scope — 2026-10-27
+Only the owner currently uses the site, with email/password. Add login, session continuity and logout; no first business feature, Admin, invitation UI or business tables. Use the existing myWeb's Project. Public signup is disabled; server access requires the configured confirmed owner ID. Validate preview before a separately approved production release. This supersedes phase 1's no-auth/backend restriction only.
+
 Date: 2026-10-26. Status: evolving draft, not final specification.
 
 ## Vision
