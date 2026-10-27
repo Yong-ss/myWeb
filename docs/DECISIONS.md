@@ -84,3 +84,6 @@ The user accepted the static-first proposal and authorized implementation.
 - D-017 Confirmed: user explicitly authorized binding squirrelapi.org; supersedes the domain restriction in D-016 and the initial phase 1 scope.
 - Separate production Worker squirrelapi-web from squirrelapi-web-preview using the same static app and a dedicated Wrangler configuration; no new application or dependencies.
 - Publish manually with deploy:production; preview publishing does not update production. No www binding, paid upgrade or Supabase project. Keep noindex until indexing is separately decided.
+
+## Club 唯一视觉基准 — 2026-10-27（已确认）
+用户确定 Dark Victorian Occult Dashboard 为 Club 长期唯一设计语言；以 docs/club-design-system.md、仓库保存的原始参考稿和统一 Tokens 为依据。当前先建立规范和持久指令，不立即重做页面；后续渐进迁移，不改变业务／权限／数据库，不修改 apps/web。此前正式发布授权不用于此次改版，部署须另获授权。
