@@ -75,3 +75,9 @@ Dynamic hosting compatibility/CPU costs, auth, email, backups and cross-app sess
 `GET /api/members` keeps the existing verified-session / active Owner/Admin guard and configured club scope. The roster adds last observed data per historical player using a bounded `club_players -> club_snapshot_players -> club_snapshots` embedding (`last.limit=1`, order by the to-one snapshot date), then compares last-seen date with the latest confirmed complete roster. The selected daily revision overrides completeness for its own day; later snapshots never affect a past view. Current snapshot values and prior-day current versions are the source of truth, with no persistence of inferred presence.
 
 The same endpoint accepts a UUID `player` and optional cutoff `date` for the player archive. Current daily snapshots are paged in chronological order and left-embed that player's row, preserving missing complete days for departure/rejoin reconstruction. `presence.ts` owns pure state transitions and null-safe deltas. All queries include server-selected club scope and use the user's JWT with existing RLS, without a service key or schema migration. Bounds fail explicitly rather than silently truncating. See [PostgREST embedding and related ordering](https://docs.postgrest.org/en/stable/references/api/resource_embedding.html).
+
+## Club 名称设置 — 2026-10-28
+GET/POST /api/club-settings 复用现有认证、同源限制与服务端 CLUB_ID。GET 返回名称及 can_edit；POST 仅有效 Owner 可调用 migration 20261028021000_club_name_settings.sql 的 club_rename RPC。数据库再次验证邮箱与 Owner，锁定俱乐部、比较 expected_name、只更新名称并记录 club_renamed 审计；直接表写入仍禁止。前端不使用本地存储冒充持久化。此 migration 尚未应用正式库。
+
+## Club 读取性能基础 — 2026-10-28
+统一内存数据入口、实时权限门、30 秒结果 TTL／后台刷新及写后跨标签失效；Worker 输出安全分段计时，名单独立读取并行且移除未使用精确计数。个人历史分页通过 SECURITY INVOKER club_history_page RPC，100 天上限和日期游标，页边界带可信数据库上下文。详见 PERFORMANCE.md；主站认证保持独立，未增加依赖。新增 20261028040000_club_history_read.sql 尚未应用正式库。

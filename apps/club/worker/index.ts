@@ -1,5 +1,7 @@
 import { handleImport } from "./imports.ts";
+import {handleSettings} from "./settings.ts";
 import { handleMembers } from "./members.ts";
+import {instrument} from "./timing.ts";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -34,10 +36,14 @@ function setSession(response: Response, request: Request, session?: Session) {
 }
 
 export async function handleRequest(request: Request, env: Env, fetcher: typeof fetch = fetch): Promise<Response> {
+  const metrics=instrument(fetcher);
+  return metrics.finish(await serve(request,env,metrics.fetcher));
+}
+async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise<Response> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
-  if (!["/api/login", "/api/account", "/api/logout", "/api/import-context", "/api/imports", "/api/player-aliases", "/api/members"].includes(url.pathname)) return reply({ error: "接口不存在" }, 404);
-  const expectedMethod = ["/api/account", "/api/import-context", "/api/members"].includes(url.pathname) ? "GET" : "POST";
+  if (!["/api/login", "/api/account", "/api/logout", "/api/import-context", "/api/imports", "/api/player-aliases", "/api/members", "/api/club-settings"].includes(url.pathname)) return reply({ error: "接口不存在" }, 404);
+  const expectedMethod = url.pathname === "/api/club-settings" ? (request.method === "GET" ? "GET" : "POST") : ["/api/account", "/api/import-context", "/api/members"].includes(url.pathname) ? "GET" : "POST";
   if (request.method !== expectedMethod) return reply({ error: "请求方式不支持" }, 405);
   if (request.method === "POST" && (request.headers.get("Origin") !== url.origin || !request.headers.get("Content-Type")?.startsWith("application/json"))) {
     return reply({ error: "请求来源无效" }, 403);
@@ -121,18 +127,20 @@ export async function handleRequest(request: Request, env: Env, fetcher: typeof 
     if (!user) return setSession(reply({ error: "请先登录" }, 401), request);
     const role = await membership(user, renewed?.access_token ?? stored["__Host-club_access"]);
     if (!role) return setSession(reply({ error: "此账户没有俱乐部访问权限" }, 403), request);
-    if (["/api/import-context", "/api/imports", "/api/player-aliases", "/api/members"].includes(url.pathname)) {
+    if (["/api/import-context", "/api/imports", "/api/player-aliases", "/api/members", "/api/club-settings"].includes(url.pathname)) {
       const token = renewed?.access_token ?? stored["__Host-club_access"];
-      const handler = url.pathname === "/api/members" ? handleMembers : handleImport;
+      const handler = url.pathname === "/api/club-settings" ? (req:Request,club:string,rest:(path:string,body?:unknown)=>Promise<Response>)=>handleSettings(req,club,role,rest) : url.pathname === "/api/members" ? handleMembers : handleImport;
       const response = await handler(request, env.CLUB_ID, (path: string, body?: unknown) => fetcher(`${env.SUPABASE_URL}/rest/v1/${path}`, {
         method: body === undefined ? "GET" : "POST",
-        headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "count=exact" },
+        headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         signal: AbortSignal.timeout(15000),
       }));
+      response.headers.set('X-Club-Scope',`${user.id}:${env.CLUB_ID}`);
       return renewed ? setSession(response, request, renewed) : response;
     }
     const response = reply({ email: user.email, club_id: env.CLUB_ID, role });
+    response.headers.set('X-Club-Scope',`${user.id}:${env.CLUB_ID}`);
     return renewed ? setSession(response, request, renewed) : response;
   } catch {
     return reply({ error: "账户服务连接失败，请稍后重试" }, 502);

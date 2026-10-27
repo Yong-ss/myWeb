@@ -1,4 +1,6 @@
 "use client";
+import {useDataRefresh} from "../../components/useDataRefresh";
+import {clubFetch} from "../../lib/data-access";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {presenceLabels, type Presence} from "../../lib/presence";
@@ -18,16 +20,18 @@ export default function MembersPage() { return <Suspense fallback={<p role="stat
 function MemberList() {
   const params=useSearchParams();
   const [dates, setDates] = useState<Snapshot[]>([]), [date, setDate] = useState(params.get("date")??""), [version, setVersion] = useState("");
+  const [loadedSelection,setLoadedSelection]=useState<string|null>(null);
   const [result, setResult] = useState<Result | null>(null), [next, setNext] = useState<string | null>(null);
   const [search, setSearch] = useState(""), [sort, setSort] = useState("name"), [descending, setDescending] = useState(false);
   const [busy, setBusy] = useState(true), [moreBusy, setMoreBusy] = useState(false), [error, setError] = useState(""), [retry, setRetry] = useState(0);
   async function read(query: string, signal?: AbortSignal): Promise<Result> {
-    const response = await fetch(`/api/members${query}`, { cache: "no-store", signal });
+    const response = await clubFetch(`/api/members${query}`, { cache: "no-store", signal });
     if ([401, 403].includes(response.status)) { window.location.replace("/login"); throw Error("请重新登录"); }
     const data = await response.json();
     if (!response.ok) throw Error(data.error ?? "读取失败，请重试");
     return data;
   }
+  useDataRefresh(()=>setRetry(n=>n+1));
   useEffect(() => {
     const controller = new AbortController();
     async function load() {
@@ -35,7 +39,7 @@ function MemberList() {
       try {
         const data = await read(date ? `?${new URLSearchParams({ date, ...(version ? { version } : {}) })}` : "", controller.signal);
         if (controller.signal.aborted) return;
-        setResult(data);
+        setResult(data);setLoadedSelection(date+"|"+version);
         if (!date) { setDates(data.snapshots); setNext(data.next); } else if(data.snapshot) { setDates(old=>old.some(s=>s.snapshot_date===data.snapshot!.snapshot_date)?old:[data.snapshot!,...old]); }
       } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "连接失败，请重试"); }
       finally { if (!controller.signal.aborted) setBusy(false); }
@@ -63,7 +67,7 @@ function MemberList() {
       {date && result && !busy && !error && <label>保存版本<Select value={version} onChange={e => setVersion(e.target.value)}><option value="">当天最新版本</option>{result.snapshots.filter(s => !s.is_current).map(s => <option key={s.id} value={s.id}>第 {s.revision} 版（旧版）</option>)}</Select></label>}
     </div>
     {error && <div role="alert" className="feedback error">{error} <Button onClick={() => setRetry(n => n + 1)}>重试</Button></div>}
-    {busy ? <p role="status" className="club-loading" aria-busy="true">正在读取名单…</p> : !error && (result?.snapshot ? <>
+    {busy && loadedSelection!==date+"|"+version ? <p role="status" className="club-loading" aria-busy="true">正在读取名单…</p> : !error && (result?.snapshot ? <>
       <div className="members-summary"><strong>{result.snapshot.snapshot_date} · {result.snapshot_count??result.members.length} 人</strong><span className="badge">{result.snapshot.is_complete_roster ? "已确认完整" : "未确认完整"}</span>{!result.snapshot.is_current && <span className="badge">旧版本 · 第 {result.snapshot.revision} 版</span>}</div>
       <p className="muted">点昵称查看个人历史；未在本次识别的玩家显示最近记录，不当作当天数据。</p>
       <div className="members-toolbar"><label>搜索玩家<Input type="search" placeholder="输入昵称" value={search} onChange={e => setSearch(e.target.value)} /></label><label>排序<Select value={sort} onChange={e => setSort(e.target.value)}>{columns.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</Select></label><Button onClick={() => setDescending(v => !v)}>{descending ? "降序 ↓" : "升序 ↑"}</Button></div>

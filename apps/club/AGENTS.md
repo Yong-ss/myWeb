@@ -40,3 +40,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## 品牌与设置
+- 俱乐部名称以数据库为准，禁止用 localStorage 预览代替保存；复用 useClubBrand 与 /api/club-settings。
+- 名称写入仅限已确认邮箱的有效 Owner，服务端与数据库双重验证，保留审计及旧值冲突保护；Admin 不可改名。
+
+## 数据读取性能
+- 新页面复用 lib/data-access.ts 与 useDataRefresh；私人缓存必须经过实时账户／权限校验，写入后失效，禁止公共缓存及独立持久化。
+- 新查询先读 docs/PERFORMANCE.md；并行独立查询，列表有界与稳定游标，避免逐行远程请求；Server-Timing 只含安全汇总。
+- 不以性能为由缓存 membership 或移除 RLS；大规模基准按需执行，不以波动毫秒数卡日常 CI。

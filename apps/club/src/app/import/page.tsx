@@ -1,4 +1,5 @@
 "use client";
+import {clubFetch} from "../../lib/data-access";
 import Link from "next/link";
 import { AppShell } from "../../components/layout/AppShell";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -70,7 +71,7 @@ export default function ImportPage() {
   function members() { return validateRows(rows.map(r => ({ ...r.member, player_id: r.identity === "new" ? null : r.identity, source_name: r.sourceName, remember_alias: r.remember, identity_confirmed: r.manual }))); }
   function choose(i: number, identity: string) { setRows(rows.map((r,j) => j === i ? { ...r, identity, manual: true, remember: false } : r)); invalidate(); }
   async function api(path: string, body?: unknown) {
-    const response = await fetch(path, { cache: "no-store", ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
+    const response = await clubFetch(path, { cache: "no-store", ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
     const data = await response.json();
     if ([401,403].includes(response.status)) { window.location.replace("/login"); throw Error("请重新登录或检查权限"); }
     if (!response.ok) throw Error(data.error ?? "请求失败，请重试");

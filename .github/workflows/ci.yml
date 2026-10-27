@@ -12,6 +12,10 @@ on:
         description: Run the full regression suite
         type: boolean
         default: true
+      performance:
+        description: Run isolated 80000-row read benchmark (no latency threshold)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,7 +55,7 @@ jobs:
         id: scope
         env:
           CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          FULL_REGRESSION: ${{ (github.event_name == 'workflow_dispatch' && inputs.full) || startsWith(github.ref, 'refs/tags/') }}
+          FULL_REGRESSION: ${{ (github.event_name == 'workflow_dispatch' && (inputs.full || inputs.performance)) || startsWith(github.ref, 'refs/tags/') }}
         run: node scripts/ci-scope.mjs
       - name: Verify selection and safety rules
         run: node --test tests/*.test.mjs
@@ -104,7 +108,16 @@ jobs:
           version: 2.120.0
       - name: Real local Supabase and Worker integration
         if: steps.scope.outputs.integration == 'true'
+        env:
+          CLUB_PERFORMANCE: ${{ github.event_name == 'workflow_dispatch' && inputs.performance && '1' || '0' }}
         run: pnpm test:integration
+      - name: Optional read benchmark report
+        if: success() && github.event_name == 'workflow_dispatch' && inputs.performance
+        uses: actions/upload-artifact@v4
+        with:
+          name: club-read-benchmark
+          path: .test-artifacts/performance.json
+          retention-days: 3
       - name: Stop dedicated integration stack
         if: always() && steps.scope.outputs.integration == 'true'
         run: |

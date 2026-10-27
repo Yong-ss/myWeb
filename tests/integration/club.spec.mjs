@@ -13,7 +13,7 @@ async function login(page,role='owner',allowed=true) {
   await page.getByLabel('邮箱',{exact:true}).fill(users[role].email);
   await page.getByLabel('密码',{exact:true}).fill(password);
   await page.getByRole('button',{name:'登录',exact:true}).click();
-  if(allowed) await expect(page.getByRole('main')).toContainText(users[role].email);
+  if(allowed) await expect(page.locator('.club-header-account')).toContainText(users[role].email);
   else await expect(page.getByRole('main').getByRole('alert')).toContainText('没有访问权限');
 }
 async function preview(page,date,{isNew=false,upload=false,score=member.extraordinary_score}={}) {
@@ -69,7 +69,7 @@ test('real owner login, secure session refresh and logout revocation',async({pag
     expect(cookie).toMatchObject({secure:true,httpOnly:true,sameSite:'Strict',domain:'127.0.0.1',path:'/'});
   }
   await context.clearCookies({name:'__Host-club_access'});
-  await page.reload(); await expect(page.getByRole('main')).toContainText(users.owner.email);
+  await page.reload(); await expect(page.locator('.club-header-account')).toContainText(users.owner.email);
   await expect.poll(async()=>Boolean((await context.cookies()).find(c=>c.name==='__Host-club_access'))).toBe(true);
   const refresh=(await context.cookies()).find(c=>c.name==='__Host-club_refresh').value;
   await page.getByRole('button',{name:'退出登录',exact:true}).click();
@@ -103,7 +103,7 @@ test('owner upload writes real data, idempotency and concurrent stale preview pr
 });
 
 test('admin imports real data but cannot appoint owners; revocation is immediate',async({page,context})=>{
-  await login(page,'admin');await expect(page.getByRole('main')).toContainText('管理员');
+  await login(page,'admin');await expect(page.locator('.club-header-account')).toContainText('管理员');
   await preview(page,'2026-10-02',{isNew:true});await submit(page);
   const access=await token(context);
   expect(await snapshots('2026-10-02',access)).toHaveLength(1);

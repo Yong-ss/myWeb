@@ -1,14 +1,18 @@
 import { fields, validDate, uuid } from "../src/lib/import.ts";
 import { absenceStatus, type SavedMember } from "../src/lib/presence.ts";
-import { playerHistory, savedFields } from "./player-history.ts";
+import { playerHistory, historyPage, savedFields } from "./player-history.ts";
 
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
-export async function handleMembers(request: Request, clubId: string, rest: (path: string) => Promise<Response>) {
+export async function handleMembers(request: Request, clubId: string, rest: (path: string, body?:unknown) => Promise<Response>) {
   const url = new URL(request.url);
   const date = url.searchParams.get("date"), before = url.searchParams.get("before"), version = url.searchParams.get("version");
   const player = url.searchParams.get("player");
   if (player !== null && !uuid.test(player)) return reply({error:"玩家编号无效"},400);
   if ((date !== null && !validDate(date)) || (before !== null && !validDate(before)) || (version !== null && (!date || !uuid.test(version)))) return reply({ error: "日期或版本无效" }, 400);
+  if (player && url.searchParams.has('paged')) {
+    if(before!==null&&!validDate(before))return reply({error:'游标无效'},400);
+    return historyPage(player,date,before,clubId,rest);
+  }
   if (player) return playerHistory(player,date,clubId,rest);
   const query = new URLSearchParams({ select: "id,snapshot_date,revision,is_complete_roster,is_current", club_id: `eq.${clubId}`, order: "snapshot_date.desc,revision.desc", limit: "101" });
   if (date) query.set("snapshot_date", `eq.${date}`);
@@ -20,14 +24,15 @@ export async function handleMembers(request: Request, clubId: string, rest: (pat
   const visible = snapshots.slice(0, 100);
   const snapshot = version ? visible.find(s => s.id === version) : visible[0];
   if (!snapshot) return version ? reply({ error: "找不到这个版本" }, 404) : reply({ snapshots: visible, snapshot: null, members: [], next: null });
-  const rows = await rest(`club_snapshot_players?${new URLSearchParams({ select: `player_id,${fields.map(f => f === "group" ? "group_name" : f).join(",")}`, club_id: `eq.${clubId}`, snapshot_id: `eq.${snapshot.id}`, order: "player_id.asc", limit: "201" })}`);
-  if (!rows.ok) return reply({ error: "暂时无法读取名单，请重试" }, 502);
-  const members = await rows.json() as SavedMember[];
-  if (members.length > 200) return reply({ error: "名单超过查询上限，请联系站点所有者" }, 413);
-  const [peopleResponse, completeResponse] = await Promise.all([
+  const rowsPromise = rest(`club_snapshot_players?${new URLSearchParams({ select: `player_id,${fields.map(f => f === "group" ? "group_name" : f).join(",")}`, club_id: `eq.${clubId}`, snapshot_id: `eq.${snapshot.id}`, order: "player_id.asc", limit: "201" })}`);
+  const [rows, peopleResponse, completeResponse] = await Promise.all([
+    rowsPromise,
     rest(`club_players?${new URLSearchParams({select:`id,last:club_snapshot_players(${savedFields},snapshot:club_snapshots!inner(snapshot_date))`,club_id:`eq.${clubId}`,order:"id.asc",limit:"1000","last.club_id":`eq.${clubId}`,"last.snapshot.is_current":"eq.true","last.snapshot.snapshot_date":`lt.${snapshot.snapshot_date}`,"last.order":"snapshot(snapshot_date).desc","last.limit":"1"})}`),
     rest(`club_snapshots?${new URLSearchParams({select:"snapshot_date",club_id:`eq.${clubId}`,is_current:"eq.true",is_complete_roster:"eq.true",snapshot_date:`lt.${snapshot.snapshot_date}`,order:"snapshot_date.desc",limit:"1"})}`),
   ]);
+  if (!rows.ok) return reply({ error: "暂时无法读取名单，请重试" }, 502);
+  const members = await rows.json() as SavedMember[];
+  if (members.length > 200) return reply({ error: "名单超过查询上限，请联系站点所有者" }, 413);
   if (!peopleResponse.ok || !completeResponse.ok) return reply({error:"暂时无法判断成员状态，请重试"},502);
   const people = await peopleResponse.json() as {id:string;last:(SavedMember & {snapshot:{snapshot_date:string}})[]}[];
   if (people.length>=1000) return reply({error:"历史玩家超过当前查询上限"},413);

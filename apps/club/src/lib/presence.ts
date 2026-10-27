@@ -6,8 +6,8 @@ export type Day = { id: string; snapshot_date: string; is_complete_roster: boole
 export const presenceLabels = { present: "在会", left: "暂时离会", unconfirmed: "本次未识别" };
 export function absenceStatus(lastSeen: string, completeDate?: string): Presence { return completeDate && completeDate > lastSeen ? "left" : "unconfirmed"; }
 export function change(now: number | null, previous: number | null) { return now === null || previous === null ? null : { amount: now - previous, percent: previous === 0 ? null : (now - previous) / previous * 100 }; }
-export function playerTimeline(days: Day[]) {
-  let status: Presence | null = null, previous: SavedMember | null = null;
+export function playerTimeline(days: Day[], seed?: {status:Presence|null;previous:SavedMember|null}) {
+  let status: Presence | null = seed?.status??null, previous: SavedMember | null = seed?.previous??null;
   return days.flatMap(day => {
     const row = day.rows[0] ?? null;
     if (!row && status === null) return [];

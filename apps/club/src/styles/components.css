@@ -190,3 +190,24 @@ body:has(.club-app) > .topbar, body:has(.club-app) > .site-footer { display: non
   .club-account-session > div { flex-basis: 100%; }
   .club-app .club-account-intro { padding: var(--club-space-8) 0; gap: var(--club-space-4); }
 }
+
+.club-header-account { display:flex;align-items:center;gap:var(--club-space-4);margin-left:auto;min-width:0; }
+.club-user-name { font-size:var(--club-text-xs);overflow-wrap:anywhere; }
+.club-user-name small { display:block;color:var(--club-text-secondary); }
+.club-stats { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--club-space-4);margin:var(--club-space-6) 0; }
+.club-stats strong { display:block;font-size:2rem;color:var(--club-gold); }
+.club-count-bar { display:flex;align-items:center;gap:var(--club-space-4);margin:var(--club-space-4) 0; }
+.club-count-bar meter { flex:1;min-width:0;accent-color:var(--club-gold); }
+.club-account > .club-panel,.club-account > .club-account-actions { margin-top:var(--club-space-6); }
+@media(max-width:767px){.club-stats{grid-template-columns:repeat(2,minmax(0,1fr));}.club-header-account{gap:var(--club-space-2);}.club-user-name{max-width:96px;}.club-app .club-top{height:auto;min-height:var(--club-header-height);flex-wrap:wrap;padding-block:var(--club-space-2);}.club-app{grid-template-rows:auto 1fr;}}
+
+
+.club-sidebar-foot a,.club-settings-link{display:block;padding:var(--club-space-3);color:var(--club-text-secondary);text-decoration:none;min-height:var(--club-touch-target);}
+.club-sidebar-foot a:hover,.club-settings-link:hover{background:var(--club-hover);color:var(--club-gold);}
+.club-count-bar meter::-webkit-meter-bar{background:var(--club-surface-elevated);border:0;}
+.club-count-bar meter::-webkit-meter-optimum-value{background:var(--club-gold);}
+@media(max-width:767px){.club-user-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.club-app .club-menu{margin-left:auto;}}
+
+.club-app .club-brand{display:grid;gap:var(--club-space-1);min-width:0;}
+.club-app .club-brand-name{font-family:var(--club-font-heading);font-size:var(--club-text-lg);line-height:1.3;overflow-wrap:anywhere;}
+.club-app .club-brand-subtitle{font-family:var(--club-font-body);font-size:var(--club-text-xs);font-weight:400;letter-spacing:.2em;color:var(--club-text-secondary);}

@@ -1,4 +1,5 @@
 "use client";
+import {clubFetch} from "../../lib/data-access";
 
 import Link from "next/link";
 import { AppShell } from "../../components/layout/AppShell";
@@ -18,7 +19,7 @@ export default function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.get("email"), password: form.get("password") }) });
+      const response = await clubFetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.get("email"), password: form.get("password") }) });
       const data = await response.json();
       if (!response.ok) setError(data.error ?? "登录失败，请重试");
       else router.replace("/account");

@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import {absenceStatus,playerTimeline,change} from './presence.ts';
 const row={player_id:'permanent',extraordinary_score:0,prosperity:null,weekly_activity:100};
 const day=(date,complete,present=true,extra={})=>({snapshot_date:date,is_complete_roster:complete,revision:1,rows:present?[{...row,...extra}]:[]});
+test('a history page preserves earlier identity, departure and change baseline',()=>{
+ const page=playerTimeline([day('2030-01-01',false,true,{extraordinary_score:25})],{status:'left',previous:{...row,extraordinary_score:20}});
+ assert.equal(page[0].event,'rejoined');assert.equal(page[0].changes.score.amount,5);
+ const absent=playerTimeline([day('2030-01-01',false,false)],{status:'left',previous:row});
+ assert.equal(absent[0].status,'left');assert.equal(absent[0].event,null);
+});
 test('only a later complete roster can prove absence; an incomplete day cannot restore a departed player',()=>{
   assert.equal(absenceStatus('2026-10-01'), 'unconfirmed');
   assert.equal(absenceStatus('2026-10-01','2026-10-01'),'unconfirmed');
