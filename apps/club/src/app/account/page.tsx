@@ -40,7 +40,7 @@ export default function AccountPage() {
   }
   return <AppShell account={email && <><span className="club-user-name">{email}<small>{role === "owner" ? "公会长" : "管理员"}</small></span><Button variant="secondary" loading={busy} loadingText="正在退出…" onClick={logout}>退出登录</Button></>}><main className="club-workspace club-account">
     <PageHeader eyebrow="OVERVIEW" title="俱乐部总览" />
-    {email ? <Overview /> : !error && <p role="status" className="club-loading">正在读取账户…</p>}
+    {!error && <Overview />}
     <p role="alert" className="feedback error">{error}</p><Link className="club-return" href="/">← 返回首页</Link>
   </main></AppShell>;
 }
