@@ -7,3 +7,4 @@ out/
 .dev.vars*
 !.env.example
 temp_work/
+.codegraph/

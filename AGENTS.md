@@ -19,4 +19,21 @@ This is a long-term project. Keep changes simple, secure, maintainable and propo
 - Summarize in simple Chinese: what changed, what was tested, and any remaining risks or decisions.
 - When an agreed requirement or architectural decision changes, update the relevant docs; keep unconfirmed ideas clearly marked as proposals.
 
+## Testing Strategy
+- Prefer existing automated tests over manual browser testing or Computer Use.
+- Run only relevant tests for routine changes; run the full regression suite at major checkpoints or before important releases.
+- Add focused tests for new features and critical bug fixes. Do not enforce TDD or unnecessary test coverage.
+- Never run tests that modify production data. Use isolated test environments.
+- Keep test reports concise; inspect detailed logs only when tests fail.
+
 These guidelines are defaults, not rigid rules. Suggest better approaches when justified, and explain the tradeoffs.
+
+<!-- CODEGRAPH_START -->
+## CodeGraph
+
+- This project has a local `.codegraph/` index. Use CodeGraph before text searches or file reads when locating or understanding code.
+- Prefer `codegraph_explore` with `projectPath` set to this repository's absolute path; name the relevant symbols or files in the query.
+- CLI fallback: `codegraph explore "<symbols or question>"`. Run `codegraph sync` after changes; use `codegraph status` to inspect freshness.
+- On a new checkout, run `codegraph init` once. The local index is ignored by Git. Reuse the existing global installation; do not add a project dependency or download models.
+- Index results are navigation aids; source code and database migrations remain authoritative, especially for SQL/RLS which this index does not currently cover.
+<!-- CODEGRAPH_END -->

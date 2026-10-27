@@ -1,5 +1,13 @@
 # SquirrelAPI
 
+## CodeGraph 代码导航
+
+本项目已建立本地 `.codegraph/` 索引，可通过 Codex 的 CodeGraph 工具查询；传入项目绝对路径即可，无需重复安装 MCP。
+
+使用现有全局 CodeGraph 1.6.2；新电脑或新检出运行 `codegraph init`，代码变化后运行 `codegraph sync`，检查状态用 `codegraph status`，定位代码可用 `codegraph explore "handleImport validateRows"`。本地索引不提交 Git，不增加应用依赖或云端费用。
+
+当前索引覆盖 JavaScript、TypeScript、TSX 和 YAML；SQL 迁移及 RLS 仍需直接阅读原文件。
+
 ## Club JSON 导入（阶段 B，2026-10-27）
 
 - 正式入口：https://club.squirrelapi.org/import 。登录账户页也提供导入链接；主站代码和登录设置未改变。
