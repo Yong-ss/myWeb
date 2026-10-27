@@ -10,3 +10,4 @@ temp_work/
 .codegraph/
 .test-artifacts/
 .test-runtime/
+supabase/.temp/

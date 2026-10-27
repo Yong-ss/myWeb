@@ -27,7 +27,8 @@ This is a long-term project. Keep changes simple, secure, maintainable and propo
 - Keep test reports concise; inspect detailed logs only when tests fail.
 - During C/D/E, add focused tests for each completed feature and use `pnpm test:affected` for routine verification. Run `pnpm test:full` (or the manual full CI run) at significant stage checkpoints and before important releases; run the complete suite after A–E are finished.
 - Browser regression uses Playwright by default. Reserve Computer Use for visual issues or gaps automation cannot cover; do not repeatedly click through flows already tested automatically.
-- SQL automation must use `pnpm test:db` against disposable local/CI PostgreSQL only. Never run the SQL fixtures against the production Supabase project, even with a rollback.
+- SQL fixtures must use `pnpm test:db` against disposable local/CI PostgreSQL only. Never run the SQL fixtures against the production Supabase project, even with a rollback.
+- Authentication, database and important Club flows also require `pnpm test:integration`, which starts its own local Supabase/HTTPS Worker and synthetic data. Simple styling changes retain the fast tests. Never link this test stack to a hosted project or substitute production URLs/keys.
 
 These guidelines are defaults, not rigid rules. Suggest better approaches when justified, and explain the tradeoffs.
 

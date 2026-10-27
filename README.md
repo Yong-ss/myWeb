@@ -2,7 +2,7 @@
 
 ## 自动化测试
 
-日常使用 `pnpm test:affected`；Node.js 用 `pnpm test:unit`，关键网页流程用 `pnpm test:e2e`，隔离 SQL 用 `pnpm test:db`，重要阶段和发布前用 `pnpm test:full`。已有 `pnpm club:check` 保留。首次浏览器测试前先构建 Club；完整运行要求隔离 PostgreSQL，测试绝不写正式 Supabase。
+日常使用 `pnpm test:affected`；Node.js 用 `pnpm test:unit`，快速网页流程用 `pnpm test:e2e`，隔离 SQL 用 `pnpm test:db`。涉及登录、数据库或重要流程时使用 `pnpm test:integration`，它会自动启动真实本地 Supabase 和 HTTPS Worker，并自动构建／初始化／测试／清理。重要阶段和发布前用 `pnpm test:full`。已有 `pnpm club:check` 保留；完整运行要求隔离 PostgreSQL、Docker 和 Supabase CLI，测试绝不写正式 Supabase。
 
 GitHub Actions 按变更范围运行检查，手动 Full 或发布／checkpoint 标签运行完整回归；不自动部署。使用方法、覆盖与边界见 [测试文档](docs/TESTING.md)。
 

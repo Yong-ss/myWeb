@@ -3,7 +3,7 @@ import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export function scopeFor(files, full = false) {
-  const result = { web:full, club:full, db:full, e2e:full ? 'all' : 'none' };
+  const result = { web:full, club:full, db:full, e2e:full ? 'all' : 'none', integration:full };
   for (const file of files) {
     if (/^(README\.md|AGENTS\.md|docs\/)/.test(file)) continue;
     if (file.startsWith('apps/web/')) result.web = true;
@@ -12,8 +12,9 @@ export function scopeFor(files, full = false) {
       const kind = /import|prompt/.test(file) ? 'import' : /auth\.test|\/(login|account)\//.test(file) ? 'auth' : 'all';
       result.e2e = result.e2e === 'none' || result.e2e === kind ? kind : 'all';
       if (/worker\/|src\/lib\//.test(file)) result.db = true;
-    } else if (file.startsWith('supabase/')) { result.db = true; result.club = true; result.e2e = 'all'; }
-    else Object.assign(result, { web:true, club:true, db:true, e2e:'all' });
+      if (!/(\.css$|\/src\/app\/(page|not-found|layout)\.tsx$)/.test(file)) result.integration = true;
+    } else if (file.startsWith('supabase/')) { result.db = true; result.club = true; result.e2e = 'all'; result.integration = true; }
+    else Object.assign(result, { web:true, club:true, db:true, e2e:'all', integration:true });
   }
   return result;
 }
@@ -41,6 +42,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (scope.club) commands.push(['pnpm',['club:check']]);
     if (scope.db) commands.push(['pnpm',['test:db']]);
     if (scope.e2e !== 'none') commands.push(['pnpm',['test:e2e',...(scope.e2e === 'all' ? [] : [`${scope.e2e}.spec.mjs`])]]);
+    if (scope.integration) commands.push(['pnpm',['test:integration']]);
     for (const [command,args] of commands) {
       const result=spawnSync(command === 'node' ? process.execPath : process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',args,{stdio:'inherit',shell:command==='pnpm' && process.platform==='win32'});
       if (result.error || result.status !== 0) process.exit(result.status ?? 1);

@@ -1,5 +1,11 @@
 # SquirrelAPI — Architecture
 
+## Real local integration testing — 2026-10-27
+
+`test:integration` preserves all fast suites and runs real local Supabase Auth/PostgreSQL/PostgREST/Kong with the actual Club workerd/HTTPS assets. The dedicated project, ports, CLI working directory and container labels are fixed and guarded; hosted links, remote URLs, arbitrary Docker hosts and production credentials are rejected. Auth Admin creates synthetic users before unchanged business migrations are applied using CLI `migration up --local`; test-only SQL seeds two clubs and players. No application authentication or business API is mocked.
+
+Six Playwright flows cover sessions/refresh/logout, real imports and storage, idempotency/concurrent stale revisions, Owner/Admin/unauthorized/cross-club authorization, atomic failures and offline recovery. Setup/cleanup is automatic and scoped to this project. Relevant CI changes enable this layer; simple styling does not. This supersedes the previously deferred real Auth/REST integration gap; cloud configuration, mail delivery, edge differences and non-Chromium/real networks remain outside scope.
+
 ## Automated testing — 2026-10-27
 
 Node.js tests and `club:check` remain primary. Playwright runs four critical Club browser flows against localhost static assets and per-test API mocks with external requests blocked. PostgreSQL 17 in CI executes actual migrations and existing SQL suites using a minimal test Auth interface, transactions and savepoints; no production Supabase access, credentials or deployment. The local SQL runner permits only a loopback `squirrelapi_test` database and each SQL suite independently rejects other database names.

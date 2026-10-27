@@ -1,5 +1,11 @@
 # SquirrelAPI — Decision Log
 
+## Real integration testing — 2026-10-27
+
+- D-029 Confirmed: owner authorized real isolated local Supabase/Worker/Playwright integration before stage C, retaining all fast suites, no production writes/deployment/paid services.
+- Implementation: reuse CLI 2.120.0 and Docker, fixed project/ports, actual Auth-created synthetic users followed by unchanged local migrations. Only the four required backend services run; no hosted project link or production runtime configuration is used.
+- Login/database/critical-flow changes and full regressions run the real layer; ordinary styling uses fast tests. Failure artifacts include scrubbed local diagnostics. Normal completion or failure removes the dedicated test stack/data; no other project is stopped.
+
 ## Automated testing — 2026-10-27
 
 - D-027 Confirmed: owner requested testing infrastructure before C/D/E, with existing Node.js/SQL/club:check preserved, targeted CI, modest Playwright coverage, no production test writes, no deployment or paid services.
