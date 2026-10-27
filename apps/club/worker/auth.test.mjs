@@ -52,7 +52,7 @@ test('membership service failures fail closed', async () => {
 test('cross-origin POST and unsupported methods are rejected', async () => {
   assert.equal((await handleRequest(req('login', {}, '', 'https://evil.example'), env)).status, 403);
   assert.equal((await handleRequest(req('account', {}), env)).status, 405);
-  assert.equal((await handleRequest(req('imports', {}), env)).status, 404);
+  assert.equal((await handleRequest(req('not-implemented', {}), env)).status, 404);
 });
 test('unconfirmed accounts and invalid/oversized inputs are rejected', async () => {
   const response = await handleRequest(req('login', { email: 'a', password: 'b' }), env, async () => Response.json({ ...session, user: { ...user, email_confirmed_at: null } }));

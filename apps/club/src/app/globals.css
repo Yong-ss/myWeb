@@ -13,3 +13,19 @@ button:disabled { opacity: .6; cursor: wait; }
 :focus-visible { outline: 3px solid #ac651a; outline-offset: 3px; }
 [role="alert"] { color: #a32f21; }
 .auth-note { font-size: .9rem; }
+.import-shell { width: min(100% - 40px, 1280px); margin: 6vh auto; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+section { margin: 28px 0; }
+section > label:not(.check) { display: block; margin: 16px 0 8px; }
+textarea, select { font: inherit; padding: 10px; border: 1px solid #8d9b8e; border-radius: 8px; background: white; max-width: 100%; }
+textarea { width: 100%; }
+.table-scroll { overflow-x: auto; margin: 20px 0; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #b8c3b8; padding: 10px; text-align: left; vertical-align: top; white-space: nowrap; }
+td input { width: 150px; }
+td select { width: 240px; }
+td p { white-space: normal; width: 240px; }
+.check { display: flex; align-items: flex-start; gap: 10px; margin: 20px 0; line-height: 1.8; }
+.check input { margin-top: 7px; }
+.conflict { color: #a32f21; }
+.prompt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }

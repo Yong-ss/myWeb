@@ -1,3 +1,5 @@
+import { handleImport } from "./imports.ts";
+
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   SUPABASE_URL: string;
@@ -33,8 +35,8 @@ function setSession(response: Response, request: Request, session?: Session) {
 export async function handleRequest(request: Request, env: Env, fetcher: typeof fetch = fetch): Promise<Response> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
-  if (!["/api/login", "/api/account", "/api/logout"].includes(url.pathname)) return reply({ error: "接口不存在" }, 404);
-  const expectedMethod = url.pathname === "/api/account" ? "GET" : "POST";
+  if (!["/api/login", "/api/account", "/api/logout", "/api/import-context", "/api/imports"].includes(url.pathname)) return reply({ error: "接口不存在" }, 404);
+  const expectedMethod = ["/api/account", "/api/import-context"].includes(url.pathname) ? "GET" : "POST";
   if (request.method !== expectedMethod) return reply({ error: "请求方式不支持" }, 405);
   if (request.method === "POST" && (request.headers.get("Origin") !== url.origin || !request.headers.get("Content-Type")?.startsWith("application/json"))) {
     return reply({ error: "请求来源无效" }, 403);
@@ -118,6 +120,16 @@ export async function handleRequest(request: Request, env: Env, fetcher: typeof 
     if (!user) return setSession(reply({ error: "请先登录" }, 401), request);
     const role = await membership(user, renewed?.access_token ?? stored["__Host-club_access"]);
     if (!role) return setSession(reply({ error: "此账户没有俱乐部访问权限" }, 403), request);
+    if (url.pathname === "/api/import-context" || url.pathname === "/api/imports") {
+      const token = renewed?.access_token ?? stored["__Host-club_access"];
+      const response = await handleImport(request, env.CLUB_ID, (path, body) => fetcher(`${env.SUPABASE_URL}/rest/v1/${path}`, {
+        method: body === undefined ? "GET" : "POST",
+        headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "count=exact" },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: AbortSignal.timeout(15000),
+      }));
+      return renewed ? setSession(response, request, renewed) : response;
+    }
     const response = reply({ email: user.email, club_id: env.CLUB_ID, role });
     return renewed ? setSession(response, request, renewed) : response;
   } catch {

@@ -33,5 +33,5 @@ export default function AccountPage() {
     } catch { setError("连接失败，请稍后重试"); }
     finally { setBusy(false); }
   }
-  return <main className="shell auth-page"><Link className="brand" href="/">SquirrelAPI / Club</Link><h1>俱乐部账户</h1>{email ? <><p>已登录：{email}<br />你的身份：{role === "owner" ? "公会长" : "管理员"}</p><p>数据导入与历史查询尚未开放。</p><button className="button" disabled={busy} onClick={logout}>{busy ? "正在退出…" : "退出登录"}</button></> : !error && <p role="status">正在检查登录状态…</p>}<p role="alert">{error}</p><Link href="/">返回 Club 首页</Link></main>;
+  return <main className="shell auth-page"><Link className="brand" href="/">SquirrelAPI / Club</Link><h1>俱乐部账户</h1>{email ? <><p>已登录：{email}<br />你的身份：{role === "owner" ? "公会长" : "管理员"}</p><p><Link href="/import">导入每日数据</Link>；历史查询将在后续阶段开放。</p><button className="button" disabled={busy} onClick={logout}>{busy ? "正在退出…" : "退出登录"}</button></> : !error && <p role="status">正在检查登录状态…</p>}<p role="alert">{error}</p><Link href="/">返回 Club 首页</Link></main>;
 }

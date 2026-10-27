@@ -1,5 +1,13 @@
 # SquirrelAPI — Architecture
 
+## Club stage B — 2026-10-27
+
+Adds `/import`, GET `/api/import-context?date=...` and POST `/api/imports`. Shared dependency-free TypeScript validates v1 keys, types, bounds and explicit identity selections. Preview reads only authorized current-day data and identity candidates; no historical browsing or analysis interface is added. All private responses use no-store and existing session/membership checks; POST remains same-origin JSON. Club ID comes from server configuration.
+
+Migration `20261027064338_club_atomic_import.sql` adds request/content hashes and an authenticated invoker RPC wrapping `club_private.commit_import`. Only this private SECURITY DEFINER function performs writes; it has an empty search_path, explicit actor/confirmed-email/active-membership checks, club advisory transaction locking, membership row locking and independent payload validation. Direct table writes remain revoked; no service-role runtime credential is used.
+
+Commit checks idempotency and the expected current snapshot before resolving explicit identities, merging or replacing rows, preserving old revisions, publishing the new current version and writing audit identity mappings in one transaction. Null values replace explicitly, not zero-fill or inheritance. Identical effective snapshots are skipped. Original inputs remain separate from corrected snapshots. Local fixture browser verification does not contact production Auth or write real players.
+
 ## Club stage A — 2026-10-27
 
 `apps/club` is an independent Next.js static export and Cloudflare Worker (`squirrelapi-club`, planned domain `club.squirrelapi.org`). It reuses the pinned web toolchain without new libraries. Only `/api/login`, `/api/account`, `/api/logout` exist. Club uses the same Supabase Auth project, but separate `__Host-club_access` / `__Host-club_refresh` HttpOnly, Secure, SameSite=Strict host-only cookies. Local session verification requires HTTPS. Main-site code and Auth settings are unchanged.

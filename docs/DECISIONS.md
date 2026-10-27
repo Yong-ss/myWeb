@@ -1,5 +1,12 @@
 # SquirrelAPI — Decision Log
 
+## Club import implementation — 2026-10-27
+
+- D-026 Confirmed: user instructed continuation after stage A delivery; implement B only, keeping C/D/E deferred. Follow the existing owner-only direct-production workflow after appropriate checks.
+- Implementation: freeze v1 field contract; always require explicit identity selections. Support same-day merge/replacement with a final preview, default incomplete roster, immutable prior metric rows, retry idempotency and expected-version conflict handling.
+- Implementation: confirmed null replaces the submitted player's old field; merge retains only unsubmitted players from that day's current version. Limits are 128 KiB raw input, 200 final rows, and 1000 identity candidates, with explicit over-limit errors.
+- Security: privileged transaction helper is private and narrowly executable; its public wrapper is invoker. Membership checks live inside the transaction too; no direct client DML or Super Admin business-data bypass.
+
 ## Club safety foundation — 2026-10-27
 
 - D-022 Confirmed: independent `apps/club` and Worker, existing Supabase project/Auth, isolated host-only sessions; main-site login remains unchanged.

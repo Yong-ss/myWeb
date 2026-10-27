@@ -11,7 +11,7 @@
     "preview": "wrangler dev --ip 127.0.0.1 --port 8788 --local-protocol https",
     "deploy:check": "wrangler deploy --dry-run",
     "deploy:production": "wrangler deploy",
-    "test": "node --test worker/auth.test.mjs"
+    "test": "node --test worker/*.test.mjs src/lib/*.test.mjs"
   },
   "dependencies": {
     "next": "16.4.3",

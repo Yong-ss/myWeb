@@ -1,5 +1,8 @@
 # SquirrelAPI — Requirements (Draft v0.1)
 
+## Club stage B continuation — 2026-10-27
+The owner instructed continuation after stage A. Stage B adds the approved JSON import/preview/human-confirmation/versioned transaction workflow. C (member/history browsing), D (analysis) and E (invitations/management) remain deferred; detailed implementation semantics and limits are recorded in CLUB_REQUIREMENTS.md.
+
 ## Club implementation authorization — 2026-10-27
 The owner approved the architecture and Club stage A implementation/deployment. `docs/CLUB_REQUIREMENTS.md` records the scope: independent app and Worker, existing Supabase Auth with isolated sessions, database constraints/RLS, only the owner's first club. A–C remain the first-version target; B/C are not part of this delivery, and D/E are deferred. Main-site authentication is unchanged. Direct deployment to `club.squirrelapi.org` after checks is authorized; no paid services.
 
