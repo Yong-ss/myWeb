@@ -16,18 +16,22 @@ async function login(page,role='owner',allowed=true) {
   if(allowed) await expect(page.getByRole('main')).toContainText(users[role].email);
   else await expect(page.getByRole('main').getByRole('alert')).toContainText('没有访问权限');
 }
-async function preview(page,date,{isNew=false,upload=false}={}) {
+async function preview(page,date,{isNew=false,upload=false,score=member.extraordinary_score}={}) {
   await page.goto('/import'); await page.waitForLoadState('networkidle');
   await page.getByLabel('截图日期',{exact:true}).fill(date);
-  const raw=JSON.stringify({schema_version:1,snapshot_date:null,is_complete_roster:false,members:[{...member,name:isNew?'管理员新增测试玩家':member.name}]});
+  const raw=JSON.stringify({schema_version:1,snapshot_date:null,is_complete_roster:false,members:[{...member,extraordinary_score:score,name:isNew?'管理员新增测试玩家':member.name}]});
   if(upload) {await page.getByRole('button',{name:'上传文件',exact:true}).click();await page.getByLabel('JSON 文件',{exact:true}).setInputFiles({name:'real-local.json',mimeType:'application/json',buffer:Buffer.from(raw)});}
   else await page.getByLabel('JSON 内容',{exact:true}).fill(raw);
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await expect(page.getByRole('heading',{name:'核对成员',exact:true})).toBeVisible();
-  if(isNew) {
+  if(isNew || await page.locator('.identity-launcher').first().isVisible()) {
     await page.locator('.identity-launcher').first().click();
     const dialog=page.getByRole('dialog',{name:'这是新玩家，还是已有玩家？'});
-    await dialog.getByRole('button',{name:'新增玩家',exact:true}).click();
+    if(isNew) await dialog.getByRole('button',{name:'新增玩家',exact:true}).click();
+    else {
+      await dialog.getByRole('button',{name:'选择已有玩家',exact:true}).click();
+      await dialog.getByRole('button',{name:new RegExp(`^${member.name}`)}).click();
+    }
     await dialog.getByText('修改识别数据',{exact:true}).click();
     await dialog.getByLabel('等级',{exact:true}).fill('');
     await dialog.getByRole('button',{name:'确认',exact:true}).click();
@@ -139,7 +143,11 @@ test('actual REST/RPC tenant isolation and failed foreign identity rollback',asy
 });
 
 test('real network outage recovers with the same submission id and one stored snapshot',async({page,context})=>{
-  await login(page);await preview(page,'2026-10-04');
+  // Always exercise the anomaly-confirmation path, whichever concurrent write won.
+  await login(page);
+  const baseline=await workerPost(context,{snapshot_date:'2026-10-03',is_complete_roster:false,mode:'replace',members:[{...member,player_id:playerId,extraordinary_score:1,identity_confirmed:true}],raw_text:'{}',request_id:randomUUID(),expected_snapshot_id:null,confirmed:true});
+  expect(baseline.status()).toBe(200);
+  await preview(page,'2026-10-04',{score:1000});
   const requests=[];page.on('request',r=>{if(r.url()===baseURL+'/api/imports'&&r.method()==='POST')requests.push(r.postDataJSON());});
   await context.setOffline(true);
   await page.getByRole('button',{name:'确认导入',exact:true}).click();
