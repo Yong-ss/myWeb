@@ -47,6 +47,8 @@ export async function prepare(page,upload=false) {
   await expect(page.getByRole('heading',{name:'2026-10-27 · 核对 1 条记录'})).toBeVisible();
 }
 export async function preview(page) {
+  const matched=page.getByText(/查看或手动修正已匹配/);
+  if(await page.getByLabel('第 1 行玩家身份',{exact:true}).isHidden()) await matched.click();
   await page.getByLabel('第 1 行玩家身份',{exact:true}).selectOption(id);
   await page.getByLabel('同日处理方式（必须选择）',{exact:true}).selectOption('merge');
   await page.getByRole('button',{name:'生成最终预览',exact:true}).click();

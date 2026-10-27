@@ -29,18 +29,28 @@ test('concurrent revisions return actionable conflict and do not mask database e
 });
 test('context uses tenant filters, preserves null and rejects truncated players',async()=>{
   const req=new Request('https://club.example/api/import-context?date=2026-10-27');
-  const response=await handleImport(req,club,async path=>{
+  const response=await handleImport(req,club,async (path,body)=>{
+    if(path==='rpc/club_identity_context') { assert.equal(body.p_club_id,club);return Response.json({players:[],aliases:[]}); }
     assert.ok(path.includes(`club_id=eq.${club}`));
-    if(path.startsWith('club_players?')) return Response.json([],{headers:{'Content-Range':'*/0'}});
     if(path.startsWith('club_snapshots?')) return Response.json([{id:club,revision:1,is_complete_roster:false}]);
     const {group,...data}=row; return Response.json([{...data,group_name:group}]);
   });
   assert.equal(response.status,200);assert.equal((await response.json()).members[0].group,null);
-  const tooMany=await handleImport(req,club,async path=>Response.json([],{headers:path.startsWith('club_players?')?{'Content-Range':'0-999/1001'}:{}}));
+  const tooMany=await handleImport(req,club,async path=>Response.json(path==='rpc/club_identity_context'?{players:Array(1001).fill({}),aliases:[]}:[]));
   assert.equal(tooMany.status,413);
 });
 test('oversized bodies and invalid date never reach the database',async()=>{
   const never=()=>{throw Error('database must not be called');};
   assert.equal((await handleImport(request({...payload,raw_text:'x'.repeat(525000)}),club,never)).status,413);
   assert.equal((await handleImport(new Request('https://club.example/api/import-context?date=2026-02-30'),club,never)).status,400);
+});
+
+test('alias changes require explicit confirmation and use the server club identity',async()=>{
+  let called=0;
+  const req=body=>new Request('https://club.example/api/player-aliases',{method:'POST',headers:{Origin:'https://club.example','Content-Type':'application/json'},body:JSON.stringify(body)});
+  const rest=async(path,body)=>{called++;assert.equal(path,'rpc/club_manage_alias');assert.equal(body.p_club_id,club);return Response.json({ok:true});};
+  assert.equal((await handleImport(req({player_id:club,alias_name:'冷冷月',confirmed:true,club_id:'untrusted'}),club,rest)).status,200);
+  assert.equal((await handleImport(req({revoke_id:club,confirmed:true}),club,rest)).status,200);
+  for(const body of [{player_id:club,alias_name:'冷冷月'},{player_id:'bad',alias_name:'冷冷月',confirmed:true},{revoke_id:'bad',confirmed:true},{player_id:club,alias_name:' ',confirmed:true}]) assert.equal((await handleImport(req(body),club,rest)).status,400);
+  assert.equal(called,2);
 });

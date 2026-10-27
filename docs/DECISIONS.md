@@ -1,5 +1,11 @@
 # SquirrelAPI — Decision Log
 
+## Club B identity matching — 2026-10-27
+
+- D-030 Confirmed: user authorized first-time bulk identity confirmation, subsequent unique exact/confirmed-alias auto matching, explicit ambiguous/new-player decisions, revocable aliases and anomaly warnings; no ML/API fees or stage C expansion.
+- Keep permanent UUIDs and immutable history. Add original nickname and a tenant-scoped alias ledger; never infer confirmed aliases from raw imports or overwrite the formal nickname. Allow alias duplicates across people so conflicts are visible and block auto matching rather than forcing a false global uniqueness assumption.
+- Reuse existing atomic import, RLS, Auth, Node/SQL/Playwright/real local Supabase suites. Validate automatic targets again in the transaction to catch concurrent alias changes. User authorized additive production migration and direct Club deployment after necessary regression passes; main site and Auth configuration remain unchanged.
+
 ## Real integration testing — 2026-10-27
 
 - D-029 Confirmed: owner authorized real isolated local Supabase/Worker/Playwright integration before stage C, retaining all fast suites, no production writes/deployment/paid services.

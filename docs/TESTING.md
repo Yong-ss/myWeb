@@ -77,7 +77,11 @@ docker run --rm --name squirrelapi-test-db -e POSTGRES_DB=squirrelapi_test -e PO
 - HTTP 辅助函数拒绝其他 Supabase 地址、其他端口及跳转；Docker 必须为本机 Unix socket／Windows pipe；CLI 拒绝 linked／db-url／project-ref／all 等参数。SQL 写入再次验证专用容器标签和数据库中的测试标记。没有 `supabase link`、远程 migration push 或正式 key。
 - 断网恢复通过浏览器离线／上线实现，不返回伪造 API 响应；重复提交和并发旧预览通过实际 Worker／REST／数据库验证。
 
-六条真实流程覆盖：Owner 登录、Cookie、刷新与退出撤销；Owner 文件导入／修正后的实际存储、重复提交和并发冲突；Admin 导入但不能修改角色、撤销即时生效；已确认但未授权账号及另一俱乐部 Owner 被拒绝；跨俱乐部 REST/RPC 隔离及错误身份写入回滚；断网后保持同一提交编号恢复并仅保存一次。
+九条真实流程覆盖：Owner 登录、Cookie、刷新与退出撤销；Owner 文件导入／修正后的实际存储、重复提交和并发冲突；Admin 导入但不能修改角色、撤销即时生效；已确认但未授权账号及另一俱乐部 Owner 被拒绝；跨俱乐部 REST/RPC 隔离及错误身份写入回滚；断网后保持同一提交编号恢复并仅保存一次；79 人批量建档后次日自动匹配及 71 人缺漏提醒；别名人工记忆、次日自动关联、原始昵称／正式昵称分离与错误关联解除；真实别名冲突、同名不同人和缺席后重新加入保留 UUID。
+
+B 身份匹配另有纯函数测试：79 人准确匹配、确认／未确认别名、准确昵称与别名冲突、重复目标、装饰／形近字、数字证据不能证明身份、等级／途径／评分／繁荣度／入会天数异常。Worker 测试验证别名接口必须明确确认并使用服务端俱乐部；`club_identity.sql` 验证实际事务、别名冲突、撤销、重新加入、原始昵称保留和拒绝直接写表。新增 migration 后仍执行原有 SQL 套件，保护快照、幂等和 RLS。
+
+身份匹配属于敏感业务改动，运行 `pnpm club:check`、`pnpm test:unit`、`pnpm test:db`、`pnpm test:e2e` 和 `pnpm test:integration`；发布前使用完整 CI 回归。这里只验证身份恢复和快照保留，离会状态／成员历史查询仍待 C 阶段开发。人工把两个不同的人确认为同一身份无法由算法保证纠正；通过别名撤销和同日修正版保留可追溯纠错路径。
 
 每轮使用专用锁避免并行重置；正常结束和测试失败都会停止专用栈并删除其数据卷，其他本地项目不受影响。强制终止进程或断电可能留下锁／容器；确认没有测试运行后，可执行 `supabase stop --project-id squirrelapi-club-integration --no-backup`，再删除 `.test-runtime/integration/run.lock`。不要使用 `--all`。
 

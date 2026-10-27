@@ -1,9 +1,9 @@
 export const fields = ["name", "position", "level", "pathway", "extraordinary_score", "prosperity", "weekly_activity", "group", "join_days"] as const;
 export const numericFields = ["level", "extraordinary_score", "prosperity", "weekly_activity", "join_days"] as const;
 export type Member = Record<typeof fields[number], string | number | null>;
-export type ConfirmedMember = Member & { player_id: string | null };
+export type ConfirmedMember = Member & { player_id: string | null; source_name?: string | null; remember_alias?: boolean; identity_confirmed?: boolean };
 export type Player = { id: string; display_name: string; match_name: string | null };
-export type ImportContext = { players: Player[]; snapshot: { id: string; revision: number; is_complete_roster: boolean } | null; members: ConfirmedMember[] };
+export type ImportContext = import("./identity.ts").IdentityContext & { players: Player[]; snapshot: { id: string; revision: number; is_complete_roster: boolean } | null; members: ConfirmedMember[] };
 export const MAX_SOURCE_BYTES = 131072;
 export const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -13,7 +13,9 @@ export function validDate(value: unknown): value is string {
 function object(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]) { return Object.keys(value).length === keys.length && keys.every(k => Object.hasOwn(value, k)); }
 function validateMember(value: unknown, index: number, confirmed: boolean): Member {
-  if (!object(value) || !exactKeys(value, confirmed ? [...fields, "player_id"] : fields)) throw Error(`第 ${index + 1} 行字段不齐或包含额外字段`);
+  const metadata = ["source_name", "remember_alias", "identity_confirmed"];
+  if (!object(value) || !(confirmed ? [...fields, "player_id"].every(k => Object.hasOwn(value, k)) && Object.keys(value).every(k => [...fields, "player_id", ...metadata].includes(k)) : exactKeys(value, fields))) throw Error(`第 ${index + 1} 行字段不齐或包含额外字段`);
+  if (confirmed && ((Object.hasOwn(value,"source_name") && value.source_name !== null && (typeof value.source_name !== "string" || value.source_name.length > 200)) || ["remember_alias", "identity_confirmed"].some(k => Object.hasOwn(value,k) && typeof value[k] !== "boolean"))) throw Error(`第 ${index + 1} 行身份确认资料无效`);
   for (const field of fields) {
     const v = value[field];
     if (v === null) continue;

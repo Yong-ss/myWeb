@@ -6,7 +6,8 @@ test('JSON upload, explicit identity, corrections, null/zero and final confirmat
   await expect(page.getByRole('checkbox',{name:/已提供完整成员名单/})).not.toBeChecked();
   await page.getByLabel('同日处理方式（必须选择）',{exact:true}).selectOption('merge');
   await page.getByRole('button',{name:'生成最终预览',exact:true}).click();
-  await expect(page.getByRole('main').getByRole('alert')).toHaveText(/尚未确认玩家身份/);
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(/匹配结果需要重新确认/);
+  await page.getByText('修正第 1 行数据',{exact:true}).click();
   await page.getByLabel('第 1 行昵称',{exact:true}).fill('冷月');
   await page.getByLabel('第 1 行等级',{exact:true}).fill('');
   await preview(page);

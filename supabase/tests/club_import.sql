@@ -38,7 +38,8 @@ begin
  exception when sqlstate 'PT409' then null; end;
  select count(*) into n from public.club_players where club_id=c;
  begin
-   perform public.club_commit_import(c,d,false,'replace',jsonb_build_array(rows->0,(mapped->0)||'{"player_id":"00000000-0000-4000-8000-000000000099"}'),'invalid identity',gen_random_uuid(),second_id,true);
+   -- Explicitly confirm the repeated name so this fixture reaches the tenant check.
+   perform public.club_commit_import(c,d,false,'replace',jsonb_build_array((rows->0)||'{"identity_confirmed":true}',(mapped->0)||'{"player_id":"00000000-0000-4000-8000-000000000099","identity_confirmed":true}'),'invalid identity',gen_random_uuid(),second_id,true);
    raise exception 'Unknown or foreign player accepted';
  exception when insufficient_privilege then null; end;
  if (select count(*) from public.club_players where club_id=c)<>n then raise exception 'Failed transaction left partial players'; end if;

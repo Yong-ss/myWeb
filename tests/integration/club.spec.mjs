@@ -24,7 +24,13 @@ async function preview(page,date,{isNew=false,upload=false}={}) {
   else await page.getByLabel('JSON 原文',{exact:true}).fill(raw);
   await page.getByRole('button',{name:'校验并准备预览',exact:true}).click();
   await expect(page.getByRole('heading',{name:`${date} · 核对 1 条记录`})).toBeVisible();
+  if(await page.getByLabel('第 1 行玩家身份',{exact:true}).isHidden()) await page.getByText(/查看或手动修正已匹配/).click();
   await page.getByLabel('第 1 行玩家身份',{exact:true}).selectOption(isNew?'new':playerId);
+  if(await page.getByLabel('第 1 行等级',{exact:true}).isHidden()) {
+    const details=page.getByText(/查看或手动修正已匹配/).locator('..');
+    if(await details.getAttribute('open') === null) await page.getByText(/查看或手动修正已匹配/).click();
+    await page.getByText('修正第 1 行数据',{exact:true}).click();
+  }
   await page.getByLabel('第 1 行等级',{exact:true}).fill('');
   await page.getByRole('button',{name:'生成最终预览',exact:true}).click();
   await page.getByRole('checkbox',{name:confirmation}).check();

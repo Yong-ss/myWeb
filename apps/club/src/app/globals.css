@@ -29,3 +29,7 @@ td p { white-space: normal; width: 240px; }
 .check input { margin-top: 7px; }
 .conflict { color: #a32f21; }
 .prompt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.identity-row { border: 1px solid #b8c3b8; border-radius: 8px; padding: 16px; margin: 16px 0; overflow-wrap: anywhere; }
+.identity-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
+.identity-fields label { display: grid; gap: 6px; }
+summary { cursor: pointer; padding: 10px 0; }
