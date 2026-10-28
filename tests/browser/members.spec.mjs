@@ -10,7 +10,7 @@ test('members support dates, old versions, search and zero values',async({page})
   await expect(page.getByRole('cell',{name:'冷月',exact:true})).toBeVisible();
   await expect(page.getByRole('cell',{name:'0',exact:true})).toBeVisible();
   await page.getByLabel('搜索玩家').fill('没有这个人');
-  await expect(page.getByText('没有找到这个名字，换个关键词试试。')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'没有找到这个名字',exact:true})).toBeVisible();
   await page.getByLabel('搜索玩家').fill('');
   await page.getByLabel('查看日期').selectOption('2026-10-27');
   await page.getByLabel('保存版本').selectOption(old);

@@ -11,8 +11,13 @@ for(const width of [1440,390])test(`overview progressively renders without waiti
  });
  await page.goto('/account');await expect(page.getByLabel('总览数据加载中')).toBeVisible();
  await expect.poll(()=>Boolean(account&&latest)).toBe(true);
+ const frame=await page.locator('.club-overview-counts').boundingBox();
+ const ranking=await page.locator('.club-overview-ranking').boundingBox();
  await latest.fulfill({json:{snapshot:{snapshot_date:'2026-10-28',is_complete_roster:true},snapshots:[{snapshot_date:'2026-10-28'},{snapshot_date:'2026-10-27'}],members:[{player_id:'a',name:'当前排名成员',presence:'present',extraordinary_score:20}]}});
  await expect(page.getByRole('link',{name:'当前排名成员'})).toBeVisible();
+ expect(await page.locator('.club-overview-counts').boundingBox()).toEqual(frame);
+ expect(await page.locator('.club-overview-ranking').boundingBox()).toEqual(ranking);
+ await expect(page.getByRole('figure',{name:'最近两次记录人数折线图'})).toBeVisible();
  await expect(page.getByRole('status')).toHaveText('正在读取对比…');
  await expect(page.getByText('首次记录，暂无对比',{exact:false})).toHaveCount(0);
  await expect.poll(()=>Boolean(prior)).toBe(true);

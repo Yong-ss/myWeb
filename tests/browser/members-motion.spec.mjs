@@ -23,7 +23,7 @@ for(const [width,height] of [[1440,900],[768,1024],[390,844],[320,800]]) {
       const menu=page.getByRole('button',{name:'菜单'}); await menu.click();
       const dialog=page.getByRole('dialog',{name:'俱乐部导航'}); await expect(dialog).toBeVisible();
       await expect(dialog.getByRole('button',{name:'关闭菜单'})).toBeFocused();
-      await page.keyboard.press('Shift+Tab'); await expect(dialog.getByRole('link',{name:'⚙ 设置'})).toBeFocused();
+      await page.keyboard.press('Shift+Tab'); await expect(dialog.getByRole('link',{name:'导入数据',exact:true})).toBeFocused();
       await expect(dialog).toHaveCSS('opacity','1');
       await page.screenshot({path:info.outputPath('navigation.png')});
       await page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible(); await expect(menu).toBeFocused();

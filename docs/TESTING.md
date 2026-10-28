@@ -129,3 +129,17 @@ presence.spec.mjs 在既有隔离 Supabase 中通过真实 RPC 建立两位合�
 Club lint／类型检查／构建／Worker dry-run、39 项 Club 单元测试、8 项测试选择与隔离安全测试通过。浏览器本轮原 31 项中 26 项通过；修正名称接口模拟误返回 403 后，失败所在的 members-motion 7 项单独全部通过（分批覆盖，不描述为一次全绿运行）。真实隔离回归的 11 项业务场景通过；大数据基准修正 Windows 基线模块加载后单独 1 项通过，生成 80,000 行并验证 RPC 游标、跨租户 RLS 和 EXPLAIN。无正式数据写入。完整 pnpm test:full 未运行；独立 pnpm test:db 因本机缺少 psql 及专用 PostgreSQL 服务未能执行，迁移已在真实隔离 Supabase 验证，独立 SQL 夹具仍待 CI。GitHub 尚未 Push，不能声称 CI 已通过。性能规范与实际数据见 PERFORMANCE.md。
 
 发布前增量验证：最终 43 项 Club 单元测试及 lint 通过；闪动修复后构建和 5 项档案／名单／总览浏览器测试通过。已获正式迁移及 main 发布授权，迁移已完成，CI 将负责独立 SQL 夹具及整套相关回归。
+
+## Club Loading Kit — 2026-10-28
+
+UI-only integration: existing 34 browser scenarios passed across batches after updating the empty-state locator; 7 new scenarios cover local Lottie SVG playback, reduced-motion (no animation JSON request), animation request failure fallback, fast requests (no PageLoader animation), table error/retry/empty at 1440/320px, and settings read failure/retry without writes. Existing account tests cover loading logout and duplicate-request blocking; import flow tests retain retry/idempotency checks. The player background-refresh case additionally asserts no ProfileSkeleton replaces loaded data. Latest focused run: 9 passed (7 new + 2 brand cases). Club lint, TypeScript generation and production build passed; desktop animated and 320px table screenshots were inspected.
+
+All browser APIs use synthetic fixtures and the existing local static server; no production APIs or business data were accessed. No Worker, RLS, migration, data-access or auth logic changed; SQL / real Supabase suites / test:full were not run for this UI-only batch. No push, CI run or deployment. CodeGraph sync was attempted twice but another process (PID 13124) holds its index lock; not forcibly unlocked. Real-device Safari/Firefox and assistive-technology reading remain unverified; static fallback and text are retained.
+
+加载自然度增量验证：已增加总览图表／排名加载前后 bounding box 一致断言，成员搜索栏以文档坐标验证加载前后位置（避免把浏览器自动滚动误判为布局变化）。导入完成卡用原版本消息维持同一成功播报。14 项相关用例中修正了新增状态导致的重复 status 以及坐标测量后，相关用例分批通过；最终布局以最后一轮记录为准。未 Push／部署，全部为本地合成 API。
+
+最终增量：17 项导入／加载／名单／总览／档案浏览器用例在同一轮全部通过，含桌面及手机布局位置断言；lint、类型及构建通过。
+
+共享页头增量：19 项账户／导航／登录／总览相关用例分批通过；最新一轮 14 项全部通过，覆盖五个私人页面同样页头、滚动固定、桌面／手机宽度、抽屉焦点与退出失败重试和重复点击保护。错误移至页头后的测试定位已同步。lint、类型及构建通过；未 Push／部署。
+常驻根布局增量：最新 13 项账户、登录、公开页及页头测试同轮通过，验证慢速权限校验期间设置不位移、软导航不重挂页头、五个私人页面仅有一套导航。
+本次发布前验证：pnpm club:check 通过（lint、类型、43 项单元测试、生产构建、Worker dry-run），全部 45 项浏览器测试同轮通过，含桌面侧栏滚动固定断言。未重跑 SQL／真实 Supabase 集成套件，本批未修改业务 API 或数据库。CodeGraph 同步因另一进程 PID 51372 持锁未完成，未强制解锁。

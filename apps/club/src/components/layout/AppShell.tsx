@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import {AccountControls} from "./AccountControls";
 import {useClubBrand} from "../useClubBrand";
 import { usePathname } from "next/navigation";
 import { Button } from "../ui/Button";
@@ -9,7 +10,7 @@ import "../../styles/components.css";
 const links = [["/account", "◇", "俱乐部总览"], ["/members", "♧", "成员名单"], ["/import", "⊕", "导入数据"]] as const;
 
 /** Shared shell; permissions remain enforced by the Worker and database. */
-export function AppShell({ children, publicPage = false, account }: { children: ReactNode; publicPage?: boolean; account?: ReactNode }) {
+export function AppShell({ children, publicPage = false }: { children: ReactNode; publicPage?: boolean }) {
   const pathname = usePathname();
   const clubName = useClubBrand();
   const navigationLinks = publicPage ? [["/", "◇", "首页"], ["/login", "✧", "登录"]] : links;
@@ -25,9 +26,9 @@ export function AppShell({ children, publicPage = false, account }: { children: 
     return <nav aria-label="俱乐部导航">{navigationLinks.map(([href, icon, title]) => <Link key={href} href={href} aria-current={(href === pathname || (href === "/members" && pathname === "/players")) ? "page" : undefined} onClick={() => drawer.current?.close()}><span aria-hidden="true">{icon}</span>{title}</Link>)}</nav>;
   }
   return <div className={`club-app${publicPage ? " club-public" : ""}`}>
-    <header className="club-top"><Link className="club-wordmark" href={publicPage ? "/" : "/account"}><span className="club-emblem" aria-hidden="true">✧</span><span className="club-brand"><span className="club-brand-name">{clubName}</span><small className="club-brand-subtitle">数据检测平台</small></span></Link><div className="club-header-account">{account}</div><Button variant="secondary" className="club-menu" aria-haspopup="dialog" onClick={() => drawer.current?.showModal()}>菜单 <span aria-hidden="true">☰</span></Button></header>
-    {!publicPage && <aside className="club-sidebar"><p className="club-overline">THE ARCHIVES</p>{navigation()}<div className="club-sidebar-foot"><Link href="/settings" aria-current={pathname==="/settings"?"page":undefined}>⚙ 设置</Link></div></aside>}
+    <header className="club-top"><Link className="club-wordmark" href={publicPage ? "/" : "/account"}><span className="club-emblem" aria-hidden="true">✧</span><span className="club-brand"><span className="club-brand-name">{clubName}</span><small className="club-brand-subtitle">数据检测平台</small></span></Link>{!publicPage&&<div className="club-header-account"><AccountControls/></div>}<Button variant="secondary" className="club-menu" aria-haspopup="dialog" onClick={() => drawer.current?.showModal()}>菜单 <span aria-hidden="true">☰</span></Button></header>
+    {!publicPage && <aside className="club-sidebar"><p className="club-overline">THE ARCHIVES</p>{navigation()}</aside>}
     {children}
-    <dialog ref={drawer} className="club-drawer" aria-labelledby="club-menu-title" onKeyDown={keepFocus}><div className="club-drawer-heading"><h2 id="club-menu-title">俱乐部导航</h2><Button variant="secondary" autoFocus onClick={() => drawer.current?.close()} aria-label="关闭菜单">×</Button></div>{navigation()}{!publicPage && <Link className="club-settings-link" href="/settings" onClick={()=>drawer.current?.close()}>⚙ 设置</Link>}</dialog>
+    <dialog ref={drawer} className="club-drawer" aria-labelledby="club-menu-title" onKeyDown={keepFocus}><div className="club-drawer-heading"><h2 id="club-menu-title">俱乐部导航</h2><Button variant="secondary" autoFocus onClick={() => drawer.current?.close()} aria-label="关闭菜单">×</Button></div>{navigation()}</dialog>
   </div>;
 }

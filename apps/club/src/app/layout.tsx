@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Link from "next/link";
+import {ClubFrame} from "../components/layout/ClubFrame";
 
 export const metadata: Metadata = {
   title: "Club · SquirrelAPI",
@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="zh-CN"><body><a className="skip-link" href="#content">跳到主要内容</a><header className="topbar"><Link href="/" className="wordmark"><span className="brand-mark" aria-hidden="true">S</span><span>SquirrelAPI <b>Club</b></span></Link><nav aria-label="主要导航"><Link href="/members">成员名单</Link><Link href="/import">导入数据</Link><Link href="/account">我的工作台</Link></nav></header><div id="content">{children}</div><footer className="site-footer">SquirrelAPI Club <span>把每天的记录，慢慢积累成历史。</span></footer></body></html>;
+  return <html lang="zh-CN"><body><a className="skip-link" href="#content">跳到主要内容</a><div id="content"><ClubFrame>{children}</ClubFrame></div></body></html>;
 }

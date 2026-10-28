@@ -1,7 +1,7 @@
 "use client";
 import {clubFetch} from "../../lib/data-access";
 import Link from "next/link";
-import { AppShell } from "../../components/layout/AppShell";
+import {PageLoader,LoadingState} from "../../components/feedback";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/Button";
 import { Input, Select, Textarea } from "../../components/ui/Fields";
@@ -143,21 +143,22 @@ export default function ImportPage() {
       </div>
     </details>;
   }
-  return <AppShell><main className="club-workspace club-import">
+  return <><main className="club-workspace club-import">
     <PageHeader eyebrow="03 / DAILY RECORD" title={saved ? "导入完成" : review ? "确认保存" : context ? "核对成员" : "导入每日数据"} />
     {!context && !saved && <p className="lede">上传识别结果，再核对名单。</p>}
     {context && !review && !saved && <p className="lede">把识别结果对上已有玩家，避免重复新增。点开下面的名字，选已有玩家或新增。</p>}
     <ol className="stepper" aria-label="导入进度">{["准备数据", "核对成员", "确认保存"].map((label,i) => <li key={label} aria-current={!saved && i === (review ? 2 : context ? 1 : 0) ? "step" : undefined} className={saved || i < (review ? 2 : context ? 1 : 0) ? "done" : ""}><span>{String(i+1).padStart(2,"0")}</span>{label}</li>)}</ol>
     {!context && !saved && <div className="ai-toolbar"><Button onClick={async () => { try { await navigator.clipboard.writeText(extractionPrompt); setNotice("AI识别提示词已复制"); } catch { setError("复制失败，请展开帮助里的完整提示词手动复制。"); } }}>复制AI识别提示词</Button><details className="ai-help"><summary aria-label="查看截图识别方法" title="怎么使用？">?</summary><div className="ai-help-content"><h3>怎么导入？</h3><ol><li>复制AI识别提示词，粘贴给 AI。</li><li>上传游戏成员截图。</li><li>把 AI 返回的 JSON 粘贴或上传到这里。</li></ol><a href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">打开豆包 ↗</a><details><summary>完整AI识别提示词</summary><pre className="prompt">{extractionPrompt}</pre></details></div></details></div>}
     {!context && !saved && <p className="ai-recommendation">* 建议使用<a href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">豆包</a>，选择「专家」。</p>}
-    <p role="status" className="feedback success">{notice}</p><p id="import-feedback" tabIndex={-1} role="alert" className="feedback error">{error.replace(/extraordinary_score|weekly_activity|join_days|prosperity|pathway|player_id/g, key => ({ extraordinary_score:"非凡评分", weekly_activity:"周活跃", join_days:"入会天数", prosperity:"繁荣度", pathway:"途径", player_id:"玩家身份" })[key] ?? key)}</p>
-    {saved ? <section className="panel success-card" id="import-success" tabIndex={-1}><span className="badge">已完成</span><h2>今天的记录，保存好了。</h2><p>可以放心离开这个页面，或继续导入其他日期的数据。</p><Button className="button" onClick={reset}>开始另一批导入</Button><Link href="/account">回到工作台</Link></section> : <fieldset disabled={busy} aria-busy={busy}>
+    <p role={saved?undefined:"status"} className="feedback success">{saved?"":notice}</p><p id="import-feedback" tabIndex={-1} role="alert" className="feedback error">{error.replace(/extraordinary_score|weekly_activity|join_days|prosperity|pathway|player_id/g, key => ({ extraordinary_score:"非凡评分", weekly_activity:"周活跃", join_days:"入会天数", prosperity:"繁荣度", pathway:"途径", player_id:"玩家身份" })[key] ?? key)}</p>
+    {saved ? <section className="success-card club-data-enter" id="import-success" tabIndex={-1}><LoadingState status="ready" title="今天的记录，保存好了。" detail={`${notice} 可以放心离开这个页面，或继续导入其他日期的数据。`} action={<><Button onClick={reset}>开始另一批导入</Button><Link href="/account">回到工作台</Link></>}/></section> : <fieldset className="club-import-busy" disabled={busy} aria-busy={busy}>
+      {busy && <PageLoader className="club-import-processing" title={review ? "正在保存记录…" : "正在读取数据…"} detail="请稍候，不要重复提交。" />}
       {!context ? <section className="panel input-panel">
         <label htmlFor="date">截图日期</label><Input id="date" type="date" min="2000-01-01" max="2100-12-31" value={date} onChange={e => setDate(e.target.value)} />
         <div className="input-switch" role="group" aria-label="导入方式"><Button aria-pressed={inputMode === "paste"} onClick={() => setInputMode("paste")}>粘贴内容</Button><Button aria-pressed={inputMode === "file"} onClick={() => setInputMode("file")}>上传文件</Button></div>
         <div hidden={inputMode !== "file"}><label htmlFor="file">JSON 文件</label><Input id="file" type="file" accept=".json,application/json" onChange={e => void upload(e.target.files?.[0])} /></div>
         <div hidden={inputMode !== "paste"}><label htmlFor="raw">JSON 内容</label><Textarea id="raw" rows={9} placeholder="把 AI 的识别结果粘贴到这里" value={raw} onChange={e => setRaw(e.target.value)} spellCheck={false} /></div>
-        <Button className="button" onClick={() => void prepare()}>{busy ? "正在读取…" : "下一步"}</Button>
+        <Button className="button" loading={busy} loadingText="正在读取…" onClick={() => void prepare()}>下一步</Button>
       </section> : <>
         <div hidden={!!review} className="review-workspace">
         <div className="review-overview"><span>{date} · {rows.length} 人</span><strong className={pending ? "pending-count" : "ready-count"}>{pending ? `还有 ${pending} 人没对上` : "全部已对上"}</strong>{newCount > 0 && <span>新增 {newCount} 人</span>}</div>
@@ -177,7 +178,7 @@ export default function ImportPage() {
           <div className="table-scroll"><table><thead><tr><th>正式身份</th><th>AI 原始昵称</th>{fields.map(k => <th key={k}>{labels[k]}</th>)}</tr></thead><tbody>{review.map((r,i) => <tr key={i}><td>{r.player_id ? `${context.players.find(p => p.id === r.player_id)?.display_name ?? "既有玩家"}（${r.player_id.slice(-8)}）` : "人工确认的新玩家"}</td><td>{r.source_name === undefined ? "旧记录未单列；原始 JSON 已保留" : r.source_name ?? "null"}</td>{fields.map(k => <td key={k}>{r[k] ?? "null"}</td>)}</tr>)}</tbody></table></div>
           <label className="check"><Input type="checkbox" checked={complete} onChange={e => { setComplete(e.target.checked); setConfirmed(false); setRequestId(crypto.randomUUID()); setError(""); }} />完整名单，没有漏人</label>
           <label className="check"><Input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} />我已核对名单，确认日期、成员身份和数据无误。</label>
-          <Button className="button" disabled={!confirmed} onClick={() => void save()}>{busy ? "正在保存…" : "确认导入"}</Button><p>连接失败可重试同一次提交，不会重复写入；若同日数据变化，请重新开始并核对最新预览。</p>
+          <Button className="button" disabled={!confirmed} loading={busy} loadingText="正在保存…" onClick={() => void save()}>确认导入</Button><p>连接失败可重试同一次提交，不会重复写入；若同日数据变化，请重新开始并核对最新预览。</p>
         </section>}
       </>}
     </fieldset>}
@@ -197,5 +198,5 @@ export default function ImportPage() {
     </>}</dialog>
     <dialog ref={discardDialog} onCancel={() => setDiscard(false)} aria-labelledby="discard-title" className="panel discard-dialog"><h2 id="discard-title">要放弃这次核对吗？</h2><p>这批还没有保存。放弃后，需要重新上传并核对。</p><div className="actions"><Button className="button" onClick={() => setDiscard(false)}>继续核对</Button><Button onClick={reset}>确认放弃</Button></div></dialog>
     <p><Link href="/account">返回账户</Link></p>
-  </main></AppShell>;
+  </main></>;
 }

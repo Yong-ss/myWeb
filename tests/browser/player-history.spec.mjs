@@ -12,6 +12,7 @@ test('background refresh keeps the loaded archive visible',async({page})=>{
  await page.goto(`/players?id=${id}`);await expect(page.getByRole('table')).toBeVisible();
  refresh=true;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await waiting;
  await expect(page.getByRole('table')).toBeVisible();await expect(page.getByText('正在读取档案…')).toHaveCount(0);
+ await expect(page.locator('.club-profile-skeleton')).toHaveCount(0);
  release();await expect(page.getByRole('table')).toBeVisible();
 });
 test('player history shows events, null and zero without production APIs',async({page},info)=>{

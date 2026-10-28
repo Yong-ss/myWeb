@@ -71,7 +71,7 @@
 - 普通文字对比至少 4.5:1，大字与必要控件边界至少 3:1；铜金细边框主要作装饰，必要控件使用强边框，实际组合迁移时测量。
 - 焦点 2px 浅金描边、2px offset；禁用不能接收提交，理由可读。所有输入有 label，checkbox/radio 与文字同行对齐，触摸目标至少 44×44px。
 - 表格有 caption、列标题，错误用 alert、读取和完成反馈用 polite status；不能对所有内容重复播报。
-- 状态过渡使用第 9 节的统一动效 Tokens；禁止 `transition: all`、缩放跳动、持续动画，减少动态效果时立即切换。
+- 状态过渡使用第 9 节的统一动效 Tokens；禁止 `transition: all`、缩放跳动及装饰性持续动画；请求期间的共享加载反馈按第 13 节执行，减少动态效果时使用静态状态。
 
 ## 7. 当前差异与迁移顺序
 
@@ -109,7 +109,7 @@
 
 - Hover 只放在 `(hover: hover) and (pointer: fine)` 下，触摸设备不留下假 hover；Active、Focus 不依赖 hover。
 - Focus-visible 使用 `--club-focus-width` / 2px 浅金描边与 `--club-focus-offset` / 3px 间隔，立即出现；不能用动画延迟键盘反馈。
-- Disabled 用实际 `disabled` 属性，保留可读颜色，不仅降低透明度；Loading 保留操作位置、禁用重复点击并显示状态文字。查询提示保留区域高度，不做闪烁骨架或无限转圈。
+- Disabled 用实际 `disabled` 属性，保留可读颜色，不仅降低透明度；Loading 保留操作位置、禁用重复点击并显示状态文字。查询提示保留区域高度，使用第 13 节静态骨架；仅请求未完成时允许克制的状态旋转，不做闪烁或无条件装饰转圈。
 - 高频操作（输入、搜索、排序）立即反馈，不淡入整张表、不插入人为等待，不动画化宽高、内边距或表格布局。大范围动效只考虑 opacity／transform。
 - 手机导航采用原生 dialog：初始焦点为关闭按钮，Tab／Shift+Tab 在菜单内循环，Escape 关闭，焦点回到触发按钮。关闭后可立即重新打开。
 - `prefers-reduced-motion: reduce` 禁用所有样板动画／过渡，信息和操作保持完整；禁止自动播放的装饰动效。当前不需要 Motion for React。
@@ -128,7 +128,7 @@
 
 | 组件 | 使用方式 |
 | --- | --- |
-| Button | 操作用原生 button，默认 type=button；支持 primary／secondary／danger、loading、loadingText、disabled。Loading 保留原文字占位，防止按钮宽度变化，不加旋转装饰 |
+| Button | 操作用原生 button，默认 type=button；支持 primary／secondary／danger、loading、loadingText、disabled。Loading 保留原文字占位，防止按钮宽度变化，仅加载中复用 LoadingSpinner，减少动态效果时静止 |
 | ButtonLink | 导航用 Next Link，复用按钮视觉；不提供伪 disabled 链接 |
 | Input / Select | 透传原生属性；使用显式 label、aria-invalid 表达错误，不自行实现下拉键盘逻辑 |
 | Panel | 标准语义 section；默认无外边距，由布局 gap 控制，不另建同义 Card |
@@ -160,3 +160,34 @@ Select 使用 CSS `appearance: base-select` 和 `::picker(select)` 在支持的�
 总览布局确认：总览改为真实数据仪表盘，不再放导入／成员入口大卡片；当前账户与退出放右上角，品牌显示数据库中的俱乐部名称。设置入口固定在桌面侧栏底部，手机菜单也保留；设置页提供公会长名称设置。总览当前提供最近两次人数对比、成员变化和评分前十，完整长期趋势及评分增长汇总仍待后续补齐。
 
 品牌与设置更新：左上角采用独立两行，主标题为俱乐部名称，副标题为「数据检测平台」，以现代小字和字距区分。设置页从 Supabase 读取名称，保存成功后同步各页；刷新或换设备仍读取同一名称。仅公会长可修改，保存中禁用重复操作，错误明确显示；旧窗口冲突须刷新后重试。
+
+
+## 13. 统一 Loading System — 2026-10-28
+
+本节是用户明确批准的加载反馈规范，取代前文“一律不使用旋转／骨架”的旧限制；不是另一套视觉主题。组件包来源为用户提供的 club-loading-kit，已阅读 INTEGRATION、源码、CSS 和原始 JSON，按现有应用调整，未整体覆盖项目。
+
+- 统一从 components/feedback 引用 LoadingSpinner、PageLoader、TableSkeleton、ProfileSkeleton、LoadingState；数据、权限和缓存仍由调用者及 data-access 管理。
+- Button 的 loading／loadingText 自动显示 Spinner、aria-busy 和真实禁用，不另做按钮。空状态与错误态复用 LoadingState，保留真实重试动作，不以空状态掩盖权限错误。ready 直接输出 children，不制造额外布局。
+- 表格首读使用 TableSkeleton；个人档案使用与现有事件面板／历史表布局相符的 ProfileSkeleton。骨架静态、占位颜色统一用 Tokens，不显示假数值，不使用 shimmer。实际数据一到就显示，不为动画保留时间。
+- 总览保持渐进呈现，排名区使用表格骨架；后台刷新保留已安全加载数据。成员切换日期／版本仍等待对应结果，不展示旧日期冒充新日期。LoadingState 是纯呈现，不拥有 fetch 或缓存。
+- PageLoader 只用于导入准备／保存等较长处理；默认 160ms 后呈现，不影响实际数据完成时间。局部覆盖已禁用的表单，避免插入 250px 内容挤动原表单；导航与页面标题保留。其他页面不强制加载 Lottie。
+- 仅 PageLoader 呈现后动态导入 lottie-web 的 light SVG build；无第三方 CDN。原始 JSON 保存在 public/animations/club-archive-loader.json，2,785 bytes，无外部 assets、图片或表达式。减少动态效果时不请求播放器或 JSON，显示静态纹章；偏好变化时销毁动画，卸载时清理监听／实例。
+- 使用 lottie-web 5.13.0（自带类型，无额外 types 包）。npm 完整包展开 25,415,905 bytes；当前构建播放器独立 chunk 167,852 bytes／gzip 46,606 bytes，仅需要时请求。安装与缓存遵循 Global_Env 策略，不添加其他 UI／动效库。播放器不可用时保留 CSS 纹章及文字，不能阻塞业务流程。
+- 所有状态尺寸与颜色服从 tokens.css、loading.css；不重做 AppShell、Panel 或认证逻辑。公开首页无远程加载，不添加假 Loading；登录／退出／设置保存通过共享 Button 获取一致反馈。
+
+新页面示例：`<LoadingState status="loading" variant="table" />`、`<LoadingState status="error" detail={error} onRetry={retry} />`、`<LoadingState status="empty" title="暂无记录" />`；已有有效数据时直接呈现并在后台更新，不切换全屏 PageLoader。TableSkeleton 在组合骨架内部用 announce=false，避免重复播报。
+
+### 预览对齐修正
+用户在语音中再次确认以下载包 preview.html 为视觉基准，只允许必要的小幅适配。ProfileSkeleton 已恢复原包的身份、三卡和时间线结构；LoadingState ready 未传 children 时显示预览中的勾号完成卡，传 children 时仍正常透传。导入完成接入该卡并保留原有修订消息，避免双重 status。
+
+固定结构从第一次渲染就出现：成员日期、版本、摘要、搜索、排序不在 Skeleton 结束后才插入。Skeleton 仅替换数据表；移动摘要预留换行高度。总览共用同一面板框架，移除旧 club-loading 的 320px 占位；图表和排名区域尺寸保持稳定，不通过高度动画补救。新数据仅短 opacity 进入，reduced-motion 禁用。人数区为本地 SVG 两点折线图，日期／人数清楚标注，不推断两次截图之间的每日人数，不增加图表依赖。
+
+### 共享固定页头
+登录后的所有页面统一通过 AppShell → AccountControls 展示账户、角色、设置与退出；总览不再独自提供账户槽位。设置从左下导航移至右上角，手机也在页头保留，抽屉只放主导航。页头 sticky top=0，手机统一两行布局。账户获取、焦点重新验证、退出与缓存失效仍复用原有 clubFetch 和 API；不缓存权限、不改变认证或数据库。
+
+滚动条：Club 页面及内部滚动区统一透明轨道、铜金色滑块；支持 WebKit scrollbar 的浏览器使用 8px 宽度，Hover 柔金。Firefox 使用标准 scrollbar-color 跟随原生宽度，保留强制颜色及系统滚动操作，不使用 JS 模拟滚动。
+
+
+
+桌面侧栏在页头下方 sticky，填满剩余视口高度，菜单过长时仅侧栏内部滚动；手机继续使用抽屉菜单。
+根布局通过 ClubFrame 持有唯一 AppShell；页面只输出内容，不重复包裹页头／侧栏。账户区域预留宽度，路由切换保留显示并重新校验权限，设置始终位于最右侧。

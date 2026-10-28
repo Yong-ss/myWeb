@@ -49,3 +49,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - 新页面复用 lib/data-access.ts 与 useDataRefresh；私人缓存必须经过实时账户／权限校验，写入后失效，禁止公共缓存及独立持久化。
 - 新查询先读 docs/PERFORMANCE.md；并行独立查询，列表有界与稳定游标，避免逐行远程请求；Server-Timing 只含安全汇总。
 - 不以性能为由缓存 membership 或移除 RLS；大规模基准按需执行，不以波动毫秒数卡日常 CI。
+
+## Loading System
+- 请求状态复用 components/feedback；按钮统一 loading／loadingText，禁止各页另造 Spinner、Skeleton、Error／Empty 卡片。
+- 表格／档案首读用对应静态骨架；缓存可安全呈现时保留内容。PageLoader 仅较长操作按需出现，不能增加数据展示延迟；见设计规范第 13 节。
+- Lottie 限本地 JSON 与按需 light SVG 播放器；减少动态效果时不加载动画资源，失败可回退。不得让反馈组件拥有认证、缓存或业务逻辑。
+- 登录后页面一律复用 AppShell 的固定页头与 AccountControls；设置在右上角，禁止页面单独再实现账户或退出逻辑，公开页不显示私人账户控件。

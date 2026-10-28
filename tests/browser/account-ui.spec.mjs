@@ -26,5 +26,5 @@ test('shared logout button prevents duplicate requests and keeps error actionabl
   const loading=page.getByRole('button',{name:'正在退出…',exact:true});await expect(loading).toBeDisabled();await expect(loading).toHaveAttribute('aria-busy','true');
   expect((await loading.boundingBox()).width).toBe(before.width);
   await expect.poll(()=>typeof finish).toBe('function');finish();
-  await expect(page.getByRole('main').getByRole('alert')).toHaveText('暂时无法退出，请重试');await expect(button).toBeEnabled();expect(requests).toBe(1);
+  await expect(page.locator('.club-top').getByRole('alert')).toContainText('暂时无法退出，请重试');await expect(button).toBeEnabled();expect(requests).toBe(1);
 });
