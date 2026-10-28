@@ -19,6 +19,12 @@ This is a long-term project. Keep changes simple, secure, maintainable and propo
 - Summarize in simple Chinese: what changed, what was tested, and any remaining risks or decisions.
 - When an agreed requirement or architectural decision changes, update the relevant docs; keep unconfirmed ideas clearly marked as proposals.
 
+## Delivery (solo, direct to main)
+- The owner pushes directly to `main`; GitHub Actions tests, then deploys affected apps only after every check succeeds. Do not add PRs, branch protection or approval steps.
+- Agents never push, deploy, apply migrations or change CI secrets/variables unless the owner explicitly asks in the current task.
+- Production migrations are always manual. Club deploys are blocked until the repository Variable `CLUB_SCHEMA_VERSION` equals the newest migration filename.
+- Before suggesting a push, run `pnpm test:affected` (covers uncommitted and unpushed commits). Current delivery rules live in `docs/TESTING.md` first section; keep dated history in docs, not in AGENTS.md.
+
 ## Testing Strategy
 - Prefer existing automated tests over manual browser testing or Computer Use.
 - Run only relevant tests for routine changes; run the full regression suite at major checkpoints or before important releases.

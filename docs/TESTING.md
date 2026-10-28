@@ -1,12 +1,19 @@
 # 自动化测试
 
-## 测试通过后自动上线
+## 当前发布流程（Current State，唯一有效）
 
-Push 到 `main` 后，现有相关检查全部成功，才自动发布受改动影响的应用：Club → `club.squirrelapi.org`，主站 → `squirrelapi.org`。复用当前构建，不重复安装／构建。PR、标签、手动测试、纯文档改动和失败的检查不发布；没有新增付费服务。
+本地开发 → 本地 `pnpm test:affected` → 直接 Push 到 `main` → GitHub Actions 测试 → 全部成功后自动发布。不需要 PR、分支或审批。
+
+- 只有 `push` 到 `main` 且本次运行全部检查成功才发布；任一检查失败、被取消、PR、标签或手动运行都不发布。
+- 改动范围从“上一次成功的 main 运行”算起：失败或取消的运行未发布的改动，会自动包含在下一次运行中，不会被文档提交“吞掉”。
+- main 的运行排队执行、不互相取消；只有 PR 运行会被新提交取消。旧运行（例如手动重跑旧提交）若 main 已有更新提交，会拒绝发布，避免旧版本覆盖新版本。
+- 只按“会改变线上产物”的文件发布：`apps/club/**` → Club，`apps/web/**` → 主站，依赖／工作区配置／未知路径 → 两者。所有 `*.md`、`docs/**`、`*.test.mjs`、`tests/**`、`scripts/**`、`.github/**`、`supabase/**` 只运行相应测试，不发布。没有新增付费服务。
 
 一次性在 GitHub 仓库 Settings → Secrets and variables → Actions 配置：Secret `CLOUDFLARE_API_TOKEN`；Variables `CLOUDFLARE_ACCOUNT_ID`、`CLUB_SCHEMA_VERSION`。API Token 仅授予当前账户的 Workers 发布权限及 `squirrelapi.org` 的路由管理／读取权限，不能使用 Supabase 管理密钥或把 Token 写进仓库。[Cloudflare 官方配置说明](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
 
-数据库迁移仍单独人工执行；生产迁移成功后，将 `CLUB_SCHEMA_VERSION` 更新为已应用的最新迁移文件编号，再重跑该次 main Push 的工作流。版本不一致或缺少部署凭据时明确报错并停止发布。仅点“Run workflow”仍只执行测试，不发布。
+数据库迁移永远人工执行，CI 不连接正式数据库。正式迁移成功后，将 `CLUB_SCHEMA_VERSION` 更新为已应用的最新迁移文件编号，再重跑最新一次 main 工作流。版本不一致或缺少部署凭据时明确报错并停止发布。迁移本身不触发 Worker 重新发布；若同一批改动包含 Club 代码，未先迁移会令发布失败，迁移后重跑即可。
+
+下文带日期的章节是历史验证记录，若与本节冲突，以本节为准。
 
 ## 日常命令
 
@@ -51,11 +58,11 @@ docker run --rm --name squirrelapi-test-db -e POSTGRES_DB=squirrelapi_test -e PO
 
 ## CI 与费用控制
 
-`.github/workflows/ci.yml` 在 main 推送、指向 main 的 PR、手动运行和 `v*`／`checkpoint-*` 标签触发；不部署网站，不提供生产密钥。工作流仅有内容读取权限，单个 Linux job 最长 10 分钟，同一分支新运行取消旧运行。
+`.github/workflows/ci.yml` 在 main 推送、指向 main 的 PR、手动运行和 `v*`／`checkpoint-*` 标签触发；只在上述条件下发布，部署凭据只提供给发布步骤。工作流只有内容／Actions 读取权限，单个 Linux job 最长 10 分钟；main 运行排队不取消，PR 运行新取代旧。
 
 - 仅文档改动：只验证测试选择规则，不安装依赖或浏览器、不运行 SQL；服务容器随短任务销毁。
 - 主站改动：主站 lint、类型、原有 Node.js 测试和构建。
-- Club 改动：复用 `pnpm club:check`，并选择登录、导入或全部 4 条浏览器流程。
+- Club 改动：复用 `pnpm club:check`，并运行全部浏览器流程（导入相关回归分散在多个 spec，不再按文件名挑选）。
 - Worker／共享导入逻辑／SQL 改动：增加隔离 SQL 检查。
 - 登录、账户、导入等重要流程／数据库／共享基础设施改动：再运行真实 Supabase 集成；仅 CSS、首页文案或布局改动不启动 Supabase。
 - 锁文件、CI、测试基础设施、未知目录或共享配置改动：保守运行完整套件。
@@ -67,7 +74,7 @@ docker run --rm --name squirrelapi-test-db -e POSTGRES_DB=squirrelapi_test -e PO
 
 ## C～E 开发规则与剩余风险
 
-每完成一个功能，针对其业务判断、权限或失败恢复补有价值的测试；沿用 Node.js、SQL 和这组 Playwright，避免逐层重复测试同一规则。日常运行相关检查，完成重要阶段、正式发布前及 A～E 全部完成时执行完整回归。重要发布可先手动运行完整 CI，成功后再执行既有的人工部署流程。
+每完成一个功能，针对其业务判断、权限或失败恢复补有价值的测试；沿用 Node.js、SQL 和这组 Playwright，避免逐层重复测试同一规则。日常运行相关检查，完成重要阶段、正式发布前及 A～E 全部完成时执行完整回归。重要发布可先手动运行完整 CI（不发布），确认后再按常规 Push。
 
 目前已有真实 Supabase Auth／REST／刷新令牌与数据库链路测试；仍未覆盖云端服务配置差异、Cloudflare 边缘运行时与本地 workerd 的差异、正式证书／域名、邮件邀请／密码恢复投递、真实截图识别准确度、跨浏览器／视觉效果、长期性能及大陆网络。C/D/E 尚未开发的功能没有预先假装覆盖。视觉和自动化无法覆盖的问题才使用 Computer Use。
 

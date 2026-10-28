@@ -1,5 +1,7 @@
 # SquirrelAPI — Architecture
 
+Sections are dated and newest-first; a later section supersedes earlier ones. Current delivery and testing rules: `docs/TESTING.md` first section.
+
 ## Reviewed absences — 2026-10-28
 
 `club_snapshot_absences` stores left/missed/uncertain decisions under the immutable snapshot UUID, composite tenant FKs, SELECT-only tenant/visible-parent RLS and no direct writes. Reviewed imports use a new public invoker wrapper; legacy import callers retain their contract. Both delegate to the same locked private transaction. Baseline UUID and canonical decision IDs are checked server-side against the effective post-merge roster. Presence decisions, nickname corrections, snapshots and audits commit or roll back together; idempotency covers submitted decisions and baseline. Same-day revisions carry forward explicit departures that have not reappeared, without attributing a fresh confirmation to the actor. Deleted/old snapshots do not govern current presence.
@@ -63,7 +65,7 @@ Auth requests now consume Workers Free dynamic request/CPU quotas; assets remain
 
 Updated: 2026-10-26. Phase 1 confirmed by user.
 
-## Current architecture
+## Phase 1 architecture (historical, 2026-10-26; superseded by the sections above)
 - Private Monorepo Yong-ss/myWeb; actual local folder: myWeb.
 - pnpm workspace, one application: apps/web.
 - Next.js App Router + TypeScript + plain CSS; static export to apps/web/out.

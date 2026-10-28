@@ -1,11 +1,17 @@
 # SquirrelAPI — Decision Log
 
+## CI deploy correctness — 2026-10-29
+
+- D-032 Confirmed (owner request): keep direct push to `main` with automatic deploy; no PR, branch protection or rulesets.
+- Deploy scope is separate from test scope: only files that change a shipped bundle deploy (`apps/<app>/**` except Markdown and `*.test.mjs`; dependencies/unknown paths deploy both). Tests, scripts, CI, migrations and docs never deploy.
+- The diff base is the last successful main run, `main` runs no longer cancel each other, and a run whose commit is no longer `main` HEAD refuses to deploy. Supersedes the cancel-in-progress behaviour and the `github.event.before` diff base under D-031.
+
 ## Automatic production delivery — 2026-10-27
 
 - D-031 Confirmed: user requested GitHub Actions to deploy automatically after tests pass, superseding the manual-only publishing policy for main-branch application changes.
 - Extend the existing job without another install/build or service: successful `push` to `main` deploys only affected apps, using the exact built assets from that run. PRs, tags, manual test runs, failed/cancelled checks and documentation-only changes do not deploy.
 - Use repository Secret `CLOUDFLARE_API_TOKEN` and Variable `CLOUDFLARE_ACCOUNT_ID`; credentials are supplied only to main-branch deployment steps. No OAuth refresh token, database admin credential or secret is stored in source.
-- Production SQL remains manual. Club deployment requires repository Variable `CLUB_SCHEMA_VERSION` to match the latest migration filename, and maintainers update this marker only after applying that migration successfully. The existing verified production version is `20261027101032`. Pending schema changes therefore stop the release rather than silently deploying an incompatible client.
+- Production SQL remains manual. Club deployment requires repository Variable `CLUB_SCHEMA_VERSION` to match the latest migration filename, and maintainers update this marker only after applying that migration successfully. At the time of D-031 the verified production version was `20261027101032`; the current value lives only in the repository Variable. Pending schema changes therefore stop the release rather than silently deploying an incompatible client.
 
 ## Club B identity matching — 2026-10-27
 
