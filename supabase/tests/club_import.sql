@@ -71,6 +71,9 @@ do $$ declare admin_rows jsonb; begin
  select jsonb_build_array((to_jsonb(s)-'club_id'-'snapshot_id'-'group_name')||jsonb_build_object('group',s.group_name)) into admin_rows
    from public.club_snapshot_players s where club_id='ce0c7103-1cdf-4b08-8619-f71d4915f598' limit 1;
  perform public.club_commit_import('ce0c7103-1cdf-4b08-8619-f71d4915f598','2099-12-02',false,'replace',admin_rows,'admin import fixture',gen_random_uuid(),null,true);
+ if not exists(select 1 from public.club_audit_events where action='import_committed'
+   and details->>'date'='2099-12-02' and details->>'actor_email'='owner@club.test'
+   and details->>'actor_role'='admin') then raise exception 'Audit must retain actor email and role at action time'; end if;
 end $$;
 reset role;
 update public.club_memberships set status='revoked' where club_id='ce0c7103-1cdf-4b08-8619-f71d4915f598' and user_id='d0ddb226-a10a-471c-be4b-d5e5153bd313';

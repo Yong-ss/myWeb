@@ -151,3 +151,4 @@ All browser APIs use synthetic fixtures and the existing local static server; no
 - 新场景验证真实 Admin UI 删除、Owner/Admin RPC、跨俱乐部拒绝、过期版本冲突、所有版本／原始输入／个人历史不可见、重复删除只记一次、日志不可插入或删除、原请求重放冲突、重新导入沿用第三版、50 条游标无重复遗漏，以及已撤权会话失效。所有写入仅专用本地 Supabase，测试栈自动停止。
 - `pnpm test:db` 因本机无 psql（ENOENT）及专用 squirrelapi_test 数据库未能运行；新 migration 已由真实隔离 Supabase 应用和验证。没有运行 test:full，没有 CI／Push／正式迁移或部署。
 发布记录：用户确认后已将同一迁移应用到正式 myWeb Supabase；工具生成的迁移元数据版本已对齐仓库 20261028133444（文件与 SQL 未改名／重写）。已只读检查权限，匿名不可执行删除、应用角色不可删除日志；未在正式库测试删除或写入业务样本。CLUB_SCHEMA_VERSION 已更新，等待本次 main CI。
+CI 修复：简化 PostgreSQL Auth fixture 补齐真实 auth.users 的 email 列及合成邮箱；增加导入审计邮箱／当时角色断言。真实 Supabase 无此缺列问题，正式迁移与业务代码不变；由 CI 隔离 PostgreSQL 执行该 SQL 套件。
