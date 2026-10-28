@@ -52,19 +52,37 @@
 /* Keep the frame stable; only data marks change, never animate layout dimensions. */
 .club-app .club-overview-date { min-height: 1.6em; }
 .club-app .club-overview-counts { min-height: 300px; }
+.club-app .club-overview-counts h2 { margin:0; }
 .club-app .club-overview-changes { min-height: 360px; }
 .club-app .club-overview-ranking { min-height: 410px; }
 .club-app .club-overview-ranking .club-table-skeleton { width: 100%; }
-.club-app .club-roster-chart { position: relative; height: 200px; margin: 24px 0 0; padding: 0 0 32px 40px; }
-.club-app .club-chart-axis { position: absolute; left: 0; top: 0; bottom: 32px; display: flex; flex-direction: column; justify-content: space-between; color: var(--club-text-secondary); font-size: var(--club-text-xs); }
+.club-app .club-roster-chart { position: relative; height: 240px; margin: var(--club-space-6) 0 0; }
+.club-app .club-chart-legend { display:flex; justify-content:space-between; align-items:center; height:32px; margin-bottom:var(--club-space-4); color:var(--club-text-secondary); font-size:var(--club-text-xs); }
+.club-app .club-chart-legend span:first-child { display:flex; align-items:center; gap:var(--club-space-2); color:var(--club-gold); }
+.club-app .club-chart-legend i,.club-app .club-chart-tooltip i { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--club-gold); }
+.club-app .club-chart-body { position:relative; height:192px; padding:0 12px 32px 40px; }
+.club-app .club-chart-axis { position: absolute; left: 0; top: -6px; bottom: 26px; display: flex; flex-direction: column; justify-content: space-between; color: var(--club-text-secondary); font-size: var(--club-text-xs); font-variant-numeric:tabular-nums; }
 .club-app .club-chart-plot { height: 100%; position: relative; }
 .club-app .club-chart-plot svg { width: 100%; height: 100%; overflow: visible; }
-.club-app .club-chart-grid { fill: none; stroke: var(--club-divider); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.club-app .club-chart-line { fill: none; stroke: var(--club-gold); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.club-app .club-chart-point { position: absolute; width: 8px; height: 8px; background: var(--club-gold); border-radius: 50%; transform: translate(-50%,-50%); }
-.club-app .club-chart-point strong { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: var(--club-text-sm); }
-.club-app .club-roster-chart figcaption { display: flex; justify-content: space-between; padding: 10px 8% 0; color: var(--club-text-secondary); font-size: var(--club-text-xs); }
+.club-app .club-chart-grid { fill: none; stroke: var(--club-divider); stroke-dasharray:3 5; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.club-app .club-chart-line { fill: none; stroke: var(--club-gold); stroke-linecap:round; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.club-app .club-chart-fill-start { stop-color:var(--club-gold); stop-opacity:.18; }
+.club-app .club-chart-fill-end { stop-color:var(--club-gold); stop-opacity:0; }
+.club-app .club-chart-crosshair { position:absolute; top:0; bottom:0; width:1px; background:var(--club-border-strong); pointer-events:none; }
+.club-app .club-roster-chart .club-chart-plot .club-chart-point { position: absolute; display:grid; place-items:center; width:44px; height:44px; min-height:44px; padding:0; border:0; background:transparent; color:var(--club-gold); border-radius:50%; transform:translate(-50%,-50%); cursor:pointer; }
+.club-app .club-chart-point span { width:8px; height:8px; border-radius:50%; background:currentColor; border:1px solid var(--club-surface); transition:transform var(--club-motion) var(--club-ease-feedback); }
+.club-app .club-chart-point[data-active="true"] span { transform:scale(1.5); }
+.club-app .club-roster-chart .club-chart-plot .club-chart-point:is(:hover,:active) { background:transparent; border-color:transparent; }
+.club-app .club-chart-point:focus-visible { outline:var(--club-focus-width) solid var(--club-focus); outline-offset:var(--club-focus-offset); }
+.club-app .club-chart-tooltip { position:absolute; right:0; z-index:1; width:min(172px,100%); padding:var(--club-space-4); border:1px solid var(--club-border); background:var(--club-surface-elevated); color:var(--club-text); pointer-events:none; font-size:var(--club-text-sm); box-shadow:0 8px 24px #0003; animation:club-chart-tip-in var(--club-motion-fast) var(--club-ease-feedback); }
+.club-app .club-chart-tooltip>span { color:var(--club-text-secondary); font-size:var(--club-text-xs); }
+.club-app .club-chart-tooltip strong { display:block; margin-top:var(--club-space-3); color:var(--club-gold); font-weight:400; }
+.club-app .club-chart-tooltip i { margin-right:var(--club-space-2); }
+.club-app .club-chart-tooltip b { font-weight:700; font-variant-numeric:tabular-nums; }
+.club-app .club-roster-chart figcaption { display: flex; justify-content: space-between; gap:var(--club-space-2); padding-top:var(--club-space-4); color: var(--club-text-secondary); font-size: var(--club-text-xs); }
 .club-app .club-chart-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: var(--club-text-secondary); font-size: var(--club-text-sm); }
+@keyframes club-chart-tip-in { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .club-app .club-chart-point span { transition:none; } .club-app .club-chart-tooltip { animation:none; } }
 .club-app .club-data-enter { animation: club-data-appear var(--club-motion-enter) var(--club-ease-feedback); }
 @keyframes club-data-appear { from { opacity: 0; } to { opacity: 1; } }
 @media(prefers-reduced-motion:reduce) { .club-app .club-data-enter { animation: none; } }

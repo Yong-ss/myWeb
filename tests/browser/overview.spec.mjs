@@ -17,7 +17,7 @@ for(const width of [1440,390])test(`overview progressively renders without waiti
  await expect(page.getByRole('link',{name:'当前排名成员'})).toBeVisible();
  expect(await page.locator('.club-overview-counts').boundingBox()).toEqual(frame);
  expect(await page.locator('.club-overview-ranking').boundingBox()).toEqual(ranking);
- await expect(page.getByRole('figure',{name:'最近两次记录人数折线图'})).toBeVisible();
+ await expect(page.getByRole('figure',{name:'人数总览趋势图'})).toBeVisible();
  await expect(page.getByRole('status')).toHaveText('正在读取对比…');
  await expect(page.getByText('首次记录，暂无对比',{exact:false})).toHaveCount(0);
  await expect.poll(()=>Boolean(prior)).toBe(true);

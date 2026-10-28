@@ -39,7 +39,7 @@ export function Overview(){
     {comparisonError&&<p role="alert">{comparisonError} <Button onClick={()=>setRetry(n=>n+1)}>重试对比</Button></p>}
     <div className="club-stats">{[["本次记录",data?current.length:"—"],["首次出现",previous?additions.length:"—"],["本次暂离",previous?departures.length:"—"],["重新出现",previous?returning.length:"—"]].map(([label,value])=><Panel key={label}><span className="muted">{label}</span><strong>{value}</strong></Panel>)}</div>
     {data?.snapshot&&!data.snapshot.is_complete_roster&&<p className="conflict">本次未确认完整，仅明确确认的缺席会标记离会。</p>}
-    <Panel className="club-overview-counts"><h2>最近两次记录人数</h2><p className="muted">记录人数不等于实际在会人数。</p><RosterChart counts={counts} loading={busy&&!data||comparing}/></Panel>
+    <Panel className="club-overview-counts"><h2>人数总览</h2><RosterChart counts={counts} loading={busy&&!data||comparing}/></Panel>
     <div className="club-account-actions"><Panel className="club-overview-changes"><h2>本次成员变化</h2>{(busy&&!data||comparing&&!previous)?<p role="status">正在读取对比…</p>:comparisonError?<p>对比暂不可用。</p>:!previous?<p>至少两次记录后显示。</p>:<><p>首次出现：{additions.map(r=>r.name??"未识别").join("、")||"无"}</p><p>暂时离会：{departures.map(r=>r.name??"未识别").join("、")||"无"}</p><p>重新出现：{returning.map(r=>r.name??"未识别").join("、")||"无"}</p><p className="muted">首次出现是首次记录，不代表真实入会日期。</p></>}</Panel>
     <Panel className="club-overview-ranking"><h2>非凡评分前十</h2>{busy&&!data?<TableSkeleton rows={4} columns={2} label="正在读取排名…" />:rank.length?<ol>{rank.map(r=><li key={r.player_id}><Link href={`/players?id=${r.player_id}&date=${data?.snapshot?.snapshot_date??""}`}>{r.name??"未识别"}</Link> · {r.extraordinary_score}</li>)}</ol>:<p>暂无评分数据。</p>}</Panel></div>
   </section>;
