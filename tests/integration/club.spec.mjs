@@ -43,6 +43,7 @@ async function preview(page,date,{isNew=false,upload=false,score=member.extraord
     await item.getByText('修正第 1 行数据',{exact:true}).click();
     await item.getByLabel('第 1 行等级',{exact:true}).fill('');
   }
+  if(await page.getByRole('button',{name:'其余暂不确定',exact:true}).isVisible())await page.getByRole('button',{name:'其余暂不确定',exact:true}).click();
   await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await page.getByRole('checkbox',{name:confirmation}).check();
   return raw;
@@ -88,14 +89,15 @@ test('owner upload writes real data, idempotency and concurrent stale preview pr
   expect(rows).toHaveLength(1);expect(rows[0]).toMatchObject({player_id:playerId,level:null,weekly_activity:0,extraordinary_score:142});
   const memberView=await context.request.get(`${baseURL}/api/members?date=${date}&version=${versions[0].id}&club_id=${foreignClubId}`);
   expect(memberView.status()).toBe(200);
-  expect((await memberView.json()).members).toMatchObject([{player_id:playerId,weekly_activity:0,level:null}]);
+  const viewed=await memberView.json();expect(viewed.snapshot_count).toBe(1);
+  expect(viewed.members.filter(p=>p.presence==='present')).toMatchObject([{player_id:playerId,weekly_activity:0,level:null}]);
   await page.goto('/members');
   await page.getByLabel('查看日期').selectOption(date);
   await expect(page.getByRole('cell',{name:member.name,exact:true})).toBeVisible();
   const repeated=await workerPost(context,payload);expect(repeated.status()).toBe(200);expect((await repeated.json()).replayed).toBe(true);
   expect(await snapshots(date,access)).toHaveLength(1);
   const invalid=await workerPost(context,{...payload,request_id:randomUUID(),members:[{...payload.members[0],level:'invalid'}]});expect(invalid.status()).toBe(400);
-  const requests=[200,300].map(score=>workerPost(context,{...payload,request_id:randomUUID(),expected_snapshot_id:versions[0].id,members:[{...payload.members[0],extraordinary_score:score}]}));
+  const requests=[200,300].map(score=>workerPost(context,{...payload,request_id:randomUUID(),expected_snapshot_id:versions[0].id,baseline_snapshot_id:versions[0].id,members:[{...payload.members[0],extraordinary_score:score}]}));
   expect((await Promise.all(requests)).map(r=>r.status()).sort()).toEqual([200,409]);
   versions=await snapshots(date,access);expect(versions).toHaveLength(2);
   expect(versions.filter(v=>v.is_current)).toHaveLength(1);

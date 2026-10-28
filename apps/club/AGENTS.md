@@ -52,6 +52,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Loading System
 - 新业务写操作须在同一数据库事务中写 club_audit_events；操作日志不可改删，不记录 Token、密码或原始 JSON。日期删除必须走专用 RPC，保留版本链与身份，不能改成客户端硬删。
+- 缺席确认按最终合并后的 UUID 名单计算，不按昵称；逐人退会与完整名单证据统一用于名单、历史及分页基线。新写协议必须在准备阶段检查 schema 能力，不能让用户核对到提交才发现数据库未迁移。
 - 请求状态复用 components/feedback；按钮统一 loading／loadingText，禁止各页另造 Spinner、Skeleton、Error／Empty 卡片。
 - 表格／档案首读用对应静态骨架；缓存可安全呈现时保留内容。PageLoader 仅较长操作按需出现，不能增加数据展示延迟；见设计规范第 13 节。
 - Lottie 限本地 JSON 与按需 light SVG 播放器；减少动态效果时不加载动画资源，失败可回退。不得让反馈组件拥有认证、缓存或业务逻辑。

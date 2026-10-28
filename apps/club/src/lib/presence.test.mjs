@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {absenceStatus,playerTimeline,change} from './presence.ts';
 const row={player_id:'permanent',extraordinary_score:0,prosperity:null,weekly_activity:100};
 const day=(date,complete,present=true,extra={})=>({snapshot_date:date,is_complete_roster:complete,revision:1,rows:present?[{...row,...extra}]:[]});
+test('explicit departure works on an incomplete day and persists until real reappearance',()=>{
+ const days=[day('2030-01-01',false),{...day('2030-01-02',false,false),confirmed_left:true},day('2030-01-03',false,false),day('2030-01-04',false)];
+ const timeline=playerTimeline(days);assert.deepEqual(timeline.map(d=>d.event),['first_seen','left',null,'rejoined']);assert.equal(timeline[2].status,'left');
+ assert.equal(playerTimeline([days[3]],{status:'left',previous:row})[0].event,'rejoined');
+});
 test('a history page preserves earlier identity, departure and change baseline',()=>{
  const page=playerTimeline([day('2030-01-01',false,true,{extraordinary_score:25})],{status:'left',previous:{...row,extraordinary_score:20}});
  assert.equal(page[0].event,'rejoined');assert.equal(page[0].changes.score.amount,5);

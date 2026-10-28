@@ -1,4 +1,4 @@
-import { fields, MAX_SOURCE_BYTES, validDate, validateRows, uuid, type ConfirmedMember } from "../src/lib/import.ts";
+import { fields, MAX_SOURCE_BYTES, validDate, validateRows, validateAbsences, uuid, type ConfirmedMember } from "../src/lib/import.ts";
 
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 
@@ -7,9 +7,11 @@ export async function handleImport(request: Request, clubId: string, rest: (path
   if (request.method === "GET") {
     const date = url.searchParams.get("date");
     if (!validDate(date)) return reply({ error: "请填写有效截图日期" }, 400);
-    const [identities, snapshots] = await Promise.all([
+    const absenceRequest=url.searchParams.get('review_absences')==='1'?rest('rpc/club_absence_context',{p_club:clubId,p_date:date}):null;
+    const [identities, snapshots, absenceResponse] = await Promise.all([
       rest("rpc/club_identity_context", { p_club_id: clubId, p_date: date }),
       rest(`club_snapshots?select=id,revision,is_complete_roster&club_id=eq.${clubId}&snapshot_date=eq.${date}&is_current=eq.true&limit=1`),
+      absenceRequest,
     ]);
     if (!identities.ok || !snapshots.ok) return reply({ error: "暂时无法准备导入资料" }, 502);
     const identityData = await identities.json() as { players: unknown[]; aliases: unknown[] };
@@ -23,7 +25,9 @@ export async function handleImport(request: Request, clubId: string, rest: (path
       if (rows.length > 200) return reply({ error: "同日版本超过 200 人，请联系站点所有者" }, 413);
       members = rows.map(({ group_name, ...row }) => ({ ...row, group: group_name }));
     }
-    return reply({ ...identityData, snapshot, members });
+    let absence_context;
+    if(absenceResponse){const response=absenceResponse;if(!response.ok){const e=await response.json().catch(()=>null) as {code?:string}|null;return reply({error:response.status===404&&e?.code==='PGRST202'?'数据库尚未更新，请先完成迁移；暂时不要开始核对。':'暂时无法读取对比名单，请重试'},503);}absence_context=await response.json();}
+    return reply({ ...identityData, snapshot, members, ...(absence_context?{absence_context}:{}) });
   }
   const reader = request.body?.getReader();
   if (!reader) return reply({ error: "缺少导入内容" }, 400);
@@ -48,12 +52,14 @@ export async function handleImport(request: Request, clubId: string, rest: (path
     } else {
       if (!validDate(input.snapshot_date) || !["merge", "replace"].includes(input.mode) || input.confirmed !== true || typeof input.is_complete_roster !== "boolean" || typeof input.raw_text !== "string" || !input.raw_text.trim() || new TextEncoder().encode(input.raw_text).length > MAX_SOURCE_BYTES || typeof input.request_id !== "string" || !uuid.test(input.request_id) || (input.expected_snapshot_id !== null && (typeof input.expected_snapshot_id !== "string" || !uuid.test(input.expected_snapshot_id)))) throw Error("请确认日期、原始 JSON、身份和同日修正方式");
       validateRows(input.members);
+      if(Object.hasOwn(input,'absence_decisions')){validateAbsences(input.absence_decisions);if(input.baseline_snapshot_id!==null&&!uuid.test(input.baseline_snapshot_id??''))throw Error('对比名单无效，请重新准备');if(input.is_complete_roster&&input.absence_decisions.some((a:{decision:string})=>a.decision!=='left'))throw Error('仍有漏识别或不确定的成员，不能确认名单完整');}
     }
   } catch (error) { return reply({ error: error instanceof Error ? error.message : "导入内容无效" }, 400); }
-  const response = url.pathname === "/api/player-aliases" ? await rest("rpc/club_manage_alias", { p_club_id: clubId, p_player_id: input.player_id ?? null, p_alias: input.alias_name ?? null, p_revoke_id: input.revoke_id ?? null }) : await rest("rpc/club_commit_import", {
+  const response = url.pathname === "/api/player-aliases" ? await rest("rpc/club_manage_alias", { p_club_id: clubId, p_player_id: input.player_id ?? null, p_alias: input.alias_name ?? null, p_revoke_id: input.revoke_id ?? null }) : await rest(Object.hasOwn(input,'absence_decisions')?"rpc/club_commit_reviewed_import":"rpc/club_commit_import", {
     p_club_id: clubId, p_date: input.snapshot_date, p_complete: input.is_complete_roster,
     p_mode: input.mode, p_rows: input.members, p_raw: input.raw_text,
     p_request_id: input.request_id, p_expected: input.expected_snapshot_id, p_confirmed: true,
+    ...(Object.hasOwn(input,'absence_decisions')?{p_absences:input.absence_decisions,p_baseline:input.baseline_snapshot_id}:{}),
   });
   if (!response.ok) {
     const error = await response.json() as { code?: string; message?: string };

@@ -19,11 +19,11 @@ test('request diagnostics contain durations and counts without URLs or credentia
  const timing=metrics.finish(Response.json({})).headers.get('server-timing');
  assert.match(timing,/auth;dur=.*1 calls/);assert.doesNotMatch(timing,/private|https|token/);
 });
-test('roster dependent reads run together with a fixed four-query budget',async()=>{
+test('roster state and manual departures share a bounded two-request read',async()=>{
  let calls=0,active=0,peak=0;
  const response=await handleMembers(new Request('https://local.invalid/api/members'),'club',async path=>{
   calls++;active++;peak=Math.max(peak,active);await new Promise(r=>setTimeout(r,2));active--;
-  return Response.json(path.startsWith('club_snapshots?')?[{id:'snapshot',snapshot_date:'2030-01-01',is_current:true}]:[]);
+  return Response.json(path.startsWith('club_snapshots?')?[{id:'snapshot',snapshot_date:'2030-01-01',is_current:true}]:{members:[],snapshot_count:0});
  });
- assert.equal(response.status,200);assert.equal(calls,4);assert.equal(peak,3);
+ assert.equal(response.status,200);assert.equal(calls,2);assert.equal(peak,1);
 });

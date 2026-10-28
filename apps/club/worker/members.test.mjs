@@ -13,6 +13,7 @@ test('member reads require Club authentication, not main-site cookies',async()=>
 });
 test('history selection stays inside configured club and makes no writes',async()=>{
   const response=await handleMembers(request(`?date=2026-10-27&version=${club}&club_id=other`),club,async(path,body)=>{
+    if(path==='rpc/club_roster_presence'){assert.deepEqual(body,{p_club:club,p_snapshot:club});return Response.json({members:[{player_id:club,name:'旧昵称',weekly_activity:0,level:null}],snapshot_count:1});}
     assert.equal(body,undefined);
     assert.equal(new URL(`https://local.invalid/${path}`).searchParams.get('club_id'),`eq.${club}`);
     return Response.json(path.startsWith('club_players?')?[]:path.startsWith('club_snapshots?')?[{...snapshot,is_current:false}]:[{player_id:club,name:'旧昵称',weekly_activity:0,level:null}]);
@@ -26,7 +27,7 @@ test('invalid and foreign versions never cause unscoped row reads',async()=>{
   const missing=await handleMembers(request(`?date=2026-10-27&version=${club}`),club,async path=>{assert.ok(path.startsWith('club_snapshots?'));return Response.json([]);}); assert.equal(missing.status,404);
 });
 test('date history paginates and oversized rosters fail instead of truncating',async()=>{
-  const page=await handleMembers(request(''),club,async path=>Response.json(path.startsWith('club_snapshots?')?Array(101).fill(snapshot):[]));
+  const page=await handleMembers(request(''),club,async path=>Response.json(path.startsWith('club_snapshots?')?Array(101).fill(snapshot):{members:[],snapshot_count:0}));
   assert.equal((await page.json()).next,'2026-10-27');
-  const response=await handleMembers(request(''),club,async path=>Response.json(path.startsWith('club_snapshots?')?[snapshot]:Array(201).fill({}))); assert.equal(response.status,413);
+  const response=await handleMembers(request(''),club,async path=>path.startsWith('rpc/')?Response.json({code:'54000',message:'名单超过查询上限'},{status:400}):Response.json([snapshot])); assert.equal(response.status,413);
 });

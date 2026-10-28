@@ -1,11 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSource, validateRows, matchName, mergePreview, validDate, MAX_SOURCE_BYTES } from './import.ts';
+import { parseSource, validateRows, validateAbsences, matchName, mergePreview, validDate, MAX_SOURCE_BYTES } from './import.ts';
 import { readFileSync } from 'node:fs';
 import { extractionPrompt } from './prompt.ts';
 
 const member = { name: '玩家甲', position: null, level: 70, pathway: null, extraordinary_score: 100, prosperity: null, weekly_activity: 0, group: null, join_days: null };
 const source = members => JSON.stringify({ members, is_complete_roster: false, snapshot_date: null, schema_version: 1 });
+test('absence review requires distinct identities and explicit bounded choices',()=>{
+ const d={player_id:'00000000-0000-4000-8000-000000000001',decision:'missed'};
+ assert.deepEqual(validateAbsences([d]),[d]);
+ for(const data of [[d,d],[{...d,decision:'left?'}],[{...d,player_id:'name'}],null,Array(1001).fill(d)])assert.throws(()=>validateAbsences(data));
+});
+
+test('nickname corrections require explicit existing identity, a matching preview and expected name',()=>{
+ const row={...member,player_id:'00000000-0000-4000-8000-000000000001',identity_confirmed:true,correct_name:member.name,expected_name:'旧错名'};
+ assert.equal(validateRows([row])[0].expected_name,'旧错名');
+ for(const changes of [{player_id:null},{identity_confirmed:false},{expected_name:undefined},{correct_name:''},{correct_name:'x'},{correct_name:'a\n'}])assert.throws(()=>validateRows([{...row,...changes}]));
+});
 test('v1 ignores key order, preserves null and zero and refuses extra/missing fields', () => {
   assert.deepEqual(parseSource(source([member])).members[0], member);
   for (const row of [{ ...member, online_status: 'online' }, { name: 'incomplete' }, { ...member, level: '70' }, { ...member, prosperity: -1 }, { ...member, level: 1.5 }]) assert.throws(() => parseSource(source([row])));

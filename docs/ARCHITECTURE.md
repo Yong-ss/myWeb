@@ -1,5 +1,15 @@
 # SquirrelAPI — Architecture
 
+## Reviewed absences — 2026-10-28
+
+`club_snapshot_absences` stores left/missed/uncertain decisions under the immutable snapshot UUID, composite tenant FKs, SELECT-only tenant/visible-parent RLS and no direct writes. Reviewed imports use a new public invoker wrapper; legacy import callers retain their contract. Both delegate to the same locked private transaction. Baseline UUID and canonical decision IDs are checked server-side against the effective post-merge roster. Presence decisions, nickname corrections, snapshots and audits commit or roll back together; idempotency covers submitted decisions and baseline. Same-day revisions carry forward explicit departures that have not reappeared, without attributing a fresh confirmation to the actor. Deleted/old snapshots do not govern current presence.
+
+Invoker `club_roster_presence` centralizes last observations, complete-roster evidence and explicit departures, bounded to <1,000 identities and <=200 observed rows. The Worker now needs snapshot selection + one roster RPC, no per-player network calls. Missing RPC falls back only on PGRST202 to the old read chain; authorization/other errors fail closed. `club_absence_context` reuses that read for a cutoff-safe, same-day-aware baseline. History RPC and legacy history include explicit departures; paginated seeds include departures before the page boundary. Preparing the new UI checks this schema capability before user work; it does not silently submit unsupported correction/absence metadata to an old database.
+
+## Inline nickname correction — 2026-10-28
+
+Optional per-row `correct_name` / `expected_name` metadata extends the existing atomic import contract. Correction requires an existing UUID, explicit identity confirmation and a matching row name; the metadata participates in request hashing but is stripped from snapshot payloads. The existing private commit rechecks membership, locks the club, rejects stale names or names/aliases owned by another player, updates only `club_players` and appends `player_renamed` audit records in the same transaction. Any later row failure rolls everything back; replay returns before mutation. No separate rename request or partial frontend write is used. Historical names and raw sources remain unchanged; ordinary imports remain compatible.
+
 ## Audited import removal — 2026-10-28
 
 `club_snapshots.deleted_at` is a tombstone for all revisions of a date. Restrictive SELECT policies on snapshots, rows and raw imports compose with existing tenant RLS; invoker roster/history/identity reads omit removed observations without per-endpoint filtering. Player identities and explicit aliases remain. A narrow private definer transaction rechecks confirmed-user active Owner/Admin membership under the existing per-club lock, compares the current snapshot UUID, soft-deletes the date and appends audit evidence atomically. Direct table writes remain revoked. Reimports retain the hidden revision anchor but never merge hidden rows; deleted idempotency requests conflict instead of claiming success.

@@ -24,6 +24,14 @@ export async function handleMembers(request: Request, clubId: string, rest: (pat
   const visible = snapshots.slice(0, 100);
   const snapshot = version ? visible.find(s => s.id === version) : visible[0];
   if (!snapshot) return version ? reply({ error: "找不到这个版本" }, 404) : reply({ snapshots: visible, snapshot: null, members: [], next: null });
+  const roster=await rest('rpc/club_roster_presence',{p_club:clubId,p_snapshot:snapshot.id});
+  if(roster.ok){
+    const data=await roster.json() as {members:unknown[];snapshot_count:number}|null;
+    if(!data||!Array.isArray(data.members)||data.members.length>=1000||!Number.isInteger(data.snapshot_count)||data.snapshot_count>200)return reply({error:'名单资料无效或超出上限'},502);
+    return reply({snapshots:visible,snapshot,...data,next:!date&&snapshots.length>100?visible.at(-1)!.snapshot_date:null});
+  }
+  const failure=await roster.json().catch(()=>null) as {code?:string;message?:string}|null;
+  if(roster.status!==404||failure?.code!=='PGRST202')return reply({error:failure?.code==='54000'?failure.message:'暂时无法判断成员状态，请重试'},failure?.code==='54000'?413:502);
   const rowsPromise = rest(`club_snapshot_players?${new URLSearchParams({ select: `player_id,${fields.map(f => f === "group" ? "group_name" : f).join(",")}`, club_id: `eq.${clubId}`, snapshot_id: `eq.${snapshot.id}`, order: "player_id.asc", limit: "201" })}`);
   const [rows, peopleResponse, completeResponse] = await Promise.all([
     rowsPromise,

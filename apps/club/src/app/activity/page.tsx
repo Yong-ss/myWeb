@@ -7,11 +7,12 @@ import {Button} from '../../components/ui/Button';
 import {LoadingState,TableSkeleton} from '../../components/feedback';
 type Event={id:string;actor_id:string;action:string;details:Record<string,unknown>;created_at:string};
 type Cursor={before:string;id:string};
-const actions:Record<string,string>={club_initialized:'建立俱乐部',import_committed:'导入数据',import_date_deleted:'删除当天数据',alias_confirmed:'记住 AI 错名',alias_revoked:'解除错名关联',club_renamed:'修改俱乐部名称'};
+const actions:Record<string,string>={club_initialized:'建立俱乐部',import_committed:'导入数据',import_date_deleted:'删除当天数据',alias_confirmed:'记住 AI 错名',alias_revoked:'解除错名关联',club_renamed:'修改俱乐部名称',player_renamed:'更正玩家昵称',absence_reviewed:'核对缺席成员'};
 function description(e:Event){const d=e.details;switch(e.action){
+ case 'absence_reviewed':return `${d.date} · 核对 ${Array.isArray(d.decisions)?d.decisions.length:0} 人`;
  case 'import_committed':return `${d.date} · 第 ${d.revision} 版 · ${d.mode==='merge'?'补充更新':'替换名单'}`;
  case 'import_date_deleted':return `${d.date} · 移除 ${d.versions} 个版本`;
- case 'club_renamed':return `${d.old_name} → ${d.new_name}`;
+ case 'player_renamed':case 'club_renamed':return `${d.old_name} → ${d.new_name}`;
  case 'alias_confirmed':case 'alias_revoked':return '玩家关联已更新';
  default:return '俱乐部管理操作';
 }}
