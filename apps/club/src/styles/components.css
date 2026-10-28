@@ -135,7 +135,6 @@ body:has(.club-app) > .skip-link:focus { z-index: var(--club-z-toast); backgroun
   }
 }
 body:has(.club-app) { background: var(--club-bg); }
-body:has(.club-app) > .topbar, body:has(.club-app) > .site-footer { display: none; }
 .club-app { color-scheme: dark; min-height: 100dvh; display: grid; grid-template-columns: var(--club-sidebar-width) minmax(0, 1fr); grid-template-rows: var(--club-header-height) 1fr; background: var(--club-bg); color: var(--club-text); font-family: var(--club-font-body); font-size: var(--club-text-base); line-height: 1.6; }
 .club-app .club-top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--club-space-6); border-bottom: 1px solid var(--club-border); background: var(--club-surface-input); }
 .club-app .club-wordmark { display: flex; align-items: center; gap: var(--club-space-3); text-decoration: none; color: var(--club-gold); font-family: var(--club-font-heading); }

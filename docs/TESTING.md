@@ -13,6 +13,23 @@
 
 数据库迁移永远人工执行，CI 不连接正式数据库。正式迁移成功后，将 `CLUB_SCHEMA_VERSION` 更新为已应用的最新迁移文件编号，再重跑最新一次 main 工作流。版本不一致或缺少部署凭据时明确报错并停止发布。迁移本身不触发 Worker 重新发布；若同一批改动包含 Club 代码，未先迁移会令发布失败，迁移后重跑即可。
 
+正式迁移后、更新 `CLUB_SCHEMA_VERSION` 前，在 Supabase SQL Editor 只读执行 `select version from supabase_migrations.schema_migrations order by version;`，确认每个 `supabase/migrations` 文件都已应用、没有遗漏中间版本。该变量只是人工确认，CI 不会读取正式数据库。
+
+## 备份（Supabase 免费版没有自动备份）
+
+由本人在本机执行，CI 和 AI 不执行；连接串含数据库密码，只在当前终端输入，不写入仓库。每次重要导入后或每周一次：
+
+```powershell
+supabase db dump --db-url "<正式库连接串>" -f club-schema.sql
+supabase db dump --db-url "<正式库连接串>" --data-only -f club-data.sql
+```
+
+文件含成员资料，加密后保存在仓库以外。`auth.users` 不在导出范围内，恢复后需重新确认账户与 Owner 关系。首次备份后，在可丢弃的本地 PostgreSQL 试恢复一次，确认文件可用。免费项目连续 7 天无活动会被暂停，留意 Supabase 提醒邮件。
+
+## 错误日志
+
+Worker 的意外异常仍返回 502，同时用 `console.error` 输出一行 JSON（`event`、`path`、错误类型和消息），不含 Cookie、Token 或请求内容。可用 `wrangler tail squirrelapi-club` 实时查看；持久保存需另行开启 Workers Logs（`observability`，待确认）。
+
 下文带日期的章节是历史验证记录，若与本节冲突，以本节为准。
 
 ## 日常命令

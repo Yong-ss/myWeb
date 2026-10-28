@@ -67,3 +67,27 @@ test('logout revokes only Club session and clears its cookies', async () => {
   assert.ok(urls[1].endsWith('logout?scope=local'));
   assert.ok(response.headers.get('Set-Cookie').includes('Max-Age=0'));
 });
+test('every route accepts only its own methods, so a missed entry cannot fall through to account data', async () => {
+  const expected = { login:['POST'], logout:['POST'], account:['GET'], 'import-context':['GET'], imports:['POST'], 'player-aliases':['POST'], members:['GET'], 'club-settings':['GET','POST'], activity:['GET'], 'delete-import':['POST'] };
+  for (const [path, methods] of Object.entries(expected)) for (const method of ['GET','POST','PUT','DELETE']) {
+    const response = await handleRequest(new Request(`https://club.example/api/${path}`, { method, headers: { Origin: 'https://club.example', 'Content-Type': 'application/json' } }), env, async () => new Response(null, { status: 401 }));
+    if (methods.includes(method)) assert.notEqual(response.status, 405, `${method} ${path}`); else assert.equal(response.status, 405, `${method} ${path}`);
+  }
+  for (const path of ['constructor', '__proto__', 'toString']) assert.equal((await handleRequest(req(path), env)).status, 404, path);
+});
+test('unexpected handler errors are logged without secrets and still fail closed with 502', async () => {
+  const logged = []; const original = console.error; console.error = line => logged.push(line);
+  try {
+    const response = await handleRequest(req('members', null, '__Host-club_access=secret-token'), env, async url => {
+      if (url.endsWith('/user')) return Response.json(user);
+      if (url.includes('club_memberships')) return Response.json([{ role: 'owner' }]);
+      // A 200 with a non-JSON body makes the handler's response.json() throw.
+      return new Response('<html>proxy page</html>', { status: 200 });
+    });
+    assert.equal(response.status, 502);
+    assert.equal(logged.length, 1);
+    const entry = JSON.parse(logged[0]);
+    assert.equal(entry.event, 'club_api_error'); assert.equal(entry.path, '/api/members'); assert.match(entry.error, /Error/);
+    assert.doesNotMatch(logged[0], /secret-token|Cookie|owner@example/);
+  } finally { console.error = original; }
+});

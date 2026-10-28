@@ -11,6 +11,22 @@ interface Env {
   CLUB_ID: string;
 }
 
+type Rest = (path: string, body?: unknown) => Promise<Response>;
+type Handler = (request: Request, club: string, rest: Rest, role: "owner" | "admin") => Promise<Response>;
+// Single source of truth: allowed paths, their methods and (for business routes) the handler.
+const routes: Record<string, { methods: string[]; handler?: Handler }> = {
+  "/api/login": { methods: ["POST"] },
+  "/api/logout": { methods: ["POST"] },
+  "/api/account": { methods: ["GET"] },
+  "/api/import-context": { methods: ["GET"], handler: handleImport },
+  "/api/imports": { methods: ["POST"], handler: handleImport },
+  "/api/player-aliases": { methods: ["POST"], handler: handleImport },
+  "/api/members": { methods: ["GET"], handler: handleMembers },
+  "/api/club-settings": { methods: ["GET", "POST"], handler: (request, club, rest, role) => handleSettings(request, club, role, rest) },
+  "/api/activity": { methods: ["GET"], handler: handleActivity },
+  "/api/delete-import": { methods: ["POST"], handler: handleActivity },
+};
+
 type AuthUser = { id: string; email?: string; email_confirmed_at?: string };
 type Session = { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
 
@@ -43,9 +59,9 @@ export async function handleRequest(request: Request, env: Env, fetcher: typeof 
 async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise<Response> {
   const url = new URL(request.url);
   if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
-  if (!["/api/login", "/api/account", "/api/logout", "/api/import-context", "/api/imports", "/api/player-aliases", "/api/members", "/api/club-settings", "/api/activity", "/api/delete-import"].includes(url.pathname)) return reply({ error: "接口不存在" }, 404);
-  const expectedMethod = url.pathname === "/api/club-settings" ? (request.method === "GET" ? "GET" : "POST") : ["/api/account", "/api/import-context", "/api/members", "/api/activity"].includes(url.pathname) ? "GET" : "POST";
-  if (request.method !== expectedMethod) return reply({ error: "请求方式不支持" }, 405);
+  const route = Object.hasOwn(routes, url.pathname) ? routes[url.pathname] : undefined;
+  if (!route) return reply({ error: "接口不存在" }, 404);
+  if (!route.methods.includes(request.method)) return reply({ error: "请求方式不支持" }, 405);
   if (request.method === "POST" && (request.headers.get("Origin") !== url.origin || !request.headers.get("Content-Type")?.startsWith("application/json"))) {
     return reply({ error: "请求来源无效" }, 403);
   }
@@ -128,22 +144,23 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     if (!user) return setSession(reply({ error: "请先登录" }, 401), request);
     const role = await membership(user, renewed?.access_token ?? stored["__Host-club_access"]);
     if (!role) return setSession(reply({ error: "此账户没有俱乐部访问权限" }, 403), request);
-    if (["/api/import-context", "/api/imports", "/api/player-aliases", "/api/members", "/api/club-settings", "/api/activity", "/api/delete-import"].includes(url.pathname)) {
+    if (route.handler) {
       const token = renewed?.access_token ?? stored["__Host-club_access"];
-      const handler = ["/api/activity", "/api/delete-import"].includes(url.pathname) ? handleActivity : url.pathname === "/api/club-settings" ? (req:Request,club:string,rest:(path:string,body?:unknown)=>Promise<Response>)=>handleSettings(req,club,role,rest) : url.pathname === "/api/members" ? handleMembers : handleImport;
-      const response = await handler(request, env.CLUB_ID, (path: string, body?: unknown) => fetcher(`${env.SUPABASE_URL}/rest/v1/${path}`, {
+      const response = await route.handler(request, env.CLUB_ID, (path: string, body?: unknown) => fetcher(`${env.SUPABASE_URL}/rest/v1/${path}`, {
         method: body === undefined ? "GET" : "POST",
         headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         signal: AbortSignal.timeout(15000),
-      }));
+      }), role);
       response.headers.set('X-Club-Scope',`${user.id}:${env.CLUB_ID}`);
       return renewed ? setSession(response, request, renewed) : response;
     }
     const response = reply({ email: user.email, club_id: env.CLUB_ID, role });
     response.headers.set('X-Club-Scope',`${user.id}:${env.CLUB_ID}`);
     return renewed ? setSession(response, request, renewed) : response;
-  } catch {
+  } catch (error) {
+    // Only path and error type/message: never cookies, tokens or request bodies.
+    console.error(JSON.stringify({ event: "club_api_error", path: url.pathname, error: error instanceof Error ? `${error.name}: ${error.message}` : "unknown" }));
     return reply({ error: "账户服务连接失败，请稍后重试" }, 502);
   }
 }
