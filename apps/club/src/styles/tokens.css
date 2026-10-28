@@ -50,6 +50,11 @@
   --club-motion: 150ms;
   --club-motion-fast: 120ms;
   --club-motion-enter: 180ms;
+  --club-motion-exit: 120ms;
+  --club-motion-page: 240ms;
+  --club-motion-icon: 200ms;
+  --club-form-max: 40rem;
+  --club-workspace-gutter: clamp(var(--club-space-4), 3vw, var(--club-space-8));
   --club-ease-feedback: cubic-bezier(.2, 0, .2, 1);
   --club-ease-enter: cubic-bezier(.16, 1, .3, 1);
   --club-dialog-offset: 6px;

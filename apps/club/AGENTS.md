@@ -15,6 +15,9 @@
 
 ## 共享组件：新页面与迁移必须优先复用
 
+- 全站 UI 批次运行 `tests/browser/club-visual-review.spec.mjs` 并实际审阅九个页面的桌面／手机截图；修复视觉问题后重新构建和截图，禁止仅以测试通过作为视觉合格证明。
+- 页面宽度变体用 `.club-workspace.club-login` 等明确组合选择器，防止共享工作区覆盖；微交互时长统一使用 Tokens，手机输入保持至少 16px，保留原生键盘和选择行为。
+
 - `components/ui/Button.tsx`：Button 用于操作，ButtonLink 用于导航；variant 使用 primary／secondary／danger，Loading 用 loading 和 loadingText，保留原生 disabled、type 和可访问性语义。不得用按钮模拟链接。
 - `components/ui/Fields.tsx`：Input、Select、Textarea 保留原生属性／键盘行为与显式 label，错误使用 aria-invalid；下拉使用渐进式 base-select／::picker(select) 样式，保留原生选择／键盘语义；不支持的浏览器回退原生弹层，不自行拼装缺少可访问性的列表。
 - `components/ui/Panel.tsx` 与 `components/layout/PageHeader.tsx`：统一容器和页标题；不另造同义 Card。
@@ -24,7 +27,7 @@
 
 ## 动效与交互：后续组件必须遵守
 
-- 先读设计规范第 9 节。反馈 120／150ms，弹窗进入 180ms，按下与关闭即时；所有时长、曲线、位移使用 Tokens。
+- 先读设计规范第 9 节及 2026-10-29 连续性更新。反馈 120／150ms，弹窗进入 180ms、视觉退出 120ms，原生关闭与焦点归还即时；新挂载一级区块淡入 240ms；所有时长、曲线、位移使用 Tokens。
 - CSS transition 优先，明确属性，不用 all；仅必要的 opacity／transform 入场，无弹跳、无逐行延迟、无宽高动画。未有实际需要不加 Motion 依赖。
 - Hover 仅精确指针设备；Focus-visible、Active、Disabled、Loading 必须独立可用。禁用用真实属性，Loading 保留尺寸和状态文字。
 - Dialog 必须检查初始焦点、Tab 双向循环、Escape、焦点归还、重复开关；移动端不能隐藏唯一导航。

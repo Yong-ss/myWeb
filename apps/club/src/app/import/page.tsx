@@ -10,7 +10,7 @@ import { fields, numericFields, parseSource, validateRows, mergePreview, validDa
 import { matchPlayers, type Match } from "../../lib/identity";
 import { extractionPrompt } from "../../lib/prompt";
 
-const labels = { name: "昵称", position: "职位", level: "等级", pathway: "途径", extraordinary_score: "非凡评分", prosperity: "繁荣度", weekly_activity: "周活跃", group: "分组", join_days: "入会天数" };
+const labels = { name: "昵称", position: "职位", level: "等级", pathway: "途径", extraordinary_score: "非凡评分", prosperity: "风尚度", weekly_activity: "周活跃", group: "分组", join_days: "入会天数" };
 type Row = { member: Member; identity: string; manual: boolean; sourceName: string | null; remember: boolean; needsReview: boolean; search?: string; correction?: {name:string;expected:string} };
 
 function beijingToday() {
@@ -159,7 +159,7 @@ export default function ImportPage() {
     <ol className="stepper" aria-label="导入进度">{["准备数据", "核对成员", "确认保存"].map((label,i) => <li key={label} aria-current={!saved && i === (review ? 2 : context ? 1 : 0) ? "step" : undefined} className={saved || i < (review ? 2 : context ? 1 : 0) ? "done" : ""}><span>{String(i+1).padStart(2,"0")}</span>{label}</li>)}</ol>
     {!context && !saved && <div className="ai-toolbar"><Button onClick={async () => { try { await navigator.clipboard.writeText(extractionPrompt); setNotice("AI识别提示词已复制"); } catch { setError("复制失败，请展开帮助里的完整提示词手动复制。"); } }}>复制AI识别提示词</Button><details className="ai-help"><summary aria-label="查看截图识别方法" title="怎么使用？">?</summary><div className="ai-help-content"><h3>怎么导入？</h3><ol><li>复制AI识别提示词，粘贴给 AI。</li><li>上传游戏成员截图。</li><li>把 AI 返回的 JSON 粘贴或上传到这里。</li></ol><a href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">打开豆包 ↗</a><details><summary>完整AI识别提示词</summary><pre className="prompt">{extractionPrompt}</pre></details></div></details></div>}
     {!context && !saved && <p className="ai-recommendation">* 建议使用<a href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">豆包</a>，选择「专家」。</p>}
-    <p role={saved?undefined:"status"} className="feedback success">{saved?"":notice}</p><p id="import-feedback" tabIndex={-1} role="alert" className="feedback error">{error.replace(/extraordinary_score|weekly_activity|join_days|prosperity|pathway|player_id/g, key => ({ extraordinary_score:"非凡评分", weekly_activity:"周活跃", join_days:"入会天数", prosperity:"繁荣度", pathway:"途径", player_id:"玩家身份" })[key] ?? key)}</p>
+    <p role={saved?undefined:"status"} className="feedback success">{saved?"":notice}</p><p id="import-feedback" tabIndex={-1} role="alert" className="feedback error">{error.replace(/extraordinary_score|weekly_activity|join_days|prosperity|pathway|player_id/g, key => ({ extraordinary_score:"非凡评分", weekly_activity:"周活跃", join_days:"入会天数", prosperity:"风尚度", pathway:"途径", player_id:"玩家身份" })[key] ?? key)}</p>
     {saved ? <section className="success-card club-data-enter" id="import-success" tabIndex={-1}><LoadingState status="ready" title="今天的记录，保存好了。" detail={`${notice} 可以放心离开这个页面，或继续导入其他日期的数据。`} action={<><Button onClick={reset}>开始另一批导入</Button><Link href="/account">回到工作台</Link></>}/></section> : <fieldset className="club-import-busy" disabled={busy} aria-busy={busy}>
       {busy && <PageLoader className="club-import-processing" title={review ? "正在保存记录…" : "正在读取数据…"} detail="请稍候，不要重复提交。" />}
       {!context ? <section className="panel input-panel">

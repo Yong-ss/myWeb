@@ -27,7 +27,7 @@ export function anomalies(row: Member, prior: Observation | undefined, date: str
   if (typeof row.level === "number" && typeof prior.level === "number" && row.level < prior.level) reasons.push("等级低于上次");
   for (const key of ["extraordinary_score", "prosperity"] as const) {
     const current = row[key], old = prior[key];
-    if (typeof current === "number" && typeof old === "number" && old > 0 && (current < old * 0.5 || current > old * 2)) reasons.push(`${key === "prosperity" ? "繁荣度" : "非凡评分"}变化超过一倍`);
+    if (typeof current === "number" && typeof old === "number" && old > 0 && (current < old * 0.5 || current > old * 2)) reasons.push(`${key === "prosperity" ? "风尚度" : "非凡评分"}变化超过一倍`);
   }
   const days = Math.round((Date.parse(date) - Date.parse(prior.snapshot_date)) / 86400000);
   if (days >= 0 && typeof row.join_days === "number" && typeof prior.join_days === "number" && Math.abs(row.join_days - prior.join_days - days) > 2) reasons.push("入会天数与截图日期变化不符（可能重新加入）");
