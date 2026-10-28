@@ -5,6 +5,6 @@ import {AppShell} from "./AppShell";
 /** Root-layout lifetime: page transitions replace content, not account controls. */
 export function ClubFrame({children}:{children:ReactNode}){
  const pathname=usePathname();
- const privatePage=['/account','/members','/players','/import','/settings'].includes(pathname);
+ const privatePage=['/account','/members','/players','/import','/settings','/activity'].includes(pathname);
  return <AppShell publicPage={!privatePage}>{children}</AppShell>;
 }

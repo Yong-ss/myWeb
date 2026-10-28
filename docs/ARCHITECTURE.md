@@ -1,5 +1,11 @@
 # SquirrelAPI — Architecture
 
+## Audited import removal — 2026-10-28
+
+`club_snapshots.deleted_at` is a tombstone for all revisions of a date. Restrictive SELECT policies on snapshots, rows and raw imports compose with existing tenant RLS; invoker roster/history/identity reads omit removed observations without per-endpoint filtering. Player identities and explicit aliases remain. A narrow private definer transaction rechecks confirmed-user active Owner/Admin membership under the existing per-club lock, compares the current snapshot UUID, soft-deletes the date and appends audit evidence atomically. Direct table writes remain revoked. Reimports retain the hidden revision anchor but never merge hidden rows; deleted idempotency requests conflict instead of claiming success.
+
+Existing audit writers feed `/api/activity` through an invoker RPC, 50 events per page ordered by `(created_at,id)` with a bounded extra row for continuation. An internal trigger snapshots actor email/role at mutation time; older records retain their original evidence. Logs are not cached, publicly exposed, editable or deletable. POST removal uses the existing same-origin/auth boundary and shared write cache invalidation. No service-role credentials, new dependencies or production writes are involved in local verification.
+
 ## Club B identity matching — 2026-10-27
 
 Dependency-free `identity.ts` ranks exact formal names / explicitly confirmed aliases first, and uses Unicode decoration normalization plus bounded edit distance for suggestions only. Duplicate targets, same-name players, alias conflicts and historical anomalies require manual review. History cannot establish identity. The browser shows a summary and exceptions, supports bulk new-player confirmation, and retains an editable full preview.

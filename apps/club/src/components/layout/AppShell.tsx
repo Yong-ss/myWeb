@@ -7,7 +7,7 @@ import { Button } from "../ui/Button";
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import "../../styles/components.css";
 
-const links = [["/account", "◇", "俱乐部总览"], ["/members", "♧", "成员名单"], ["/import", "⊕", "导入数据"]] as const;
+const links = [["/account", "◇", "俱乐部总览"], ["/members", "♧", "成员名单"], ["/import", "⊕", "导入数据"], ["/activity", "≡", "操作日志"]] as const;
 
 /** Shared shell; permissions remain enforced by the Worker and database. */
 export function AppShell({ children, publicPage = false }: { children: ReactNode; publicPage?: boolean }) {

@@ -11,6 +11,7 @@ import { LoadingState, TableSkeleton } from "../../components/feedback";
 import { Suspense, useEffect, useState } from "react";
 import type { Member } from "../../lib/import";
 
+import {DeleteImport} from "../../components/DeleteImport";
 type Snapshot = { id: string; snapshot_date: string; revision: number; is_complete_roster: boolean; is_current: boolean };
 type Row = Omit<Member, "group"> & { player_id: string; group_name: string | null; presence?: Presence; data_date?:string };
 type Result = { snapshots: Snapshot[]; snapshot: Snapshot | null; members: Row[]; next: string | null; snapshot_count?:number };
@@ -66,7 +67,7 @@ function MemberList() {
     <div className="members-toolbar"><label>查看日期<Select value={date} onChange={e => { setDate(e.target.value); setVersion(""); }}><option value="">最新一天</option>{dates.map(s => <option key={s.id} value={s.snapshot_date}>{s.snapshot_date}</option>)}</Select></label><Button disabled={!next} loading={moreBusy} loadingText="读取中…" onClick={moreDates}>更早日期</Button>
       <label>保存版本<Select disabled={!date||waiting} value={version} onChange={e => setVersion(e.target.value)}><option value="">当天最新版本</option>{(result?.snapshots??[]).filter(s => !s.is_current).map(s => <option key={s.id} value={s.id}>第 {s.revision} 版（旧版）</option>)}</Select></label>
     </div>
-      <div className="members-summary"><strong>{waiting?"—":result?.snapshot?.snapshot_date??"—"} · {waiting?"—":result?.snapshot_count??result?.members.length??"—"} 人</strong><span className="badge">{waiting?"正在读取…":!result?.snapshot?"暂无记录":result.snapshot.is_complete_roster ? "已确认完整" : "未确认完整"}</span>{result?.snapshot&&!waiting&&!result.snapshot.is_current && <span className="badge">旧版本 · 第 {result.snapshot.revision} 版</span>}</div>
+      <div className="members-summary"><strong>{waiting?"—":result?.snapshot?.snapshot_date??"—"} · {waiting?"—":result?.snapshot_count??result?.members.length??"—"} 人</strong><span className="badge">{waiting?"正在读取…":!result?.snapshot?"暂无记录":result.snapshot.is_complete_roster ? "已确认完整" : "未确认完整"}</span>{result?.snapshot&&!waiting&&!result.snapshot.is_current && <span className="badge">旧版本 · 第 {result.snapshot.revision} 版</span>}{result?.snapshot?.is_current&&!waiting&&!error&&<DeleteImport date={result.snapshot.snapshot_date} snapshotId={result.snapshot.id} onDeleted={()=>{setResult(null);setDates([]);setDate("");setVersion("");setLoadedSelection(null);setRetry(n=>n+1);}}/>}</div>
       <p className="muted">点昵称查看个人历史；未在本次识别的玩家显示最近记录，不当作当天数据。</p>
       <div className="members-toolbar"><label>搜索玩家<Input disabled={waiting||!result?.snapshot} type="search" placeholder="输入昵称" value={search} onChange={e => setSearch(e.target.value)} /></label><label>排序<Select disabled={waiting||!result?.snapshot} value={sort} onChange={e => setSort(e.target.value)}>{columns.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</Select></label><Button disabled={waiting||!result?.snapshot} onClick={() => setDescending(v => !v)}>{descending ? "降序 ↓" : "升序 ↑"}</Button></div>
     {error && <LoadingState status="error" detail={error} onRetry={() => setRetry(n => n + 1)} />}
