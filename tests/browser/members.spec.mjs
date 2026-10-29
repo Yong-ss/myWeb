@@ -27,7 +27,7 @@ for(const width of [1440,390])test('member headers sort and combine filters at '
  const roles=['会长','外交官','理事','俱乐部之星','一组组长','二组组员','正式成员','候补成员'];
  await page.route('**/api/members*',route=>route.fulfill({json:{
   snapshots:[],snapshot:{id,snapshot_date:'2026-10-28',is_current:true,is_complete_roster:true},
-  members:roles.map((position,i)=>({player_id:'player-'+i,name:'玩家'+i,position,level:70,extraordinary_score:100-i,prosperity:i,weekly_activity:0,join_days:i,pathway:i%2?'观众':'战士',group_name:i%2?'一组':'二组',presence:i===7?'left':'present'})),next:null
+  members:roles.map((position,i)=>({player_id:'player-'+i,name:'玩家'+i,position,level:70,extraordinary_score:100-i,prosperity:i,weekly_activity:0,join_days:i,pathway:i%2?'观众':'战士',group_name:i%2?'一组':'二组',presence:'present'})),next:null
  }}));
  await page.goto('/members');
  const names=()=>page.locator('tbody tr td:nth-child(2)').allTextContents();

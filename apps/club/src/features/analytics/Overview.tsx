@@ -1,5 +1,6 @@
 "use client";
 import {TableSkeleton,LoadingState} from "../../components/feedback";
+import {PathwayDonut} from "./PathwayDonut";
 import {RosterChart} from "./RosterChart";
 import {useDataRefresh} from "../../lib/useDataRefresh";
 import {clubApi} from "../../lib/data-access";
@@ -8,7 +9,7 @@ import Link from "next/link";
 import {Card,CardDescription,CardTitle} from "../../components/ui/card";
 import {Button} from "../../components/ui/button";
 import {Badge} from "../../components/ui/badge";
-type Row={player_id:string;name:string|null;presence?:string;extraordinary_score:number|null;prosperity:number|null};
+type Row={pathway?:string|null;player_id:string;name:string|null;presence?:string;extraordinary_score:number|null;prosperity:number|null};
 type Snapshot={snapshot_date:string;is_complete_roster:boolean};
 type Data={snapshot:Snapshot|null;snapshots:Snapshot[];members:Row[];snapshot_count?:number};
 export function Overview(){
@@ -52,5 +53,6 @@ export function Overview(){
       <Card className="club-overview-ranking h-105 min-h-105 items-stretch overflow-auto"><CardTitle>非凡评分前十</CardTitle>{busy&&!data?<TableSkeleton rows={4} columns={2} label="正在读取排名…" />:rank.length?<ol className="m-0 list-none p-0">{rank.map((r,i)=><li key={r.player_id} className="flex items-center gap-3 border-b border-divider py-2 text-sm tabular-nums last:border-b-0">
         <span className="w-6 text-right font-heading text-muted-foreground">{i+1}</span><Link href={`/players?id=${r.player_id}&date=${data?.snapshot?.snapshot_date??""}`} className="min-w-0 flex-1 truncate text-foreground hover:text-gold">{r.name??"未识别"}</Link> · <span className="text-gold">{r.extraordinary_score}</span></li>)}</ol>:<p className="m-0 text-sm text-muted-foreground">暂无评分数据。</p>}</Card>
     </div>
+    <PathwayDonut members={data?.members??[]} loading={busy&&!data}/>
   </section>;
 }

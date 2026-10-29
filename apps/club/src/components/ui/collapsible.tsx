@@ -30,8 +30,16 @@ function CollapsibleTrigger({ className, children, asChild, ...props }: React.Co
   )
 }
 
-function CollapsibleContent({ className, children, ...props }: Omit<React.ComponentProps<typeof CollapsiblePrimitive.Content>, "asChild" | "forceMount">) {
+function CollapsibleContent({ className, children, onExpandUpdate, ...props }: Omit<React.ComponentProps<typeof CollapsiblePrimitive.Content>, "asChild" | "forceMount"> & { onExpandUpdate?: () => void }) {
   const open = useOpen()
+  const panel=React.useRef<HTMLDivElement>(null)
+  const expanding=React.useRef(false)
+  React.useEffect(()=>{
+    if(!open||!onExpandUpdate||!panel.current)return
+    const observer=new ResizeObserver(()=>{ if(expanding.current)onExpandUpdate() })
+    observer.observe(panel.current)
+    return ()=>observer.disconnect()
+  },[open,onExpandUpdate])
   const grow = useMotion({ duration: 0.3, ease: ease.drawer }), shrink = useMotion({ duration: 0.22, ease: ease.feedback })
   const fadeIn = useMotion({ duration: 0.24, delay: 0.06, ease: ease.feedback }), fadeOut = useMotion({ duration: 0.12, ease: ease.feedback })
   return (
@@ -39,9 +47,12 @@ function CollapsibleContent({ className, children, ...props }: Omit<React.Compon
       {open && (
         <CollapsiblePrimitive.Content asChild forceMount {...props}>
           <motion.div
+            ref={panel}
             data-slot="collapsible-content"
             className="overflow-hidden"
             initial={{ height: 0 }} animate={{ height: "auto", transition: grow }} exit={{ height: 0, transition: shrink }}
+            onAnimationStart={() => { expanding.current=open }}
+            onAnimationComplete={() => { expanding.current=false; if (open) onExpandUpdate?.() }}
           >
             {/* Content fades in just after the panel starts opening and fades out first when closing. */}
             <motion.div className={className} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0, transition: fadeIn }} exit={{ opacity: 0, y: -2, transition: fadeOut }}>{children}</motion.div>
