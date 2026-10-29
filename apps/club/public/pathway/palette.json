@@ -1,0 +1,44 @@
+[
+  {
+    "file": "seer.webp",
+    "source_image": "占卜家.webp",
+    "pathway": "占卜家",
+    "suggested_accent": "#9480C5",
+    "size_bytes": 65388
+  },
+  {
+    "file": "apprentice.webp",
+    "source_image": "学徒.webp",
+    "pathway": "学徒",
+    "suggested_accent": "#5BC9E8",
+    "size_bytes": 64720
+  },
+  {
+    "file": "sun.webp",
+    "source_image": "太阳.webp",
+    "pathway": "太阳（请核对是否映射游戏数据中的「歌颂者」）",
+    "suggested_accent": "#F2C86A",
+    "size_bytes": 59880
+  },
+  {
+    "file": "spectator.webp",
+    "source_image": "观众.webp",
+    "pathway": "观众",
+    "suggested_accent": "#9BB5C9",
+    "size_bytes": 59678
+  },
+  {
+    "file": "mystery-pryer.webp",
+    "source_image": "窥秘人.webp",
+    "pathway": "窥秘人",
+    "suggested_accent": "#A57BE1",
+    "size_bytes": 79204
+  },
+  {
+    "file": "warrior.webp",
+    "source_image": "战士.webp",
+    "pathway": "战士",
+    "suggested_accent": "#DF8B60",
+    "size_bytes": 66846
+  }
+]

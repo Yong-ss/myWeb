@@ -310,3 +310,9 @@ Select 使用 CSS `appearance: base-select` 和 `::picker(select)` 在支持的�
 - 位置：`src/app/showcase/page.dev.tsx` → `src/components/showcase/Showcase.tsx`。`pnpm --filter @squirrelapi/club dev` 后打开 `http://127.0.0.1:3001/showcase`。
 - `next.config.ts` 只在 `next dev` 时把 `dev.tsx` 加入 `pageExtensions`；`next build` 的静态导出不含此页（已验证 `out/` 中无 showcase）。只用合成数据。
 
+### 15.6 途径视觉第一阶段 — 2026-10-30
+- `src/lib/pathways.ts` 是唯一的类型化展示注册表；配色引用 `tokens.css` 的 `--club-pathway-*`。使用用户提供的 `public/pathway/` 游戏原图，不改数据或匹配规则。
+- 已确认「歌颂者」使用太阳图标 `sun.webp`，显示名仍是「歌颂者」；不把「太阳」自动当成已知存储名称。
+- `components/PathwayLabel.tsx` 提供 `PathwayIcon`／`PathwayLabel`：20px 装饰图标、纯文字强调色，无彩色徽章底；未知名称原样显示，缺失值沿用各场景占位文字，中性圆点保留图标位置。
+- 用于成员表、个人历史表、导入最终预览，并在开发 showcase 展示；编辑输入、排序、筛选与业务协议不变；图表不在本阶段范围内。
+

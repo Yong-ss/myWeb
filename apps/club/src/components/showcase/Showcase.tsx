@@ -5,6 +5,8 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { DotsThreeIcon, GearSixIcon, QuestionIcon, TrashIcon } from "@phosphor-icons/react";
 import { PageHeader } from "../layout/PageHeader";
+import { PathwayLabel } from "../PathwayLabel";
+import { pathways } from "../../lib/pathways";
 import { LoadingSpinner, LoadingState, PageLoader, ProfileSkeleton, TableSkeleton } from "../feedback";
 import { Button, ButtonLink } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -59,6 +61,7 @@ export function Showcase() {
     <nav aria-label="陈列分区" className="-mt-6 flex flex-wrap gap-2">{sections.map(s => <a key={s} href={`#${s}`} className="rounded-sm border border-border px-3 py-1 text-sm text-muted-foreground no-underline hover:border-gold hover:text-gold">{s}</a>)}</nav>
 
     <Section id="基础" title="基础 · Tokens">
+      <Block title="途径" note="20px 游戏图标，保留存储名称；未知与缺失值使用中性回退。">{Object.values(pathways).map(({name}) => <PathwayLabel key={name} pathway={name} />)}<PathwayLabel pathway="未知途径" /><PathwayLabel pathway={null} /></Block>
       <Block title="表面" note="均来自 tokens.css 的 --club-*；页面不硬编码颜色。">{colors.map(([name, cls]) => <State key={name} label={name}><span className={`block h-14 w-28 rounded-sm border border-border ${cls}`} /></State>)}</Block>
       <Block title="强调">{accents.map(([name, cls]) => <State key={name} label={name}><span className={`block h-14 w-28 rounded-sm ${cls}`} /></State>)}</Block>
       <Block title="状态色（前景 / 背景成对使用）">{statuses.map(([name, v]) => <Badge key={v} variant={v}>{name}</Badge>)}</Block>

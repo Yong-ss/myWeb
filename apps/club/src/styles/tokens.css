@@ -25,6 +25,13 @@
   --club-error-bg: #332326;
   --club-info: #afc2cd;
   --club-info-bg: #202b32;
+  /* Muted pathway accents, readable on table, hover and selected surfaces. */
+  --club-pathway-seer: #7087D1;
+  --club-pathway-apprentice: #85c4d3;
+  --club-pathway-spectator: #7EC0A7;
+  --club-pathway-mystery-pryer: #A57BE1;
+  --club-pathway-warrior: #dfa17e;
+  --club-pathway-sun: #dec18a;
   --club-font-heading: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif;
   --club-font-body: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
   --club-font-mono: Consolas, "Courier New", monospace;

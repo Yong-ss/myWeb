@@ -1,4 +1,5 @@
 "use client";
+import {PathwayLabel} from "../../components/PathwayLabel";
 import {useDataRefresh} from "../../lib/useDataRefresh";
 import {clubApi} from "../../lib/data-access";
 import Link from "next/link";
@@ -91,7 +92,7 @@ function MemberList() {
         <TableHeader><TableRow>{sortHeading("presence","状态")}{columns.map(([value,title])=>value==="pathway"||value==="group_name"?filterHeading(value,title):sortHeading(value,title,value==="name"?cn(sticky,"z-3! bg-secondary"):undefined))}{sortHeading("data_date","数据日期")}</TableRow></TableHeader>
         <TableBody>{visible.map(row => { const left=row.presence==="left"; return <TableRow key={row.player_id}>
           <TableCell className={left?"text-destructive":undefined}>{presenceLabels[row.presence??"present"]}</TableCell>
-          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&"text-destructive line-through")} href={`/players?id=${row.player_id}&date=${result.snapshot!.snapshot_date}`}>{row[value]??"未识别昵称"}</Link>:row[value]??"—"}</TableCell>)}
+          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&"text-destructive line-through")} href={`/players?id=${row.player_id}&date=${result.snapshot!.snapshot_date}`}>{row[value]??"未识别昵称"}</Link>:value==="pathway"?<PathwayLabel pathway={row[value]} />:row[value]??"—"}</TableCell>)}
           <TableCell className="text-muted-foreground">{row.data_date??result.snapshot!.snapshot_date}</TableCell></TableRow>; })}
           {!visible.length&&<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">没有符合条件的玩家，请调整搜索或筛选。</TableCell></TableRow>}</TableBody></Table>
     : <LoadingState status="empty" title="还没有保存记录" detail="导入第一份数据后，就能在这里查看。" action={<ButtonLink href="/import">导入数据</ButtonLink>} />)}
