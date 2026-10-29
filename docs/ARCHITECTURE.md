@@ -1,5 +1,9 @@
 # SquirrelAPI — Architecture
 
+## Club overview and analytics workspace — 2026-10-30
+
+`/account` shows current snapshot status, confirmed member count, recent observed changes and a concise strength summary. `/analytics?view=growth|pathways` is registered in the shared private navigation and uses the existing analytics feature. Radix Tabs synchronize with URL navigation, including Back/Forward. The pathway view does not fetch the prior roster. Existing pure growth calculations and pathway counts remain unchanged; growth dates, formulas, complete sortable rankings, population charts and older overview detail are progressively disclosed. No API or database change.
+
 Sections are dated and newest-first; a later section supersedes earlier ones. Current delivery and testing rules: `docs/TESTING.md` first section.
 
 ## Club module structure (current) — 2026-10-29

@@ -4,6 +4,7 @@ export type NavLink = { href: string; icon: string; label: string };
 
 const privateRoutes: { path: string; nav?: { icon: string; label: string }; activeNav?: string }[] = [
   { path: "/account", nav: { icon: "◇", label: "俱乐部总览" } },
+  { path: "/analytics", nav: { icon: "◈", label: "数据分析" } },
   { path: "/members", nav: { icon: "♧", label: "成员名单" } },
   { path: "/players", activeNav: "/members" }, // a player's history highlights 成员名单
   { path: "/import", nav: { icon: "⊕", label: "导入数据" } },

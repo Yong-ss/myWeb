@@ -14,7 +14,7 @@ async function mock(page,state){
 for(const width of [1440,320])test(`donut counts, focus, navigation and neutral categories ${width}`,async({page})=>{
  await page.setViewportSize({width,height:900});
  const state={members,requests:0};await mock(page,state);
- await page.goto('/account');
+ await page.goto('/analytics?view=pathways');
  const card=page.getByRole('region',{name:'途径分布'}),chart=card.getByRole('group',{name:'途径分布图，共 6 位在会成员'});
  await expect(chart).toBeVisible();expect(state.requests).toBe(1);
  const legend=card.getByRole('list',{name:'途径分布明细'});
@@ -46,7 +46,7 @@ for(const width of [1440,320])test(`donut counts, focus, navigation and neutral 
 
 test('empty, failed and refreshed data do not leave stale donut segments',async({page})=>{
  const state={members:[],requests:0,empty:true};await mock(page,state);
- await page.goto('/account');await expect(page.getByText('还没有每日记录')).toBeVisible();
+ await page.goto('/analytics?view=pathways');await expect(page.getByText('还没有每日记录')).toBeVisible();
  state.empty=false;await page.reload();
  await expect(page.getByText('暂无明确在会成员，暂不生成途径分布。')).toBeVisible();
  state.members=[members[0]];await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
