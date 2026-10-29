@@ -52,6 +52,14 @@ export async function clubFetch(path:string,init?:RequestInit){
   return client.read(path,init);
 }
 export const clearClubData=client.clear;
+/** JSON call for feature pages. 401/403 always returns to login; other failures throw the server's message. */
+export async function clubApi<T=any>(path:string,init?:RequestInit,fallback="请求失败，请重试"):Promise<T>{ // eslint-disable-line @typescript-eslint/no-explicit-any
+  const response=await clubFetch(path,init);
+  if([401,403].includes(response.status)){if(typeof window!=='undefined')window.location.replace('/login');throw Error('请重新登录');}
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error??fallback);
+  return data as T;
+}
 if(typeof window!=='undefined'){
   // Other tabs must not keep entries from an earlier login or import.
   const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('club-data'):null;

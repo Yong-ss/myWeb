@@ -1,8 +1,8 @@
 "use client";
 import {useRef,useState} from 'react';
-import {clubFetch} from '../lib/data-access';
-import {Button} from './ui/Button';
-import {Input} from './ui/Fields';
+import {clubFetch} from '../../lib/data-access';
+import {Button} from '../../components/ui/Button';
+import {Input} from '../../components/ui/Fields';
 export function DeleteImport({date,snapshotId,onDeleted}:{date:string;snapshotId:string;onDeleted:()=>void}){
  const dialog=useRef<HTMLDialogElement>(null),[confirmation,setConfirmation]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  async function remove(){

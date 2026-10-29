@@ -1,5 +1,5 @@
 "use client";
-import {clubFetch} from "../lib/data-access";
+import {clubFetch} from "./data-access";
 import {useEffect,useSyncExternalStore} from "react";
 let name="俱乐部名称";
 const listeners=new Set<()=>void>();

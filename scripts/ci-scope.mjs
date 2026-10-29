@@ -12,7 +12,8 @@ export function scopeFor(files, full = false) {
     if (file.startsWith('apps/web/')) Object.assign(result, { web:true }, testOnly ? {} : { deploy_web:true });
     else if (file.startsWith('apps/club/')) {
       Object.assign(result, { club:true, e2e:'all' }, testOnly ? {} : { deploy_club:true });
-      if (/worker\/|src\/lib\//.test(file)) result.db = true;
+      // Worker code and the pure .ts modules it imports (shared contracts, feature rules) can change what reaches the database.
+      if (/worker\/|src\/(lib|domain)\/|src\/features\/[^/]+\/[^/]+\.ts$/.test(file)) result.db = true;
       if (!/(\.css$|\/src\/app\/(page|not-found|layout)\.tsx$)/.test(file)) result.integration = true;
     }
     // Migrations are applied manually; the Worker bundle does not change.

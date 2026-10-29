@@ -29,7 +29,7 @@ test('bounded history over 80000 rows, RLS, cursor continuity and measured read 
  // Compare identical input/REST network against the pre-optimization HEAD implementation.
 
  let oldSource=execFileSync('git',['show','c56d6d3c71932dd615cb6e7a9e232410c2b03732:apps/club/worker/members.ts'],{encoding:'utf8'});
- for(const [from,to] of [['../src/lib/import.ts','apps/club/src/lib/import.ts'],['../src/lib/presence.ts','apps/club/src/lib/presence.ts'],['./player-history.ts','apps/club/worker/player-history.ts']])oldSource=oldSource.replace(from,pathToFileURL(resolve(to)).href);
+ for(const [from,to] of [['../src/lib/import.ts','apps/club/src/domain/member.ts'],['../src/lib/presence.ts','apps/club/src/domain/presence.ts'],['./player-history.ts','apps/club/worker/player-history.ts']])oldSource=oldSource.replace(from,pathToFileURL(resolve(to)).href);
  const baseline=(await Function('url','return import(url)')('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(oldSource)).toString('base64'))).handleMembers;
  const report={fixture:{days:1000,players:80,rows:80000},roster:{},history:{},plan:''};
  for(const [name,handler] of [['before',baseline],['after',handleMembers]]){

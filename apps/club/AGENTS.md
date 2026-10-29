@@ -50,6 +50,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## 模块边界（由 `src/architecture.test.mjs` 自动检查）
+
+- `src/features/<功能>/`：每个业务功能自带页面、组件、纯逻辑和测试。现有功能：import、members、history、analytics、activity、settings、auth。功能之间禁止互相 import；需要共用的东西先移到下面的共享层。
+- `src/domain/`：跨功能的业务契约（成员字段、日期／UUID 校验、在会状态）。只能 import `domain/` 自己。
+- `src/lib/`（数据访问、`clubApi`、刷新、品牌）与 `src/components/`（UI、布局、反馈）：共享基础设施，禁止 import 任何功能。
+- `src/app/<路由>/page.tsx` 只重新导出功能页面，不写逻辑；`src/app/error.tsx` 让单页出错时侧栏和其他页面照常可用。
+- `worker/`：每个 API 一个处理文件，统一在 `index.ts` 的 `routes` 表登记；`worker/http.ts` 只放通用 HTTP 工具。Worker 只能用 `domain/` 和功能目录里不含 React 的 `.ts`，禁止引用页面或组件。
+- 新功能：新建 `src/features/<名字>/`，加一行路由页、一行导航（如需要），以及需要时的 `worker/<名字>.ts` 和 `routes` 一项；不应修改其他功能。
+
 ## 品牌与设置
 
 - 俱乐部名称以数据库为准，禁止用 localStorage 预览代替保存；复用 `useClubBrand` 与 `/api/club-settings`。

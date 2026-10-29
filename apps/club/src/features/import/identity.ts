@@ -1,4 +1,4 @@
-import type { Member, Player } from "./import.ts";
+import type { Member, Player } from "../../domain/member.ts";
 
 export type Alias = { id: string; player_id: string; alias_name: string };
 export type Observation = Member & { player_id: string; snapshot_date: string };

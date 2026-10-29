@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import {AccountControls} from "./AccountControls";
-import {useClubBrand} from "../useClubBrand";
+import {useClubBrand} from "../../lib/club-brand";
 import { usePathname } from "next/navigation";
 import { Button } from "../ui/Button";
 import { useRef, type KeyboardEvent, type ReactNode } from "react";

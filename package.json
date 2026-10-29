@@ -6,7 +6,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "test:unit": "node --test tests/*.test.mjs apps/web/worker/*.test.mjs apps/club/worker/*.test.mjs apps/club/src/lib/*.test.mjs",
+    "test:unit": "node --test tests/*.test.mjs apps/web/worker/*.test.mjs apps/club/worker/*.test.mjs \"apps/club/src/**/*.test.mjs\"",
     "test:db": "node scripts/test-db.mjs",
     "test:integration": "node scripts/test-integration.mjs",
     "test:e2e": "node --import ./tests/runtime-env.mjs ./node_modules/@playwright/test/cli.js test",

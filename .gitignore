@@ -11,3 +11,4 @@ temp_work/
 .test-artifacts/
 .test-runtime/
 supabase/.temp/
+backups/

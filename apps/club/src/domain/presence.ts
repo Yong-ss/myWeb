@@ -1,4 +1,4 @@
-import {type Member, numericFields} from "./import.ts";
+import {type Member, numericFields} from "./member.ts";
 type NumericField = typeof numericFields[number];
 export type SavedMember = Omit<Member, "group" | NumericField> & Record<NumericField, number | null> & { player_id: string; group_name: string | null };
 export type Presence = "present" | "left" | "unconfirmed";

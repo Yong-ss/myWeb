@@ -3,6 +3,7 @@ import { handleImport } from "./imports.ts";
 import {handleSettings} from "./settings.ts";
 import { handleMembers } from "./members.ts";
 import {instrument} from "./timing.ts";
+import {reply, readBody, type Rest} from "./http.ts";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -11,7 +12,6 @@ interface Env {
   CLUB_ID: string;
 }
 
-type Rest = (path: string, body?: unknown) => Promise<Response>;
 type Handler = (request: Request, club: string, rest: Rest, role: "owner" | "admin") => Promise<Response>;
 // Single source of truth: allowed paths, their methods and (for business routes) the handler.
 const routes: Record<string, { methods: string[]; handler?: Handler }> = {
@@ -29,10 +29,6 @@ const routes: Record<string, { methods: string[]; handler?: Handler }> = {
 
 type AuthUser = { id: string; email?: string; email_confirmed_at?: string };
 type Session = { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
-
-function reply(data: unknown, status = 200) {
-  return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
-}
 
 function cookies(request: Request) {
   return Object.fromEntries((request.headers.get("Cookie") ?? "").split(";").map(part => {
@@ -87,20 +83,8 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
   };
   try {
     if (url.pathname === "/api/login") {
-      // Bound memory use even when Content-Length is absent or incorrect.
-      const reader = request.body?.getReader();
-      if (!reader) return reply({ error: "请输入邮箱和密码" }, 400);
-      let text = "";
-      let bytes = 0;
-      const decoder = new TextDecoder();
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        bytes += value.byteLength;
-        if (bytes > 4096) { await reader.cancel(); return reply({ error: "请求过大" }, 413); }
-        text += decoder.decode(value, { stream: true });
-      }
-      text += decoder.decode();
+      const text = await readBody(request, 4096, { missing: "请输入邮箱和密码" });
+      if (text instanceof Response) return text;
       let input;
       try { input = JSON.parse(text); } catch { return reply({ error: "请求内容无效" }, 400); }
       if (!input || typeof input.email !== "string" || typeof input.password !== "string" || !input.email.trim() || !input.password || input.email.length > 320 || input.password.length > 1024) return reply({ error: "请输入有效的邮箱和密码" }, 400);

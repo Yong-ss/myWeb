@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSource, validateRows, validateAbsences, matchName, mergePreview, validDate, MAX_SOURCE_BYTES } from './import.ts';
+import { parseSource, validateRows, validateAbsences, matchName, mergePreview, MAX_SOURCE_BYTES } from './contract.ts';
+import { validDate } from '../../domain/member.ts';
 import { readFileSync } from 'node:fs';
 import { extractionPrompt } from './prompt.ts';
 
@@ -50,7 +51,7 @@ test('source limits and calendar dates reject truncated or impossible imports', 
   assert.throws(() => parseSource(source([{...member,extraordinary_score:Number.MAX_SAFE_INTEGER+1}])));
 });
 test('the copied AI prompt stays exactly aligned with the approved requirement', () => {
-  const doc=readFileSync(new URL('../../../../docs/CLUB_REQUIREMENTS.md',import.meta.url),'utf8');
+  const doc=readFileSync(new URL('../../../../../docs/CLUB_REQUIREMENTS.md',import.meta.url),'utf8');
   const section=doc.split(/^## 4\..*$/m)[1].split(/^## 5\./m)[0];
   const expected=section.split(/\r?\n/).filter(line=>line.startsWith('>')).map(line=>line.replace(/^> ?/,'')).join('\n');
   assert.equal(extractionPrompt,expected);

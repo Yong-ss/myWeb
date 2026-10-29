@@ -1,13 +1,10 @@
-export const fields = ["name", "position", "level", "pathway", "extraordinary_score", "prosperity", "weekly_activity", "group", "join_days"] as const;
-export const numericFields = ["level", "extraordinary_score", "prosperity", "weekly_activity", "join_days"] as const;
-export type Member = Record<typeof fields[number], string | number | null>;
+import { fields, numericFields, uuid, validDate, type Member, type Player } from "../../domain/member.ts";
+import type { IdentityContext } from "./identity.ts";
 export type ConfirmedMember = Member & { player_id: string | null; source_name?: string | null; remember_alias?: boolean; identity_confirmed?: boolean; correct_name?: string; expected_name?: string };
-export type Player = { id: string; display_name: string; match_name: string | null };
 export type AbsenceDecision = {player_id:string;decision:'left'|'missed'|'uncertain'};
 export type AbsenceContext = {snapshot:{id:string;snapshot_date:string}|null;members:{player_id:string;name:string}[]};
-export type ImportContext = import("./identity.ts").IdentityContext & { players: Player[]; snapshot: { id: string; revision: number; is_complete_roster: boolean } | null; members: ConfirmedMember[]; absence_context?:AbsenceContext };
+export type ImportContext = IdentityContext & { players: Player[]; snapshot: { id: string; revision: number; is_complete_roster: boolean } | null; members: ConfirmedMember[]; absence_context?:AbsenceContext };
 export const MAX_SOURCE_BYTES = 131072;
-export const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function validateAbsences(value:unknown):AbsenceDecision[]{
   if(!Array.isArray(value)||value.length>1000)throw Error('缺席核对资料无效');
   const seen=new Set<string>();
@@ -15,9 +12,6 @@ export function validateAbsences(value:unknown):AbsenceDecision[]{
   return value;
 }
 
-export function validDate(value: unknown): value is string {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= "2000-01-01" && value <= "2100-12-31" && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
-}
 function object(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]) { return Object.keys(value).length === keys.length && keys.every(k => Object.hasOwn(value, k)); }
 function validateMember(value: unknown, index: number, confirmed: boolean): Member {

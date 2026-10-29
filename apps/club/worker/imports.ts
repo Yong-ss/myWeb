@@ -1,8 +1,8 @@
-import { fields, MAX_SOURCE_BYTES, validDate, validateRows, validateAbsences, uuid, type ConfirmedMember } from "../src/lib/import.ts";
+import { fields, validDate, uuid } from "../src/domain/member.ts";
+import { MAX_SOURCE_BYTES, validateRows, validateAbsences, type ConfirmedMember } from "../src/features/import/contract.ts";
+import { reply, readBody, rpcFailure, type Rest } from "./http.ts";
 
-const reply = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
-
-export async function handleImport(request: Request, clubId: string, rest: (path: string, body?: unknown) => Promise<Response>) {
+export async function handleImport(request: Request, clubId: string, rest: Rest) {
   const url = new URL(request.url);
   if (request.method === "GET") {
     const date = url.searchParams.get("date");
@@ -29,23 +29,11 @@ export async function handleImport(request: Request, clubId: string, rest: (path
     if(absenceResponse){const response=absenceResponse;if(!response.ok){const e=await response.json().catch(()=>null) as {code?:string}|null;return reply({error:response.status===404&&e?.code==='PGRST202'?'数据库尚未更新，请先完成迁移；暂时不要开始核对。':'暂时无法读取对比名单，请重试'},503);}absence_context=await response.json();}
     return reply({ ...identityData, snapshot, members, ...(absence_context?{absence_context}:{}) });
   }
-  const reader = request.body?.getReader();
-  if (!reader) return reply({ error: "缺少导入内容" }, 400);
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > 524288) { await reader.cancel(); return reply({ error: "导入请求最大 512 KiB" }, 413); }
-    chunks.push(value);
-  }
+  const raw = await readBody(request, 524288, { missing: "缺少导入内容", tooLarge: "导入请求最大 512 KiB" });
+  if (raw instanceof Response) return raw;
   let input;
   try {
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    input = JSON.parse(new TextDecoder().decode(bytes));
+    input = JSON.parse(raw);
     if (!input || typeof input !== "object") throw Error("请求无效");
     if (url.pathname === "/api/player-aliases") {
       if (input.confirmed !== true || (input.revoke_id ? !uuid.test(input.revoke_id) : !uuid.test(input.player_id ?? "") || typeof input.alias_name !== "string" || !input.alias_name.trim() || input.alias_name.length > 200)) throw Error("请明确确认别名或解除关联");
@@ -61,10 +49,6 @@ export async function handleImport(request: Request, clubId: string, rest: (path
     p_request_id: input.request_id, p_expected: input.expected_snapshot_id, p_confirmed: true,
     ...(Object.hasOwn(input,'absence_decisions')?{p_absences:input.absence_decisions,p_baseline:input.baseline_snapshot_id}:{}),
   });
-  if (!response.ok) {
-    const error = await response.json() as { code?: string; message?: string };
-    const status = error.code === "PT409" ? 409 : error.code === "42501" ? 403 : error.code === "22023" ? 400 : 502;
-    return reply({ error: status === 502 ? "导入未完成，请重试；本次数据库写入已回滚" : error.message }, status);
-  }
+  if (!response.ok) return rpcFailure(response, "导入未完成，请重试；本次数据库写入已回滚");
   return reply(await response.json());
 }

@@ -2,6 +2,10 @@
 
 Sections are dated and newest-first; a later section supersedes earlier ones. Current delivery and testing rules: `docs/TESTING.md` first section.
 
+## Club module structure (current) — 2026-10-29
+
+Feature-based modular monolith inside `apps/club`. `src/features/<feature>` (import, members, history, analytics, activity, settings, auth) owns its page, components, pure rules and tests; features never import each other. Shared layers: `src/domain` (member field contract, date/UUID validation, presence rules; depends on nothing), `src/lib` (data access, `clubApi`, refresh, brand) and `src/components` (UI primitives, layout, feedback), which never import features. `src/app/*/page.tsx` only re-exports a feature page; `src/app/error.tsx` isolates page crashes from the shell. The Worker keeps one handler per API, registered in the `index.ts` route table, with shared HTTP helpers in `worker/http.ts`; it imports only `domain/` and pure feature `.ts` modules. `src/architecture.test.mjs` enforces these rules and rejects circular imports. No API, database, auth or UI behaviour changed in this restructuring.
+
 ## Reviewed absences — 2026-10-28
 
 `club_snapshot_absences` stores left/missed/uncertain decisions under the immutable snapshot UUID, composite tenant FKs, SELECT-only tenant/visible-parent RLS and no direct writes. Reviewed imports use a new public invoker wrapper; legacy import callers retain their contract. Both delegate to the same locked private transaction. Baseline UUID and canonical decision IDs are checked server-side against the effective post-merge roster. Presence decisions, nickname corrections, snapshots and audits commit or roll back together; idempotency covers submitted decisions and baseline. Same-day revisions carry forward explicit departures that have not reappeared, without attributing a fresh confirmation to the actor. Deleted/old snapshots do not govern current presence.

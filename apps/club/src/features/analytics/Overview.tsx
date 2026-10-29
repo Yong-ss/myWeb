@@ -1,12 +1,12 @@
 "use client";
-import {TableSkeleton,LoadingState} from "./feedback";
+import {TableSkeleton,LoadingState} from "../../components/feedback";
 import {RosterChart} from "./RosterChart";
-import {useDataRefresh} from "./useDataRefresh";
-import {clubFetch} from "../lib/data-access";
+import {useDataRefresh} from "../../lib/useDataRefresh";
+import {clubApi} from "../../lib/data-access";
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import {Panel} from "./ui/Panel";
-import {Button} from "./ui/Button";
+import {Panel} from "../../components/ui/Panel";
+import {Button} from "../../components/ui/Button";
 type Row={player_id:string;name:string|null;presence?:string;extraordinary_score:number|null;prosperity:number|null};
 type Snapshot={snapshot_date:string;is_complete_roster:boolean};
 type Data={snapshot:Snapshot|null;snapshots:Snapshot[];members:Row[];snapshot_count?:number};
@@ -15,7 +15,7 @@ export function Overview(){
   const [comparing,setComparing]=useState(false),[comparisonError,setComparisonError]=useState("");
   useDataRefresh(()=>setRetry(n=>n+1));
   useEffect(()=>{const controller=new AbortController();async function load(){setBusy(true);setError("");try{
-    async function read(query=""):Promise<Data>{const response=await clubFetch(`/api/members${query}`,{cache:"no-store",signal:controller.signal});if([401,403].includes(response.status)){window.location.replace("/login");throw Error("请重新登录");}const value=await response.json();if(!response.ok)throw Error(value.error??"暂时无法读取总览");return value;}
+    const read=(query="")=>clubApi<Data>(`/api/members${query}`,{signal:controller.signal},"暂时无法读取总览");
     const latest=await read();if(controller.signal.aborted)return;
     const priorDate=latest.snapshots[1]?.snapshot_date;
     setData(latest);setPrevious(old=>old?.snapshot?.snapshot_date===priorDate?old:null);setBusy(false);setComparing(Boolean(priorDate));setComparisonError("");

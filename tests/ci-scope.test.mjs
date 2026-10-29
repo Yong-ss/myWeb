@@ -13,6 +13,10 @@ test('Club code changes test and deploy Club only, with every browser flow', () 
   // import UI regressions live in several specs (import-ui, absence, nickname), so no partial e2e selection.
   assert.equal(scopeFor(['apps/club/src/app/import/page.tsx']).e2e,'all');
 });
+test('shared contracts used by the Worker still trigger SQL tests; UI-only files do not', () => {
+  for (const file of ['apps/club/src/domain/member.ts','apps/club/src/features/import/contract.ts','apps/club/src/lib/data-access.ts']) assert.equal(scopeFor([file]).db, true, file);
+  for (const file of ['apps/club/src/features/import/ImportPage.tsx','apps/club/src/components/ui/Button.tsx']) assert.equal(scopeFor([file]).db, false, file);
+});
 test('test-only changes run the regressions but never deploy production', () => {
   for (const file of ['tests/browser/import.spec.mjs','tests/integration/club.spec.mjs','supabase/tests/club_import.sql','scripts/test-db.mjs','.github/workflows/ci.yml','playwright.config.mjs']) {
     const scope = scopeFor([file]);
