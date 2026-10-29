@@ -1,51 +1,33 @@
-# Codex Working Guidelines
+# Agent Guidelines
 
-This is a long-term project. Keep changes simple, secure, maintainable and proportional to the task.
+Long-term solo project (pnpm monorepo: `apps/web` main site, `apps/club` Club app, Supabase database). Keep changes small, secure and proportional to the task. App-specific rules live in each app's `AGENTS.md`.
 
-## Before changing code
-- Inspect the relevant existing code and conventions.
-- Read the relevant parts of `docs/REQUIREMENTS.md`, `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`; don't assume proposals are finalized.
-- If requirements are unclear or a change has significant consequences, briefly explain options and ask. Otherwise, proceed without unnecessary questions.
+## Working
+- Read the code you change and its callers first; reuse existing patterns. No speculative abstractions, new dependencies or unrelated refactors.
+- Ask before changes with significant consequences or unclear requirements; otherwise proceed.
+- Check `docs/DECISIONS.md` and the relevant requirements doc only when a task touches scope, product behaviour or an earlier decision. Don't treat proposals as decided.
+- After changes, report in simple Chinese: what changed, what was tested (only checks that actually ran), remaining risks.
+- When an agreed requirement or architecture changes, update the matching doc: `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/PERFORMANCE.md`. Keep dated history in docs, not here.
 
-## While working
-- Prefer small, focused changes. Reuse existing patterns; avoid premature abstractions, needless dependencies and unrelated refactors.
-- Respect module boundaries and enforce access control on the server/database, not just in the UI.
-- Never commit secrets or expose privileged credentials to clients.
-- Do not introduce paid services, modify production data, perform destructive migrations or deploy to production without explicit approval.
-- For substantial changes to authentication, database structure, deployment or shared interfaces, explain the impact before proceeding.
-
-## After changes
-- Run checks appropriate to the change (for example type checks, lint or tests). Never claim a check passed unless it ran.
-- Summarize in simple Chinese: what changed, what was tested, and any remaining risks or decisions.
-- When an agreed requirement or architectural decision changes, update the relevant docs; keep unconfirmed ideas clearly marked as proposals.
+## Security and data (never relax)
+- Enforce access control on the server and database (Worker checks + RLS), never only in the UI.
+- Never commit secrets or expose privileged keys to clients; Workers use only the publishable key plus the user's token.
+- No paid services, production data changes or destructive migrations without explicit approval in the current task.
+- Production migrations are applied manually. Never rewrite or rename an applied migration; finalize filenames before applying.
+- Explain the impact before substantial changes to authentication, database structure, deployment or shared interfaces.
 
 ## Delivery (solo, direct to main)
-- The owner pushes directly to `main`; GitHub Actions tests, then deploys affected apps only after every check succeeds. Do not add PRs, branch protection or approval steps.
-- Agents never push, deploy, apply migrations or change CI secrets/variables unless the owner explicitly asks in the current task.
-- Production migrations are always manual. Club deploys are blocked until the repository Variable `CLUB_SCHEMA_VERSION` equals the newest migration filename.
-- Before suggesting a push, run `pnpm test:affected` (covers uncommitted and unpushed commits). Current delivery rules live in `docs/TESTING.md` first section; keep dated history in docs, not in AGENTS.md.
+- The owner pushes to `main`; GitHub Actions runs the affected checks and deploys only apps whose shipped files changed, only after every check passes. Docs, tests, scripts, CI and migrations never deploy. No PRs, branch protection or approval steps.
+- Agents push, deploy, apply migrations or change CI secrets/variables only when the owner asks in the current task.
+- Club deploys are blocked until the repository Variable `CLUB_SCHEMA_VERSION` equals the newest migration filename.
+- Details: `docs/TESTING.md` (first section is the current workflow).
 
-## Testing Strategy
-- Prefer existing automated tests over manual browser testing or Computer Use.
-- Run only relevant tests for routine changes; run the full regression suite at major checkpoints or before important releases.
-- Add focused tests for new features and critical bug fixes. Do not enforce TDD or unnecessary test coverage.
-- Never run tests that modify production data. Use isolated test environments.
-- Keep test reports concise; inspect detailed logs only when tests fail.
-- During C/D/E, add focused tests for each completed feature and use `pnpm test:affected` for routine verification. Run `pnpm test:full` (or the manual full CI run) at significant stage checkpoints and before important releases; run the complete suite after A–E are finished.
-- Browser regression uses Playwright by default. Reserve Computer Use for visual issues or gaps automation cannot cover; do not repeatedly click through flows already tested automatically.
-- SQL fixtures must use `pnpm test:db` against disposable local/CI PostgreSQL only. Never run the SQL fixtures against the production Supabase project, even with a rollback.
-- Authentication, database and important Club flows also require `pnpm test:integration`, which starts its own local Supabase/HTTPS Worker and synthetic data. Simple styling changes retain the fast tests. Never link this test stack to a hosted project or substitute production URLs/keys.
-
-### Testing and Delivery Efficiency
-- Batch related code, migration, and test changes before expensive verification.
-- Run fast, relevant checks first; run real integration tests once changes are reasonably stable.
-- If a test fails, diagnose and fix the cause, then rerun focused tests before repeating the full suite.
-- Reuse running test environments when safe; avoid unnecessary rebuilds and repeated setup/cleanup.
-- Finalize migration filenames before applying them to production; never rename an already applied migration.
-- Avoid triggering redundant CI runs solely for documentation or metadata changes when no relevant code or configuration changed.
-- Never skip necessary security, database, or regression checks to save time.
-
-These guidelines are defaults, not rigid rules. Suggest better approaches when justified, and explain the tradeoffs.
+## Testing
+- Before suggesting a push run `pnpm test:affected` (covers uncommitted and unpushed work). Run `pnpm test:full` or the manual full CI run before important releases.
+- Add focused tests for new features and bug fixes that encode why the behaviour matters; no TDD mandate or coverage targets.
+- Prefer Playwright over manual or Computer Use clicking; use manual checks only for visual or motion issues automation can't judge.
+- SQL fixtures run only via `pnpm test:db` on disposable local/CI PostgreSQL. Auth, database and important Club flows also need `pnpm test:integration` (its own local Supabase and synthetic data). Never point any test at the hosted project or production keys.
+- Run fast checks first and real integration once changes are stable; on failure fix the cause and rerun focused tests. Never skip security, database or regression checks to save time.
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph
