@@ -20,7 +20,7 @@ async function preview(page,date,{isNew=false,upload=false,score=member.extraord
   await page.goto('/import'); await page.waitForLoadState('networkidle');
   await page.getByLabel('截图日期',{exact:true}).fill(date);
   const raw=JSON.stringify({schema_version:1,snapshot_date:null,is_complete_roster:false,members:[{...member,extraordinary_score:score,name:isNew?'管理员新增测试玩家':member.name}]});
-  if(upload) {await page.getByRole('button',{name:'上传文件',exact:true}).click();await page.getByLabel('JSON 文件',{exact:true}).setInputFiles({name:'real-local.json',mimeType:'application/json',buffer:Buffer.from(raw)});}
+  if(upload) {await page.getByRole('tab',{name:'上传文件',exact:true}).click();await page.getByLabel('JSON 文件',{exact:true}).setInputFiles({name:'real-local.json',mimeType:'application/json',buffer:Buffer.from(raw)});}
   else await page.getByLabel('JSON 内容',{exact:true}).fill(raw);
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await expect(page.getByRole('heading',{name:'核对成员',exact:true})).toBeVisible();
@@ -36,13 +36,14 @@ async function preview(page,date,{isNew=false,upload=false,score=member.extraord
     await dialog.getByLabel('等级',{exact:true}).fill('');
     await dialog.getByRole('button',{name:'确认',exact:true}).click();
   } else {
-    await page.locator('.matched-list > summary').click();
+    await page.locator('.matched-list > button').click();
     const item=page.locator('.matched-list .identity-compact').first();
-    await item.locator(':scope > summary').click();
+    await item.locator(':scope > button').click();
     await item.getByText('更多操作',{exact:true}).click();
     await item.getByText('修正第 1 行数据',{exact:true}).click();
     await item.getByLabel('第 1 行等级',{exact:true}).fill('');
   }
+  await expect(page.getByRole('dialog')).toHaveCount(0); // closing dialogs animate out and hide the page from queries until gone
   if(await page.getByRole('button',{name:'其余暂不确定',exact:true}).isVisible())await page.getByRole('button',{name:'其余暂不确定',exact:true}).click();
   await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await page.getByRole('checkbox',{name:confirmation}).check();

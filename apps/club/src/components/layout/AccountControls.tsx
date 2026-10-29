@@ -1,9 +1,10 @@
 "use client";
-import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {useEffect,useState} from "react";
+import {GearSixIcon} from "@phosphor-icons/react";
 import {clubApi} from "../../lib/data-access";
-import {Button} from "../ui/Button";
+import {Button,ButtonLink} from "../ui/button";
+import {Skeleton} from "../ui/skeleton";
 export function AccountControls(){
  const pathname=usePathname();
   const [email, setEmail] = useState<string>();
@@ -31,4 +32,14 @@ export function AccountControls(){
     } catch (e) { setError(e instanceof TypeError ? "连接失败，请稍后重试" : e instanceof Error ? e.message : "退出失败，请重试"); }
     finally { setBusy(false); }
   }
-return <><span className="club-user-name" title={email} aria-hidden={!email}>{email??<span className="club-skeleton-line"/>}<small>{email?(role === "owner" ? "公会长" : "管理员"):<span className="club-skeleton-line" style={{width:"40%"}}/>}</small></span><Button variant="secondary" disabled={!email} loading={busy} loadingText="正在退出…" onClick={logout}>退出登录</Button><Link className="club-header-settings" href="/settings" aria-current={pathname==="/settings"?"page":undefined}>设置</Link>{error&&<p role="alert" className="club-header-error">{error} <Button onClick={()=>window.location.reload()}>刷新</Button></p>}</>;}
+ // Fixed widths: the header and the settings link never move while the account loads.
+ return <>
+  <span className="club-user-name block w-50 max-w-50 shrink-0 basis-50 text-xs [overflow-wrap:anywhere] max-md:w-24 max-md:max-w-24 max-md:basis-24 max-md:truncate" title={email} aria-hidden={!email}>
+   {email??<Skeleton className="my-1.5"/>}
+   <small className="block text-muted-foreground">{email?(role === "owner" ? "公会长" : "管理员"):<Skeleton className="my-1.5 w-2/5"/>}</small>
+  </span>
+  <Button variant="secondary" disabled={!email} loading={busy} loadingText="正在退出…" onClick={logout}>退出登录</Button>
+  <ButtonLink variant="secondary" size="compact" className="club-header-settings text-gold aria-[current=page]:bg-selected" href="/settings" aria-current={pathname==="/settings"?"page":undefined}><GearSixIcon aria-hidden="true"/>设置</ButtonLink>
+  {error&&<p role="alert" className="club-header-error absolute top-full right-0 z-30 m-0 mt-2 flex max-w-[calc(100vw-32px)] items-center gap-3 rounded-sm border border-destructive bg-error-bg p-3 text-sm text-destructive">{error} <Button size="compact" onClick={()=>window.location.reload()}>刷新</Button></p>}
+ </>;
+}

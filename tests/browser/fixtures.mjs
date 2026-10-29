@@ -41,7 +41,7 @@ export async function login(page) {
 export async function prepare(page,upload=false) {
   await open(page,'/import');
   await page.getByLabel('截图日期',{exact:true}).fill('2026-10-27');
-  if (upload) { await page.getByRole('button',{name:'上传文件',exact:true}).click();await page.getByLabel('JSON 文件',{exact:true}).setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(source)}); }
+  if (upload) { await page.getByRole('tab',{name:'上传文件',exact:true}).click();await page.getByLabel('JSON 文件',{exact:true}).setInputFiles({name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(source)}); }
   else await page.getByLabel('JSON 内容',{exact:true}).fill(source);
   await page.getByRole('button',{name:'下一步',exact:true}).click();
   await expect(page.getByRole('heading',{name:'核对成员',exact:true})).toBeVisible();

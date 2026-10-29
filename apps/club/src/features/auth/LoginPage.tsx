@@ -2,9 +2,10 @@
 import {clubApi} from "../../lib/data-access";
 
 import Link from "next/link";
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Fields";
-import { Panel } from "../../components/ui/Panel";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Card, CardDescription } from "../../components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "../../components/ui/field";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -24,5 +25,21 @@ export function LoginPage() {
     } catch (e) { setError(e instanceof TypeError ? "连接失败，请稍后重试" : e instanceof Error ? e.message : "登录失败，请重试"); }
     finally { setBusy(false); }
   }
-  return <><main className="club-workspace club-login"><Panel><p className="eyebrow">欢迎回来</p><h1>登录俱乐部</h1><p>使用你的 SquirrelAPI 账号，继续记录今天的数据。</p><form onSubmit={submit} className="auth-form" aria-busy={busy}><label htmlFor="email">邮箱</label><Input id="email" name="email" type="email" placeholder="你的邮箱地址" autoComplete="username" maxLength={320} required /><label htmlFor="password">密码</label><Input id="password" name="password" type="password" autoComplete="current-password" maxLength={1024} required /><Button type="submit" loading={busy} loadingText="正在登录…">登录</Button><p role="alert" className="feedback error">{error}</p></form><p className="auth-note">目前仅限已获授权的成员使用。忘记密码或无法进入？请联系俱乐部负责人。</p><Link href="/">← 返回 Club 首页</Link></Panel></main></>;
+  return <main className="club-workspace club-login max-w-128 pt-12">
+    <Card ornate className="items-stretch gap-3 p-8 max-md:p-6">
+      <p className="eyebrow">欢迎回来</p>
+      <h1 className="gold-title m-0 text-title">登录俱乐部</h1>
+      <CardDescription>使用你的 SquirrelAPI 账号，继续记录今天的数据。</CardDescription>
+      <form onSubmit={submit} aria-busy={busy} className="mt-4">
+        <FieldGroup>
+          <Field><FieldLabel htmlFor="email">邮箱</FieldLabel><Input id="email" name="email" type="email" placeholder="你的邮箱地址" autoComplete="username" maxLength={320} required /></Field>
+          <Field><FieldLabel htmlFor="password">密码</FieldLabel><Input id="password" name="password" type="password" autoComplete="current-password" maxLength={1024} required /></Field>
+          <Button type="submit" className="w-full" loading={busy} loadingText="正在登录…">登录</Button>
+          <FieldError>{error}</FieldError>
+        </FieldGroup>
+      </form>
+      <p className="auth-note m-0 mt-2 border-t border-divider pt-4 text-sm text-muted-foreground">目前仅限已获授权的成员使用。忘记密码或无法进入？请联系俱乐部负责人。</p>
+      <Link href="/" className="w-fit py-2 text-sm text-gold">← 返回 Club 首页</Link>
+    </Card>
+  </main>;
 }

@@ -28,12 +28,12 @@
 
 - 唯一视觉方向：**Dark Victorian Occult Dashboard**。深色侧栏、铜金细边框、方角面板、衬线标题；20% 神秘学氛围、80% 实用。禁止浅绿白卡片、霓虹、大圆角胶囊、炫光和装饰性动画。改变风格需用户明确指示。
 - 颜色、字体、间距、时长用 `src/styles/tokens.css` 的 `--club-*` 变量，不硬编码，不各页重建主题。
-- 复用现有组件，不另造同义组件：`components/ui` 的 `Button`（导航用 `ButtonLink`）、`Input`/`Select`/`Textarea`、`Panel`；`components/layout` 的 `PageHeader`、`AppShell`；`components/feedback` 的 LoadingSpinner、PageLoader、TableSkeleton、ProfileSkeleton、LoadingState。反馈组件不含认证、缓存或业务逻辑；Lottie 只用本地 JSON，减少动态效果时不加载。
-- 共享样式表对所有页面生效：只有一个功能使用的选择器必须限定在该功能根类下，例如 `.club-app :where(.club-import) .stepper`（`:where` 不增加优先级）。
+- 组件系统：shadcn/ui（Radix 实现）+ Radix Primitives + Motion + Tailwind（仅本应用）。复用 `components/ui` 的组件（`Button`／`ButtonLink`、`Field` 系列、`Input`／`Textarea`／`NativeSelect`、`Checkbox`／`RadioGroup`、`Card`、`Table`、`Badge`、`Tabs`、`Collapsible`、`Dialog`／`AlertDialog`／`Sheet`／`Popover`／`DropdownMenu`／`Tooltip`、`toast`），`components/layout` 的 `PageHeader`、`AppShell`，`components/feedback` 的 LoadingState 等；不另造同义组件，新组件先看开发专用 `/showcase`。反馈组件不含认证、缓存或业务逻辑；Lottie 只用本地 JSON，减少动态效果时不加载。
+- 样式用 Tailwind 工具类与映射到 `--club-*` 的语义色；`src/app/globals.css` 是唯一入口。需要额外样式表时（如图表），只有一个功能使用的选择器必须限定在该功能根类下，例如 `.club-app :where(.club-account) .club-chart-line`（`:where` 不增加优先级）。
 - 保留键盘操作、可见焦点、44px 触摸目标、手机输入至少 16px 和 `prefers-reduced-motion`；手机端不能简单隐藏导航。中文操作名要清晰，不用神秘学术语代替实际动作。
-- 动效用 CSS transition 做简单反馈。Motion for React 和 Radix Primitives 已获批准，但只在有真实交互价值时引入；当前尚未安装。
+- 简单反馈用 CSS transition；弹层、折叠和内容切换用 `components/ui` 中已接好的 Radix + Motion（焦点、Escape 交给 Radix，不手写焦点陷阱或延时关闭）。
 - UI 改造不得改变登录、会话、权限、数据库、导入或身份匹配规则，也不修改 `apps/web`。
-- 做 UI 或动效工作时阅读 `docs/club-design-system.md`：当前规则在开头的「当前生效」部分和第 14 节，其余带日期的章节是历史记录。参考稿 `docs/design-reference/club-approved-reference.html.txt` 只决定视觉方向，其中的虚构数据和导航不进入业务。
+- 做 UI 或动效工作时阅读 `docs/club-design-system.md`：当前组件规则在第 15 节，动效原则在开头「当前生效」与第 14 节，其余带日期的章节是历史记录。参考稿 `docs/design-reference/club-approved-reference.html.txt` 只决定视觉方向，其中的虚构数据和导航不进入业务。
 - 视觉改动用 `tests/browser/club-visual-review.spec.mjs` 生成桌面／手机截图并实际查看；动效要看过渡过程，不能只看最终截图。只用合成数据。
 
 <!-- BEGIN:nextjs-agent-rules -->

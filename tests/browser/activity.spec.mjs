@@ -13,7 +13,7 @@ for(const width of [1440,390])test(`delete confirmation, retry, audit list and e
   }
   return route.fulfill({json:{snapshot:deleted?null:{id,snapshot_date:date,revision:2,is_current:true,is_complete_roster:true},snapshots:deleted?[]:[{id,snapshot_date:date}],members:[],next:null}});
  });
- await page.goto('/members');await page.getByRole('button',{name:'删除当天数据',exact:true}).click();const dialog=page.getByRole('dialog');
+ await page.goto('/members');await page.getByRole('button',{name:'删除当天数据',exact:true}).click();const dialog=page.getByRole('alertdialog');
  await expect(dialog.getByRole('button',{name:'确认删除',exact:true})).toBeDisabled();
  await dialog.getByLabel(`输入日期 ${date} 确认`).fill(date);await page.screenshot({path:`.test-artifacts/delete-${width}.png`});
  await dialog.getByRole('button',{name:'确认删除',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('连接失败');

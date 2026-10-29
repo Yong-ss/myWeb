@@ -89,6 +89,7 @@ test('feature-only CSS rules are scoped to their feature',()=>{
    }
   }
  }
- assert.ok(cssFiles.length>=4,'stylesheets were not found');
+ // Guards against a silently empty scan: the global entry and the feature-scoped chart sheet must both be checked.
+ assert.ok(['src/app/globals.css','src/styles/chart.css'].every(f=>cssFiles.some(c=>rel(c)===f)),'stylesheets were not found');
  assert.deepEqual(violations,[],'scope with :where(.club-<feature>), e.g. ".club-app :where(.club-import) .stepper"');
 });

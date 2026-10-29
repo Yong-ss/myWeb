@@ -1,185 +1,267 @@
-:root { color-scheme: light; font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; color: #263e34; background: #f6f7f3; font-size: 16px; --green: #285b45; --muted: #61726a; --line: #dce3db; }
-:where(.club-members) .members-toolbar, :where(.club-members) .members-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin: 20px 0; }
-:where(.club-members) .members-toolbar label { margin: 0; min-width: 160px; }
-:where(.club-members) .members-toolbar input, :where(.club-members) .members-toolbar select { margin-top: 6px; }
-:where(.club-members) .members-toolbar > button { align-self: flex-end; }
-.members-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: white; }
-.members-table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: .9rem; }
-.members-table caption { text-align: left; padding: 12px 16px; }
-.members-table th { background: #edf2e9; font-weight: 650; }
-.members-table th, .members-table td { padding: 13px 16px; text-align: left; border-bottom: 1px solid var(--line); }
-.members-table tbody tr:last-child td { border-bottom: 0; }
-.members-table tbody tr:hover { background: #f6f8f3; }
-.members-table td:first-child { font-weight: 600; }
-* { box-sizing: border-box; }
-body { margin: 0; }
-a { color: var(--green); text-underline-offset: 4px; }
-p { line-height: 1.8; margin: 10px 0 18px; }
-h1, h2, h3 { line-height: 1.35; letter-spacing: -.025em; }
-h1 { font-size: clamp(2rem, 4vw, 3rem); margin: 12px 0 16px; }
-h2 { font-size: 1.4rem; margin: 12px 0; }
-h3 { font-size: 1.05rem; margin: 8px 0; }
-nav { display: flex; gap: 6px; }
-nav a { padding: 12px; font-size: .9rem; text-decoration: none; border-radius: 8px; }
-nav a:hover { background: #edf3ed; }
-.shell { width: min(100% - 48px, 1080px); margin: 54px auto 80px; }
-.eyebrow { font-size: .8rem; letter-spacing: .1em; color: #55725e; font-weight: 650; }
-.lede { color: var(--muted); max-width: 670px; font-size: 1.05rem; }
-.muted, :where(.club-login) .auth-note { color: var(--muted); font-size: .9rem; }
-.panel { background: white; padding: 28px; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 4px 20px #233e2e03; }
-.row-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 24px 0 0; }
-button, .button { font: inherit; font-weight: 600; font-size: .9rem; min-height: 44px; padding: 11px 16px; border: 1px solid #cbd7cc; border-radius: 9px; background: #fff; color: var(--green); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background 120ms ease, border-color 120ms ease; }
-button:hover { background: #f0f5ef; border-color: #7c9b84; }
-.button { background: var(--green); color: white; border-color: var(--green); }
-.button:hover { background: #1c4633; }
-button:disabled { opacity: .5; cursor: not-allowed; }
-button:active:not(:disabled), .button:active { background: #dfebdf; color: #214a32; }
-:where(.club-import) .text-button { background: transparent; border-color: transparent; padding-left: 0; padding-right: 0; font-weight: 500; }
-.danger { color: #9a4133; }
-:focus-visible { outline: 3px solid #a47636; outline-offset: 4px; }
-[tabindex="-1"]:focus { outline: none; }
-.auth-form { display: grid; gap: 10px; margin-top: 28px; }
-.auth-form button { margin-top: 12px; }
-label { font-size: .9rem; font-weight: 600; }
-input, textarea, select { font: inherit; padding: 12px; border: 1px solid #c3d0c3; border-radius: 9px; background: #fff; color: #263e34; min-width: 0; min-height: 44px; max-width: 100%; }
-input:focus, textarea:focus, select:focus { border-color: #547d60; }
-input[type="file"] { background: #f7faf5; border-style: dashed; width: 100%; padding: 20px; }
-input::file-selector-button { border: 0; border-radius: 5px; padding: 8px 12px; margin-right: 12px; color: #285b45; background: #e5eee1; cursor: pointer; }
-textarea { width: 100%; font-family: ui-monospace, monospace; font-size: .85rem; line-height: 1.6; }
-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-section { margin: 24px 0; }
-:where(.club-import) section > label:not(.check) { display: block; margin: 20px 0 9px; }
-:where(.club-import) .input-panel { max-width: 840px; }
-:where(.club-import) .input-panel > button { margin-top: 8px; }
-:where(.club-import) .input-switch { display: inline-flex; gap: 4px; padding: 4px; margin: 24px 0 16px; border-radius: 10px; background: #edf1e9; }
-:where(.club-import) .input-switch button { background: transparent; border-color: transparent; min-width: 112px; }
-:where(.club-import) .input-switch button[aria-pressed="true"] { background: white; border-color: #d1ddcd; color: #234c36; box-shadow: 0 1px 4px #233e2e10; }
-:where(.club-import) .input-panel > div > label { display: block; margin: 0 0 9px; }
-:where(.club-import) .stepper { display: grid; grid-template-columns: repeat(3,1fr); padding: 0; margin: 32px 0; list-style: none; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
-:where(.club-import) .stepper li { display: flex; gap: 10px; align-items: center; padding: 18px 22px; color: #65766c; font-size: .9rem; }
-:where(.club-import) .stepper span { width: 28px; height: 28px; border-radius: 50%; background: #edf0e9; display: grid; place-items: center; font-size: .75rem; }
-:where(.club-import) .stepper [aria-current="step"] { color: #234c36; font-weight: 700; background: #edf4e9; }
-:where(.club-import) .stepper [aria-current="step"] span { color: white; background: var(--green); }
-:where(.club-import) .stepper .done span { background: #e3efdf; color: #315c3a; }
-summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: .95rem; }
-details.panel { margin: 18px 0; padding: 12px 24px; }
-details[open].panel { padding-bottom: 24px; }
-:where(.club-import) .ai-toolbar { position: relative; display: flex; align-items: flex-start; gap: 12px; margin: 20px 0; }
-:where(.club-import) .ai-help { position: static; }
-:where(.club-import) .ai-help > summary { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid #cbd7cc; border-radius: 50%; color: var(--green); background: white; list-style: none; }
-:where(.club-import) .ai-help > summary::-webkit-details-marker { display: none; }
-:where(.club-import) .ai-help[open] > summary { background: #e6efdf; }
-:where(.club-import) .ai-help-content { position: absolute; top: 54px; left: 0; width: min(360px,calc(100vw - 48px)); padding: 20px; background: white; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 30px #16332120; z-index: 5; }
-:where(.club-import) .ai-help-content ol { padding-left: 22px; line-height: 1.9; font-size: .9rem; }
-:where(.club-import) .ai-help-content .prompt { max-height: 240px; overflow-y: auto; }
-:where(.club-import) .ai-recommendation { margin: -8px 0 24px; font-size: .78rem; color: #737b75; }
-:where(.club-import) .ai-recommendation a { color: inherit; text-decoration-color: #bec5be; }
-.feedback { padding: 16px 20px; background: #edf2eb; border-radius: 10px; border: 1px solid #d8e2d4; line-height: 1.7; font-size: .9rem; overflow-wrap: anywhere; }
-.feedback:empty { display: none; }
-.feedback.success { background: #eef6e9; border-color: #d2e3c9; color: #315c33; }
-.feedback.error { background: #fff0eb; border-color: #efcdbf; color: #933f2d; }
-.feedback button { margin-left: 12px; }
-:where(.club-import) .match-summary { padding: 20px 24px; border: 1px solid #d2dfcd; border-radius: 12px; background: #eff5eb; font-weight: 650; font-size: 1.05rem; }
-.badge { display: inline-block; border-radius: 6px; padding: 4px 9px; font-size: .75rem; color: #456747; background: #edf3e8; font-weight: 600; }
-.badge.warning { color: #88531d; background: #fff1d9; }
-.badge.resolved { background: #e6f0df; color: #3c6537; }
-:where(.club-import) .identity-row { border: 1px solid var(--line); border-left: 3px solid #91a97c; background: #fff; border-radius: 12px; padding: 20px 24px; margin: 16px 0; overflow-wrap: anywhere; }
-:where(.club-import) .identity-row > label:not(.check) { display: grid; gap: 8px; max-width: 420px; }
-.identity-row .conflict { font-size: .9rem; }
-.identity-row .muted { margin-top: 4px; }
-:where(.club-import) .identity-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 16px; margin: 16px 0; }
-:where(.club-import) .identity-fields label { display: grid; gap: 8px; }
-:where(.club-import) .identity-row.identity-compact { padding: 0; margin: 10px 0; border-left: 1px solid var(--line); }
-:where(.club-import) .identity-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 20px; list-style: none; font-weight: 500; }
-:where(.club-import) .identity-summary::-webkit-details-marker { display: none; }
-:where(.club-import) .identity-summary::after { content: '›'; font-size: 1.4rem; color: #778674; margin-left: auto; }
-:where(.club-import) .identity-compact[open] > .identity-summary::after { transform: rotate(90deg); }
-:where(.club-import) .identity-body { padding: 4px 20px 16px; border-top: 1px solid var(--line); }
-:where(.club-import) .choice-prompt { margin: 14px 0 10px; font-size: .85rem; color: var(--muted); }
-:where(.club-import) .candidate-options { display: grid; gap: 8px; }
-:where(.club-import) .candidate-option { width: 100%; justify-content: space-between; gap: 12px; text-align: left; background: #f7faf4; border-color: #d5e0cb; flex-wrap: wrap; }
-:where(.club-import) .candidate-option > span:first-child { margin-right: auto; }
-:where(.club-import) .candidate-option small { display: block; color: var(--muted); font-weight: 400; }
-:where(.club-import) .chosen-identity { color: #315c33; margin: 12px 0; }
-:where(.club-import) .chosen-identity button { margin-left: 16px; }
-:where(.club-import) .other-identity label { display: grid; gap: 6px; margin: 10px 0; }
-:where(.club-import) .identity-body .alias-memory { margin: 12px 0; padding: 10px 12px; font-size: .85rem; }
-:where(.club-import) .identity-body .row-tools > summary { font-size: .8rem; color: var(--muted); font-weight: 400; }
-:where(.club-import) .review-workspace { max-width: 820px; margin: 0 auto; }
-:where(.club-import) .review-overview { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 28px 0 20px; color: var(--muted); font-size: .9rem; }
-:where(.club-import) .review-overview strong { margin-left: auto; border-radius: 20px; padding: 6px 12px; font-size: .85rem; }
-:where(.club-import) .pending-count { color: #86521d; background: #fff0d6; }
-:where(.club-import) .ready-count { color: #315c33; background: #e6f0df; }
-:where(.club-import) .pending-list { margin: 0 0 18px; }
-:where(.club-import) .matched-list > summary, :where(.club-import) .review-settings > summary { color: var(--muted); font-size: .85rem; font-weight: 400; }
-:where(.club-import) .review-next { display: flex; justify-content: flex-end; padding-top: 24px; border-top: 1px solid var(--line); margin-top: 20px; }
-:where(.club-import) .review-next button { min-width: 150px; }
-:where(.club-import) .same-day-choice { min-width: 0; margin: 0 0 18px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #f0f3ec; }
-:where(.club-import) .same-day-choice legend { padding: 0 6px; font-size: .9rem; font-weight: 650; }
-:where(.club-import) .same-day-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-:where(.club-import) .same-day-option { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: white; cursor: pointer; transition: border-color .15s, background .15s; }
-:where(.club-import) .same-day-option:hover { border-color: #8da695; }
-:where(.club-import) .same-day-option.is-selected { border-color: var(--green); background: #eaf3e9; box-shadow: inset 0 0 0 1px var(--green); }
-:where(.club-import) .same-day-option input[type="radio"] { flex: 0 0 18px; width: 18px; height: 18px; margin: 2px 0 0; padding: 0; accent-color: var(--green); }
-:where(.club-import) .same-day-option strong { display: block; font-size: .95rem; }
-:where(.club-import) .same-day-option small { display: block; margin-top: 5px; color: var(--muted); font-size: .8rem; line-height: 1.6; }
-:where(.club-import) .same-day-note { display: block; margin-top: 10px; color: var(--muted); font-size: .78rem; }
-@media (max-width: 600px) {
-  :where(.club-import) .same-day-options { grid-template-columns: 1fr; }
+/* Single CSS entry for Club, loaded once by the root layout. Components style themselves with Tailwind utilities
+   mapped to the --club-* tokens below; only the roster chart (SVG parts) keeps a small scoped stylesheet. */
+@import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/chart.css" layer(components);
+/* Club is always dark. shadcn's semantic variables are aliases of the approved --club-* tokens
+   (tokens.css stays the single source of truth); @theme exposes them as Tailwind utilities. */
+:root {
+  color-scheme: dark;
+  --background: var(--club-bg);
+  --foreground: var(--club-text);
+  --card: var(--club-surface);
+  --card-foreground: var(--club-text);
+  --popover: var(--club-surface);
+  --popover-foreground: var(--club-text);
+  --primary: var(--club-gold);
+  --primary-foreground: var(--club-bg);
+  --secondary: var(--club-surface-elevated);
+  --secondary-foreground: var(--club-text);
+  --muted: var(--club-disabled-bg);
+  --muted-foreground: var(--club-text-secondary);
+  --accent: var(--club-hover);
+  --accent-foreground: var(--club-gold);
+  --destructive: var(--club-error);
+  --border: var(--club-border);
+  --input: var(--club-border);
+  --ring: var(--club-focus);
+  --radius: var(--club-radius);
+  --sidebar: var(--club-surface-nav);
+  --sidebar-foreground: var(--club-text-secondary);
+  --sidebar-primary: var(--club-gold);
+  --sidebar-primary-foreground: var(--club-bg);
+  --sidebar-accent: var(--club-selected);
+  --sidebar-accent-foreground: var(--club-gold);
+  --sidebar-border: var(--club-border);
+  --sidebar-ring: var(--club-focus);
 }
-:where(.club-import) .identity-launcher { display: flex; justify-content: space-between; width: 100%; gap: 12px; margin: 10px 0; padding: 16px 20px; background: white; color: #263e34; text-align: left; }
-:where(.club-import) .identity-launcher strong { margin-right: auto; overflow-wrap: anywhere; }
-:where(.club-import) .identity-dialog { width: min(520px,calc(100% - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; margin: auto; padding: 24px; }
-:where(.club-import) .identity-dialog::backdrop { background: #14251b80; }
-:where(.club-import) .identity-dialog-top, :where(.club-import) .identity-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-:where(.club-import) .identity-dialog-top > button { font-size: 1.5rem; min-width: 44px; }
-:where(.club-import) .identity-source { padding: 16px; background: #f1f4ed; border-radius: 10px; margin: 10px 0 24px; }
-:where(.club-import) .identity-source span { display: block; color: var(--muted); font-size: .8rem; }
-:where(.club-import) .identity-source strong { display: block; font-size: 1.35rem; margin-top: 6px; overflow-wrap: anywhere; }
-:where(.club-import) .identity-dialog h2 { font-size: 1.2rem; margin-bottom: 18px; }
-:where(.club-import) .identity-type { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-:where(.club-import) .identity-type button { min-height: 64px; }
-:where(.club-import) .identity-type [aria-pressed="true"], :where(.club-import) .identity-picker-list [aria-pressed="true"] { background: #eaf3e4; border-color: #638a58; }
-:where(.club-import) .identity-picker { margin-top: 24px; }
-:where(.club-import) .identity-picker > label { display: block; margin-bottom: 8px; }
-:where(.club-import) .identity-picker > input { width: 100%; }
-:where(.club-import) .identity-new-name { display: grid; gap: 8px; margin-top: 20px; }
-:where(.club-import) .identity-extra { margin-top: 20px; }
-:where(.club-import) .identity-extra > summary { color: var(--muted); font-weight: 400; font-size: .8rem; }
-:where(.club-import) .identity-dialog .check { display: flex; align-items: center; gap: 10px; padding: 12px 14px; font-size: .9rem; line-height: 1.5; }
-:where(.club-import) .identity-dialog .check input { flex: 0 0 20px; width: 20px; height: 20px; min-height: 20px; margin: 0; padding: 0; }
-:where(.club-import) .identity-picker-list { display: grid; gap: 8px; max-height: 240px; overflow-y: auto; margin-top: 12px; }
-:where(.club-import) .identity-picker-list button { justify-content: space-between; text-align: left; gap: 12px; }
-:where(.club-import) .identity-picker-list span { color: var(--muted); font-size: .8rem; }
-:where(.club-import) .identity-dialog-footer { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 16px; }
-:where(.club-import) .check { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 1px solid var(--line); background: #fafbf7; border-radius: 10px; margin: 20px 0; line-height: 1.8; font-weight: 500; }
-:where(.club-import) .check input { min-height: 22px; width: 22px; height: 22px; flex-shrink: 0; margin: 2px 0; accent-color: var(--green); }
-.conflict { color: #8e542b; background: #fff7e8; padding: 12px 16px; border-radius: 8px; line-height: 1.8; }
-:where(.club-import) .table-scroll { max-width: 100%; overflow: auto; margin: 24px 0; border: 1px solid var(--line); border-radius: 10px; max-height: 520px; }
-table { border-collapse: collapse; width: 100%; font-size: .85rem; }
-th, td { padding: 14px 16px; text-align: left; white-space: nowrap; border-bottom: 1px solid #e5e9e1; }
-th { background: #eef2e8; position: sticky; top: 0; font-size: .8rem; color: #51644f; z-index: 1; }
-tr:nth-child(even) { background: #fafcf8; }
-:where(.club-import) .prompt { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: .85rem; background: #f5f7f1; border-radius: 8px; padding: 20px; }
-:where(.club-import) .success-card { padding: 40px; border-top: 4px solid #62866a; }
-:where(.club-import) .success-card a { margin-left: 20px; }
-:where(.club-import) .discard-dialog { max-width: min(460px,calc(100% - 32px)); margin: auto; padding: 28px; }
-:where(.club-import) .discard-dialog::backdrop { background: #14251b70; }
-.skip-link { position: fixed; left: 16px; top: -80px; z-index: 10; padding: 12px; background: #fff; }
-.skip-link:focus { top: 12px; }
-@media(max-width:640px) {
-  nav a { padding: 10px; font-size: .8rem; }
-  .shell { width: calc(100% - 32px); margin: 30px auto 48px; }
-  .panel, :where(.club-import) .success-card { padding: 22px 18px; border-radius: 12px; }
-  :where(.club-import) .stepper li { padding: 14px 7px; gap: 6px; font-size: .8rem; justify-content: center; }
-  :where(.club-import) .stepper span { width: 23px; height: 23px; }
-  :where(.club-import) .identity-row { padding: 16px; }
-  :where(.club-import) .identity-fields { grid-template-columns: 1fr; }
-  details.panel { padding-left: 16px; padding-right: 16px; }
-  :where(.club-import) .match-summary { font-size: .95rem; padding: 16px; }
-  :where(.club-import) .success-card a { display: block; margin: 18px 0 0; }
+
+@theme inline {
+  --font-sans: var(--club-font-body);
+  --font-heading: var(--club-font-heading);
+  --font-mono: var(--club-font-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* Club extras: brass edge, field well, interaction surfaces, status pairs. */
+  --color-gold: var(--club-gold);
+  --color-brass: var(--club-border-strong);
+  --color-divider: var(--club-divider);
+  --color-field: var(--club-surface-input);
+  --color-hover: var(--club-hover);
+  --color-pressed: var(--club-pressed);
+  --color-selected: var(--club-selected);
+  --color-disabled: var(--club-disabled-bg);
+  --color-disabled-foreground: var(--club-disabled-text);
+  --color-success: var(--club-success);
+  --color-success-bg: var(--club-success-bg);
+  --color-warning: var(--club-warning);
+  --color-warning-bg: var(--club-warning-bg);
+  --color-error-bg: var(--club-error-bg);
+  --color-info: var(--club-info);
+  --color-info-bg: var(--club-info-bg);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+  --radius-4xl: var(--radius);
+  --ease-club-feedback: var(--club-ease-feedback);
+  --ease-club-enter: var(--club-ease-enter);
 }
-@media(prefers-reduced-motion:reduce) {
-  *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+
+@theme inline {
+  --text-lg: var(--club-text-lg);
+  --text-xl: var(--club-text-xl);
+  --text-title: var(--club-text-title);
+  --container-form: var(--club-form-max);
+  --container-content: var(--club-content-max);
+}
+
+/* Hover only with a real mouse (as before): a touch tap must not leave a stuck hover colour. */
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+/* Reference-panel brass ◆ corner ornaments over a soft elevated gradient. */
+/* Needs a positioned element (relative/fixed/absolute). */
+@utility ornate {
+  background-image: linear-gradient(135deg, var(--club-surface-elevated), var(--club-surface));
+  &::before, &::after {
+    content: "◆";
+    position: absolute;
+    top: -6px;
+    color: var(--club-border-strong);
+    font-size: 8px;
+    line-height: 1;
+    pointer-events: none;
+  }
+  &::before { left: -4px; }
+  &::after { right: -4px; }
+}
+/* Faint lantern-light mist behind the whole app (reference `.mist`). */
+@utility mist {
+  background-color: var(--club-bg);
+  background-image:
+    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--club-border) 19%, transparent), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--club-success-bg) 70%, transparent), transparent 50%);
+  background-attachment: fixed;
+}
+
+@keyframes club-fade-in { from { opacity: 0; } }
+@keyframes club-tooltip-in { from { opacity: 0; translate: 0 3px; scale: .97; } }
+@keyframes club-tooltip-out { to { opacity: 0; translate: 0 2px; scale: .98; } }
+@keyframes club-pop-in { from { opacity: 0; scale: .6; } }
+@keyframes club-rise-in { from { opacity: 0; translate: 0 6px; } }
+
+@utility eyebrow {
+  margin: 0;
+  font-size: var(--club-text-xs);
+  letter-spacing: .16em;
+  color: var(--club-text-secondary);
+}
+@utility gold-title {
+  color: var(--club-gold);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--club-gold) 15%, transparent);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--club-bg);
+    scrollbar-gutter: stable;
+    /* No elastic bounce at the top/bottom (Chromium touchpads, Safari): it drags the fixed header and sidebar along. */
+    overscroll-behavior-y: none;
+    /* The page never scrolls sideways (wide tables scroll inside their own frame). A stray few-pixel overflow would
+       add a horizontal scrollbar, shrink the visible height, and push the full-height sticky sidebar up at the bottom. */
+    overflow-x: clip;
+  }
+  html, * { scrollbar-color: var(--club-border-strong) transparent; }
+  /* html already reserves the scrollbar gutter, so the margin Radix's scroll lock adds for the hidden scrollbar
+     would shift the page left when a dialog or menu opens. Layered !important outranks the injected one. */
+  body[data-scroll-locked] { margin-right: 0 !important; }
+  body {
+    font-family: var(--club-font-body);
+    font-size: var(--club-text-base);
+    line-height: 1.6;
+    color: var(--club-text);
+    background: var(--club-bg);
+  }
+  *, ::before, ::after { border-color: var(--club-border); }
+  h1, h2, h3 {
+    font-family: var(--club-font-heading);
+    font-weight: 500;
+    line-height: 1.35;
+    letter-spacing: .02em;
+    color: var(--club-gold);
+    text-wrap: balance;
+  }
+  ::selection { background: var(--club-gold); color: var(--club-bg); }
+  input, textarea { caret-color: var(--club-gold); }
+  a { text-underline-offset: .22em; }
+  :is(button, a, select, label, [role="tab"]) { touch-action: manipulation; }
+  /* One focus indicator for every control, including portalled dialogs. */
+  :focus-visible {
+    outline: var(--club-focus-width) solid var(--club-focus);
+    outline-offset: var(--club-focus-offset);
+  }
+  [tabindex="-1"]:focus { outline: none; }
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .skip-link {
+    position: fixed;
+    top: -80px;
+    left: 16px;
+    z-index: var(--club-z-toast);
+    padding: var(--club-space-3);
+    border: 1px solid var(--club-border-strong);
+    background: var(--club-surface);
+    color: var(--club-gold);
+  }
+  .skip-link:focus { top: 12px; }
+  .club-workspace {
+    width: 100%;
+    min-width: 0;
+    max-width: var(--club-content-max);
+    margin-inline: auto;
+    padding: var(--club-space-6) var(--club-workspace-gutter) var(--club-space-12);
+  }
+  /* Native <select> stays (keyboard, mobile pickers, form semantics); supporting browsers get the themed picker. */
+  @supports (appearance: base-select) {
+    [data-slot="native-select"], [data-slot="native-select"]::picker(select) { appearance: base-select; }
+    [data-slot="native-select"]::picker(select) {
+      max-height: min(360px, 50dvh);
+      overflow-y: auto;
+      padding: var(--club-space-1);
+      border: 1px solid var(--club-border-strong);
+      border-radius: var(--club-radius);
+      background: var(--club-surface);
+      color: var(--club-text);
+      box-shadow: 0 12px 32px rgb(0 0 0 / .45);
+      opacity: 0;
+      translate: 0 -4px;
+      transition: opacity var(--club-motion-fast) var(--club-ease-feedback), translate var(--club-motion-enter) var(--club-ease-enter);
+    }
+    [data-slot="native-select"]:open::picker(select) { opacity: 1; translate: 0 0; }
+    @starting-style {
+      [data-slot="native-select"]:open::picker(select) { opacity: 0; translate: 0 -4px; }
+    }
+    [data-slot="native-select"] option {
+      min-height: var(--club-touch-target);
+      padding: var(--club-space-3);
+      border-radius: var(--club-radius);
+      cursor: pointer;
+    }
+    [data-slot="native-select"] option:checked { background: var(--club-selected); color: var(--club-gold); }
+    [data-slot="native-select"] option:is(:hover, :focus-visible) { background: var(--club-hover); color: var(--club-gold); outline: none; }
+    [data-slot="native-select"] option::checkmark { color: var(--club-gold); }
+    [data-slot="native-select"] { display: flex; align-items: center; }
+    [data-slot="native-select"]::picker-icon {
+      content: "";
+      margin-inline-start: auto;
+      width: 14px;
+      height: 14px;
+      padding-inline-start: var(--club-space-2);
+      background: currentColor;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+      transition: rotate var(--club-motion) var(--club-ease-feedback);
+    }
+    [data-slot="native-select"]:open::picker-icon { rotate: 180deg; }
+  }
 }

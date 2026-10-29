@@ -3,7 +3,7 @@ import { fields, numericFields, type Member } from "../../domain/member.ts";
 import { validateRows, type ConfirmedMember, type ImportContext } from "./contract.ts";
 
 export const labels: Record<typeof fields[number], string> = { name: "昵称", position: "职位", level: "等级", pathway: "途径", extraordinary_score: "非凡评分", prosperity: "风尚度", weekly_activity: "周活跃", group: "分组", join_days: "入会天数" };
-export type Row = { member: Member; identity: string; manual: boolean; sourceName: string | null; remember: boolean; needsReview: boolean; search?: string; correction?: { name: string; expected: string } };
+export type Row = { /** Stable per-import key for rendering; never sent to the server. */ uid?: number; member: Member; identity: string; manual: boolean; sourceName: string | null; remember: boolean; needsReview: boolean; search?: string; correction?: { name: string; expected: string } };
 export type AbsenceChoice = "left" | "missed" | "uncertain";
 
 export function beijingToday() {

@@ -15,7 +15,7 @@ test('audited date deletion hides every version, isolates tenants and permits sa
  expect((await rest('rpc/club_delete_import_date',admin,{...deletion,p_expected:first.snapshot_id})).status).toBe(409);
  await page.goto('/login');await page.getByLabel('邮箱',{exact:true}).fill(users.admin.email);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/\/account$/);
  await page.goto(`/members?date=${date}`);await page.getByRole('button',{name:'删除当天数据',exact:true}).click();
- const dialog=page.getByRole('dialog');await expect(dialog.getByRole('button',{name:'确认删除',exact:true})).toBeDisabled();await dialog.getByLabel(`输入日期 ${date} 确认`).fill(date);await dialog.getByRole('button',{name:'确认删除',exact:true}).click();await expect(dialog).not.toBeVisible();
+ const dialog=page.getByRole('alertdialog');await expect(dialog.getByRole('button',{name:'确认删除',exact:true})).toBeDisabled();await dialog.getByLabel(`输入日期 ${date} 确认`).fill(date);await dialog.getByRole('button',{name:'确认删除',exact:true}).click();await expect(dialog).not.toBeVisible();
  for(const table of ['club_snapshots','club_snapshot_players','club_imports']){
   const query=table==='club_snapshots'?`snapshot_date=eq.${date}`:table==='club_snapshot_players'?`snapshot_id=in.(${first.snapshot_id},${second.snapshot_id})`:`id=in.(${sql(`select string_agg(import_id::text,',') from public.club_snapshots where club_id='${clubId}' and snapshot_date='${date}';` )})`;
   expect(await (await rest(`${table}?${query}`,owner)).json()).toEqual([]);

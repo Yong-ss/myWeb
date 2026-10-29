@@ -17,6 +17,7 @@ async function prepare(page,date,members) {
   await expect(page.getByRole('heading',{name:'核对成员',exact:true})).toBeVisible();
 }
 async function save(page,{complete=false}={}) {
+  await expect(page.getByRole('dialog')).toHaveCount(0); // closing dialogs animate out and hide the page from queries until gone
   if(await page.getByRole('button',{name:'其余暂不确定',exact:true}).isVisible()){
     if(complete){for(const radio of await page.getByRole('radio',{name:'确认已退会',exact:true}).all())await radio.check();}
     else await page.getByRole('button',{name:'其余暂不确定',exact:true}).click();

@@ -29,9 +29,9 @@ test('styled select picker supports keyboard and Escape',async({page},info)=>{
   await page.getByLabel('截图日期',{exact:true}).fill('2026-10-27');
   await page.getByLabel('JSON 内容',{exact:true}).fill(source.replace('冷丶月','冷月'));
   await page.getByRole('button',{name:'下一步',exact:true}).click();
-  await page.locator('.matched-list > summary').click();
+  await page.locator('.matched-list > button').click();
   const row=page.locator('.matched-list .identity-compact').first();
-  await row.locator(':scope > summary').click();await row.getByText('改选其他玩家',{exact:true}).click();
+  await row.locator(':scope > button').click();await row.getByText('改选其他玩家',{exact:true}).click();
   const select=page.getByLabel('第 1 行玩家身份',{exact:true});
   await expect(select).toHaveCSS('appearance','base-select');
   await select.click();await expect(select).toHaveJSProperty('value','00000000-0000-4000-8000-000000000001');
@@ -47,8 +47,8 @@ test.describe('touch select',()=>{
   test('styled picker opens and selects with touch',async({page})=>{
     const state=await mockApp(page);state.signedIn=true;await page.goto('/import');
     await page.getByLabel('截图日期',{exact:true}).fill('2026-10-27');await page.getByLabel('JSON 内容',{exact:true}).fill(source.replace('冷丶月','冷月'));
-    await page.getByRole('button',{name:'下一步',exact:true}).tap();await page.locator('.matched-list > summary').tap();
-    const row=page.locator('.matched-list .identity-compact').first();await row.locator(':scope > summary').tap();await row.getByText('改选其他玩家',{exact:true}).tap();
+    await page.getByRole('button',{name:'下一步',exact:true}).tap();await page.locator('.matched-list > button').tap();
+    const row=page.locator('.matched-list .identity-compact').first();await row.locator(':scope > button').tap();await row.getByText('改选其他玩家',{exact:true}).tap();
     const select=page.getByLabel('第 1 行玩家身份',{exact:true});await select.tap();
     await page.getByRole('option',{name:'新增玩家（确认不是已有玩家）',exact:true}).tap();await expect(select).toHaveValue('new');expect(state.submissions).toHaveLength(0);
   });

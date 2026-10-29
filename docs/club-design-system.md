@@ -1,5 +1,7 @@
 # Club Design System
 
+> **当前组件系统以第 15 节为准（2026-10-29）。** 下方「当前生效：Motion + Radix」一节仍是动效与弹层的原则；第 7–14 节中关于 `Panel`、`Fields`、`components.css`、`loading.css`、原生 `<dialog>`／`<details>` 的描述是历史记录，相应实现已被第 15 节替换。
+
 ## 当前生效：Motion + Radix 交互动效架构（2026-10-29）
 
 **决定与优先级：** 本项目正式允许并要求在有明确交互价值的地方采用 **Motion for React** 与 **Radix Primitives**。本节及第 14 节为当前交互设计的权威规范；与第 7、9、10、11、13 节中的历史限制或旧实施记录冲突时，以当前规范为准。历史日志保留用于解释演变，不能被当作现在仍有效的禁止条款。本次授权仅针对 `apps/club`，不包含主站换 UI、业务规则改变、生产部署或其他第三方设计系统。
@@ -268,3 +270,43 @@ Select 使用 CSS `appearance: base-select` 和 `::picker(select)` 在支持的�
 - 未来新增交互先判断：纯 CSS 足够、是否需要 Radix 管理可访问性行为、是否需要 Motion 管理出现／退出／布局过渡。优先复用已验证的共享封装。
 - 每次改动前检查 `apps/club/AGENTS.md` 和本节同步；不得让旧的「不需要 Motion／不安装 Radix／不做高度变化」历史记录覆盖当前决定。
 - 未经确认不自动 Push `main` 或部署生产；业务逻辑、Auth、RLS、数据隔离和数据正确性优先于动效。
+
+## 15. 组件系统：shadcn/ui（Radix）+ Motion + Tailwind（2026-10-29，当前）
+
+### 15.1 结构
+- 技术：shadcn/ui CLI 4.23（`-b radix`，样式 `radix-lyra` 方角）、`radix-ui` 1.8.1、`motion` 14.7.1、Tailwind CSS 4.3.3（仅 `apps/club`，`postcss.config.mjs`）、`sonner`（Toast）、`@phosphor-icons/react`、`cn`（类名合并）。版本均固定。
+- 唯一 CSS 入口 `src/app/globals.css`：shadcn 语义变量（`--background`、`--primary`、`--border`、`--ring` 等）全部指向 `tokens.css` 的 `--club-*`；另提供 `gold`、`brass`、`field`、`hover`、`pressed`、`selected`、`success/warning/info(-bg)` 等工具色。始终深色，没有 `.dark` 切换；圆角统一 2px。
+- 自定义工具类：`ornate`（◆ 角饰 + 灯光渐变，每页 1–2 个重点面板）、`mist`（整页背景）、`eyebrow`（小标）、`gold-title`（金色标题光晕）。`hover:` 只在鼠标设备生效，触屏点按不残留悬停色。
+- 旧的 `legacy-base.css`／`components.css`／`loading.css` 已删除；只保留 `styles/chart.css`（人数图 SVG，限定 `.club-account`）。
+
+### 15.2 组件清单（`src/components/ui`，每个职责一个实现）
+| 需求 | 组件 | 说明 |
+| --- | --- | --- |
+| 操作 / 导航按钮 | `Button`、`ButtonLink` | `primary`／`secondary`／`destructive`／`ghost`；`default`／`compact`／`icon`（均 ≥44px）；`loading` + `loadingText` 保持宽度并禁用 |
+| 表单 | `FieldGroup`、`Field`、`FieldLabel`、`FieldDescription`、`FieldError`、`FieldSet`、`FieldLegend` | `FieldError` 常驻（空时隐藏），新错误会被读屏播报 |
+| 输入 | `Input`、`Textarea`、`NativeSelect` | 手机 16px；`NativeSelect` 是原生 `<select>`，支持时用 `appearance: base-select` 主题化弹出层 |
+| 选择 | `Checkbox`、`RadioGroup` | Radix；单选选中标记为铜色菱形 |
+| 容器 | `Card`（`ornate`）、`Table` 系列、`Separator` | 表格窄屏在自身边框内横向滚动 |
+| 状态 | `Badge`、`Skeleton`、`Empty` | Badge 变体对应状态色对 |
+| 切换 / 折叠 | `Tabs`、`Collapsible` | Collapsible 替代 `<details>`，高度与透明度一起过渡；关闭时卸载内容，表单值放在父组件状态里 |
+| 弹层 | `Dialog`、`AlertDialog`、`Sheet`、`Popover`、`DropdownMenu`、`Tooltip` | 见 15.3 |
+| 轻提示 | `Toaster` + `toast()`（sonner） | 只用于无需操作的确认（如“已复制”）；需要阅读或处理的错误留在原位 |
+| 反馈封装 | `components/feedback`：`LoadingState`、`PageLoader`、`TableSkeleton`、`ProfileSkeleton`、`LoadingSpinner` | 基于上述组件；不含认证、缓存或业务逻辑 |
+| 布局 | `AppShell`（手机导航为 `Sheet`）、`PageHeader`、`AccountControls` | 导航仍只来自 `lib/navigation.ts` |
+
+### 15.3 弹层与动效约定
+- Radix 负责焦点陷阱与归还、Escape、遮罩点击、滚动锁和 ARIA；Motion 负责进入／退出（`components/ui/motion.tsx`：进入 180ms、退出 120ms，抽屉 240／180ms，与 tokens 一致）。不另写焦点陷阱，不用 `setTimeout` 延迟关闭。
+- 实现方式：Radix `forceMount` 放在 Motion `AnimatePresence` 内，Root 由 `withOpenState` 包装以便内容知道开关状态；关闭瞬间 Radix 释放焦点和页面阻挡，退出中的层 `pointer-events: none`。
+- 选型：需要输入或选择 → `Dialog`；删除、放弃等确认 → `AlertDialog`（点遮罩不关闭，请求进行中不可取消）；手机导航 → `Sheet`；锚点帮助 → `Popover`；一组动作 → `DropdownMenu`；图标按钮名称 → `Tooltip`（不放唯一信息）。
+- CSS 只做 hover／focus／颜色反馈；减少动态效果时 Motion 过渡为 0、CSS 动画和过渡全部关闭。
+
+### 15.4 新功能如何使用
+1. 先在 `/showcase` 找现有组件和写法，直接从 `components/ui/*` 引入；不要在页面里再写按钮、输入、弹窗样式或新的 CSS 文件。
+2. 布局和间距用 Tailwind 工具类，颜色只用语义类（`bg-card`、`text-gold`、`border-border`、`text-muted-foreground` 等），不写十六进制颜色。
+3. 确实需要新的共享组件时，用 `pnpm dlx shadcn@4.23.0 add <name> -c apps/club` 生成，再按本节改造成 Club 外观并加入 showcase；同一职责不能出现第二个实现。
+4. 特殊可视化（如图表）才允许新的样式表，并且必须限定在功能根类下（架构测试会检查）。
+
+### 15.5 开发专用 Showcase
+- 位置：`src/app/showcase/page.dev.tsx` → `src/components/showcase/Showcase.tsx`。`pnpm --filter @squirrelapi/club dev` 后打开 `http://127.0.0.1:3001/showcase`。
+- `next.config.ts` 只在 `next dev` 时把 `dev.tsx` 加入 `pageExtensions`；`next build` 的静态导出不含此页（已验证 `out/` 中无 showcase）。只用合成数据。
+
