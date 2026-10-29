@@ -29,7 +29,7 @@ test('a page crash keeps navigation usable, hides details, and Retry fetches fre
  await main.getByRole('button',{name:'重试',exact:true}).click();
  await expect(page.getByRole('heading',{name:'俱乐部总览'})).toBeVisible();
  await expect(page.getByRole('heading',{name:'这个页面出错了'})).toHaveCount(0);
- await expect(page.getByText('本次记录',{exact:true})).toBeVisible();
+ await expect(page.getByText('明确在会',{exact:true})).toBeVisible();
  // Recovered in place (no full reload), with a new request rather than the cached response that crashed.
  expect(await page.evaluate(()=>window.__sameDocument)).toBe(true);
  expect(memberReads).toBe(2);

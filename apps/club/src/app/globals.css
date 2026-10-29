@@ -2,7 +2,6 @@
    mapped to the --club-* tokens below; only the roster chart (SVG parts) keeps a small scoped stylesheet. */
 @import "tailwindcss";
 @import "../styles/tokens.css";
-@import "../styles/chart.css" layer(components);
 /* Club is always dark. shadcn's semantic variables are aliases of the approved --club-* tokens
    (tokens.css stays the single source of truth); @theme exposes them as Tailwind utilities. */
 :root {

@@ -19,7 +19,8 @@ export function PathwayDonut({members,loading=false}:{members:readonly PathwayRo
   let offset=0;
   return <Card className="items-stretch" aria-label="途径分布" aria-busy={loading}>
     <CardTitle>途径分布</CardTitle>
-    <CardDescription>仅统计最新记录中明确在会的成员；不包含暂时离会与本次未识别成员。</CardDescription>
+    <CardDescription>只统计最新记录中明确在会的成员。</CardDescription>
+    {!loading&&groups[0]?.name&&groups[0].count>(groups[1]?.count??0)&&<p className="m-0 text-sm">人数最多的途径是 <span style={{color:getPathway(groups[0].name)?.accent}}>{groups[0].name}</span>，共 {groups[0].count} 人，占 {groups[0].percent.toFixed(0)}%。</p>}
     <div className="grid min-h-72 grid-cols-[minmax(240px,1fr)_minmax(0,1fr)] items-center gap-6 max-md:grid-cols-1">
       <div className="relative mx-auto aspect-square w-full max-w-72" onMouseLeave={()=>setHovered(null)}>
         <svg viewBox="0 0 240 240" className="block size-full overflow-visible" role="group" aria-label={`途径分布图，共 ${total} 位在会成员`}>

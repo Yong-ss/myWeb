@@ -9,7 +9,10 @@ for(const width of [1440,390])test(`overview and analytics navigation ${width}`,
  await page.goto('/account');
  await expect(page.getByRole('region',{name:'俱乐部近况'})).toContainText('明确在会');
  await expect(page.getByRole('main')).toContainText('已确认完整');
- await expect(page.getByRole('main')).toContainText('既有成员已知评分净变化 +20');
+ await expect(page.getByRole('main')).toContainText('共同成员评分成长');
+ await expect(page.getByRole('region',{name:'最近值得关注'})).toContainText('共同成员整体变强');
+ await expect(page.getByRole('link',{name:'查看成长原因 →'})).toHaveAttribute('href','/analytics?view=growth&from=2026-10-29&to=2026-10-30');
+ await expect(page.getByRole('figure')).toHaveCount(0);
  await expect(page.getByRole('region',{name:'非凡评分成长分析'})).toHaveCount(0);
  await expect(page.getByRole('region',{name:'途径分布'})).toHaveCount(0);
  await page.screenshot({path:'.test-artifacts/overview-phase4-'+width+'.png',fullPage:true});
@@ -40,7 +43,9 @@ test('analytics keeps top five compact and exposes full sorting with contextual 
  });
  await page.goto('/analytics?view=growth');
  const card=page.getByRole('region',{name:'非凡评分成长分析'});
- await expect(card.getByRole('table').locator('tbody tr')).toHaveCount(5);
+ await expect(card.getByRole('list',{name:'成长 Top 5'}).getByRole('listitem')).toHaveCount(5);
+ await expect(card.getByRole('table')).toHaveCount(0);
+ await expect(card).toContainText('（仅已知评分）');
  await expect(card).toContainText('名单未确认完整或存在缺失评分');
  await card.getByRole('button',{name:'查看全部',exact:true}).click();
  await expect(card.getByRole('table').locator('tbody tr')).toHaveCount(8);
