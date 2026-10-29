@@ -1,3 +1,4 @@
+import {isPrivateRoute} from "./navigation.ts";
 /** Private, bounded in-memory cache. Never persist cookies or business data. */
 export function createDataAccess(network:typeof fetch=fetch,now=()=>Date.now(),updated:(path:string)=>void=()=>{}) {
   const entries=new Map<string,{scope:string;response:Response;at:number}>();
@@ -42,7 +43,7 @@ export function createDataAccess(network:typeof fetch=fetch,now=()=>Date.now(),u
   }
   return {read,clear};
 }
-const client=createDataAccess(fetch,()=>Date.now(),()=>{
+const client=createDataAccess((input,init)=>fetch(input,init),()=>Date.now(),()=>{
   if(typeof window!=='undefined')window.dispatchEvent(new Event('club-data-updated'));
 });
 export async function clubFetch(path:string,init?:RequestInit){
@@ -52,13 +53,16 @@ export async function clubFetch(path:string,init?:RequestInit){
   return client.read(path,init);
 }
 export const clearClubData=client.clear;
-/** JSON call for feature pages. 401/403 always returns to login; other failures throw the server's message. */
+/**
+ * JSON call for every feature. 401 means the session is missing or expired: private pages go to login.
+ * 403 means signed in but not allowed (revoked membership, owner-only action): show the server's message
+ * and stay, so unsaved work is kept. Public pages never redirect, so /login cannot loop on itself.
+ */
 export async function clubApi<T=any>(path:string,init?:RequestInit,fallback="请求失败，请重试"):Promise<T>{ // eslint-disable-line @typescript-eslint/no-explicit-any
   const response=await clubFetch(path,init);
-  if([401,403].includes(response.status)){if(typeof window!=='undefined')window.location.replace('/login');throw Error('请重新登录');}
-  const data=await response.json();
-  if(!response.ok)throw Error(data.error??fallback);
-  return data as T;
+  if(response.status===401&&typeof window!=='undefined'&&isPrivateRoute(window.location.pathname)){window.location.replace('/login');throw Error('请重新登录');}
+  if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error??(response.status===403?'此账户没有权限执行这个操作':fallback));}
+  return await response.json() as T;
 }
 if(typeof window!=='undefined'){
   // Other tabs must not keep entries from an earlier login or import.

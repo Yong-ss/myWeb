@@ -1,7 +1,7 @@
 "use client";
 import {ProfileSkeleton,LoadingState} from "../../components/feedback";
 import {useDataRefresh} from "../../lib/useDataRefresh";
-import {clubFetch} from "../../lib/data-access";
+import {clubApi} from "../../lib/data-access";
 import {useEffect,useState} from "react";
 import Link from "next/link";
 import {PageHeader} from "../../components/layout/PageHeader";
@@ -16,11 +16,10 @@ export function PlayerPage(){
   useDataRefresh(()=>setRetry(n=>n+1));
   useEffect(()=>{const controller=new AbortController();async function load(){setBusy(true);setError("");try{
     const params=new URLSearchParams(window.location.search);const query=new URLSearchParams({player:params.get("id")??"",paged:"1"});if(cursor)query.set("before",cursor);if(params.has("date"))query.set("date",params.get("date")!);
-    const response=await clubFetch(`/api/members?${query}`,{cache:"no-store",signal:controller.signal});
-    if([401,403].includes(response.status)){window.location.replace("/login");return;}const data=await response.json();if(!response.ok)throw Error(data.error??"读取失败");if(!controller.signal.aborted)setArchive(old=>cursor&&old?{...data,timeline:[...new Map([...old.timeline,...data.timeline].map(row=>[row.date,row])).values()].sort((a,b)=>a.date.localeCompare(b.date))}:data);
+    const data=await clubApi<Archive>(`/api/members?${query}`,{signal:controller.signal},"读取失败");if(!controller.signal.aborted)setArchive(old=>cursor&&old?{...data,timeline:[...new Map([...old.timeline,...data.timeline].map(row=>[row.date,row])).values()].sort((a,b)=>a.date.localeCompare(b.date))}:data);
   }catch(e){if(!controller.signal.aborted)setError(e instanceof Error?e.message:"读取失败");}finally{if(!controller.signal.aborted)setBusy(false);}}void load();return()=>controller.abort();},[retry,cursor]);
   const timeline=archive?.timeline??[];
-  return <><main className="club-workspace"><PageHeader eyebrow="PLAYER / 个人档案" title={archive?.player.display_name??"玩家档案"} actions={<ButtonLink variant="secondary" href="/members">返回名单</ButtonLink>}/>
+  return <><main className="club-workspace club-history"><PageHeader eyebrow="PLAYER / 个人档案" title={archive?.player.display_name??"玩家档案"} actions={<ButtonLink variant="secondary" href="/members">返回名单</ButtonLink>}/>
     {busy&&!archive?<ProfileSkeleton label="正在读取档案…" />:error?<LoadingState status="error" detail={error} onRetry={()=>setRetry(n=>n+1)} />:<>
       <p className="muted">按每天最新版本展示；未识别的日期不补成 0。周活跃下降可能是周期重置。</p>
       <Panel><h2>离会与重返记录</h2>{timeline.some(r=>r.event)?<ol className="club-events">{timeline.filter(r=>r.event).map(r=><li key={r.date}><time>{r.date}</time> · {eventLabels[r.event as keyof typeof eventLabels]}</li>)}</ol>:<p>暂无记录。</p>}</Panel>

@@ -1,6 +1,6 @@
 "use client";
 import {useRef,useState} from 'react';
-import {clubFetch} from '../../lib/data-access';
+import {clubApi} from '../../lib/data-access';
 import {Button} from '../../components/ui/Button';
 import {Input} from '../../components/ui/Fields';
 export function DeleteImport({date,snapshotId,onDeleted}:{date:string;snapshotId:string;onDeleted:()=>void}){
@@ -9,8 +9,7 @@ export function DeleteImport({date,snapshotId,onDeleted}:{date:string;snapshotId
   if(confirmation!==date||busy)return;
   setBusy(true);setError('');
   try{
-   const r=await clubFetch('/api/delete-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,expected_snapshot_id:snapshotId,confirmed:true})});
-   const data=await r.json();if(!r.ok)throw Error(data.error??'删除失败，请重试');
+   await clubApi('/api/delete-import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,expected_snapshot_id:snapshotId,confirmed:true})},'删除失败，请重试');
    dialog.current?.close();onDeleted();
   }catch(e){setError(e instanceof Error?e.message:'连接失败，请重试');}finally{setBusy(false);}
  }

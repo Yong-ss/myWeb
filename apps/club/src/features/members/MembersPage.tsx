@@ -57,7 +57,7 @@ function MemberList() {
   function sortHeading(field:string,title:string) {
     return <th key={field} scope="col" aria-sort={sort===field?(descending?"descending":"ascending"):"none"}><button type="button" className="club-table-sort" onClick={()=>order(field)}>{title}<svg className="club-table-sort-icon" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><g className="club-sort-neutral"><path d="m3 7 4-4 4 4M7 3v18m14-4-4 4-4-4M17 21V3"/></g><g className="club-sort-direction"><path d="M12 19V5m-7 7 7-7 7 7"/></g></svg></button></th>;
   }
-  return <><main className="club-workspace"><PageHeader eyebrow="THE ARCHIVES / 每日记录" title="成员名单" actions={<ButtonLink href="/import">导入数据</ButtonLink>} />
+  return <><main className="club-workspace club-members"><PageHeader eyebrow="THE ARCHIVES / 每日记录" title="成员名单" actions={<ButtonLink href="/import">导入数据</ButtonLink>} />
     <div className="members-toolbar"><label>查看日期<Select value={date} onChange={e => { setDate(e.target.value); setVersion(""); }}><option value="">最新一天</option>{dates.map(s => <option key={s.id} value={s.snapshot_date}>{s.snapshot_date}</option>)}</Select></label><Button disabled={!next} loading={moreBusy} loadingText="读取中…" onClick={moreDates}>更早日期</Button>
       <label>保存版本<Select disabled={!date||waiting} value={version} onChange={e => setVersion(e.target.value)}><option value="">当天最新版本</option>{(result?.snapshots??[]).filter(s => !s.is_current).map(s => <option key={s.id} value={s.id}>第 {s.revision} 版（旧版）</option>)}</Select></label>
     </div>

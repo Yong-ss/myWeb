@@ -57,7 +57,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `src/lib/`（数据访问、`clubApi`、刷新、品牌）与 `src/components/`（UI、布局、反馈）：共享基础设施，禁止 import 任何功能。
 - `src/app/<路由>/page.tsx` 只重新导出功能页面，不写逻辑；`src/app/error.tsx` 让单页出错时侧栏和其他页面照常可用。
 - `worker/`：每个 API 一个处理文件，统一在 `index.ts` 的 `routes` 表登记；`worker/http.ts` 只放通用 HTTP 工具。Worker 只能用 `domain/` 和功能目录里不含 React 的 `.ts`，禁止引用页面或组件。
-- 新功能：新建 `src/features/<名字>/`，加一行路由页、一行导航（如需要），以及需要时的 `worker/<名字>.ts` 和 `routes` 一项；不应修改其他功能。
+- 导航和私有页面只在 `src/lib/navigation.ts` 登记一次；它只决定显示，权限仍由 Worker／数据库判断。
+- 请求统一用 `clubApi`：401 在私有页面跳转登录，403 留在原页并显示服务端提示。
+- 共享样式表对所有页面生效；只有一个功能使用的 CSS 选择器必须加该功能根类，例如 `.club-app :where(.club-import) .stepper`（`:where` 不增加优先级）。
+- 新功能：新建 `src/features/<名字>/`（页面 `<main>` 带 `club-<名字>` 根类），加一行路由页、`navigation.ts` 一项，以及需要时的 `worker/<名字>.ts` 和 `routes` 一项；不应修改其他功能。
 
 ## 品牌与设置
 

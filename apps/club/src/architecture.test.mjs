@@ -56,3 +56,39 @@ test('no circular imports',()=>{
  };
  for(const node of graph.keys())visit(node,[]);
 });
+
+// CSS isolation: shared stylesheets load on every page and stay loaded after client-side navigation, so a rule
+// whose classes belong to ONE feature must be scoped to that feature's page root (use :where() to keep specificity).
+const featureRoots={import:'club-import',members:'club-members',analytics:'club-account',history:'club-history',activity:'club-activity',auth:'club-login'};
+const sourceFiles=files(join(root,'src')).filter(f=>!/\.test\.mjs$/.test(f));
+const owners=cls=>{
+ const word=new RegExp(`(?<![\w-])${cls}(?![\w-])`),prefix=cls.includes('--')?cls.split('--')[0]+'--${':null;
+ return new Set(sourceFiles.filter(f=>{const t=readFileSync(f,'utf8');return word.test(t)||(prefix&&t.includes(prefix));}).map(f=>{const a=area(f);return a.startsWith('feature:')?a.slice(8):'shared';}));
+};
+const allFiles=dir=>readdirSync(dir).flatMap(name=>{const path=join(dir,name);return statSync(path).isDirectory()?allFiles(path):[path];});
+const cssFiles=allFiles(join(root,'src')).filter(f=>f.endsWith('.css'));
+const splitTop=s=>{const out=[];let depth=0,cur='';for(const ch of s){if('(['.includes(ch))depth++;if(')]'.includes(ch))depth--;if(ch===','&&!depth){out.push(cur.trim());cur='';}else cur+=ch;}return [...out,cur.trim()];};
+test('each feature has the page root class its scoped styles rely on',()=>{
+ for(const [feature,cls] of Object.entries(featureRoots))assert.ok(files(join(root,'src/features',feature)).some(f=>readFileSync(f,'utf8').includes(`club-workspace ${cls}`)),`${feature} page must render <main className="club-workspace ${cls}">`);
+});
+test('feature-only CSS rules are scoped to their feature',()=>{
+ const cache=new Map(),own=c=>{if(!cache.has(c))cache.set(c,owners(c));return cache.get(c);};
+ const violations=[];
+ for(const file of cssFiles){
+  const css=readFileSync(file,'utf8').replace(/\/\*[\s\S]*?\*\//g,'');
+  for(const m of css.matchAll(/([^{};]+)\{/g)){
+   const prelude=m[1].trim();if(prelude.startsWith('@'))continue;
+   for(const sel of splitTop(prelude)){
+    const classes=[...sel.replace(/\[[^\]]*\]/g,'').matchAll(/\.(-?[a-zA-Z_][\w-]*)/g)].map(x=>x[1]).filter(c=>c!=='club-app');
+    if(!classes.length)continue;
+    const sets=classes.map(own);
+    if(sets.some(s=>s.size!==1||s.has('shared')))continue;
+    const feature=[...sets[0]][0];
+    if(sets.some(s=>!s.has(feature)))continue; // deliberately shared across features, e.g. dialog motion
+    if(!sel.includes(`.${featureRoots[feature]}`))violations.push(`${rel(file)}: ${sel}  (only used by ${feature})`);
+   }
+  }
+ }
+ assert.ok(cssFiles.length>=4,'stylesheets were not found');
+ assert.deepEqual(violations,[],'scope with :where(.club-<feature>), e.g. ".club-app :where(.club-import) .stepper"');
+});
