@@ -42,7 +42,7 @@ do $$
 declare t text; n integer;
 begin
   if (select count(*) from public.club_memberships) <> 1 then raise exception 'Owner cannot read own membership'; end if;
-  foreach t in array array['club_clubs','club_players','club_imports','club_snapshots','club_snapshot_players','club_audit_events'] loop
+  foreach t in array array['club_clubs','club_players','club_imports','club_snapshots','club_snapshot_players'] loop
     execute format('select count(*) from public.%I where %I = $1', t, case when t='club_clubs' then 'id' else 'club_id' end)
       into n using '00000000-0000-4000-8000-000000000001'::uuid;
     if n <> 0 then raise exception 'Cross-club read: %',t; end if;
@@ -79,7 +79,7 @@ set local role authenticated;
 do $$
 declare t text; n integer;
 begin
-  foreach t in array array['club_clubs','club_memberships','club_players','club_imports','club_snapshots','club_snapshot_players','club_audit_events'] loop
+  foreach t in array array['club_clubs','club_memberships','club_players','club_imports','club_snapshots','club_snapshot_players'] loop
     execute format('select count(*) from public.%I',t) into n;
     if n <> 0 then raise exception 'Revoked membership still reads: %',t; end if;
   end loop;

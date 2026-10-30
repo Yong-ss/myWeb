@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {randomUUID} from 'node:crypto';
-import {auth,rest,clubId,foreignClubId,baseURL,users,password} from './local.mjs';
+import {auth,rest,audits,clubId,foreignClubId,baseURL,users,password} from './local.mjs';
 const row=name=>({name,position:null,level:70,pathway:null,extraordinary_score:null,prosperity:null,weekly_activity:null,group:null,join_days:null,player_id:null});
 test('reviewed absences preserve missing data, departures, revisions, rejoining and tenant safety',async({page,context})=>{
  await context.route('**/*',r=>new URL(r.request().url()).origin===baseURL?r.continue():r.abort());
@@ -25,7 +25,7 @@ test('reviewed absences preserve missing data, departures, revisions, rejoining 
  const read=async(date)=>{const r=await context.request.get(`${baseURL}/api/members?date=${date}`);expect(r.ok(),await r.text()).toBe(true);return r.json();};
  const d2=await read('2002-01-02');expect(d2.snapshot_count).toBe(1);expect(d2.members.find(p=>p.player_id===b.player_id).presence).toBe('left');expect(d2.members.find(p=>p.player_id===c.player_id)).toMatchObject({presence:'unconfirmed',data_date:'2002-01-01'});
  const revision=await call('2002-01-02',[{...incoming,level:71}],[decisions[1]],d2.snapshot.id,{p_expected:d2.snapshot.id});expect(revision.ok,await revision.clone().text()).toBe(true);const s2=await revision.json();expect((await read('2002-01-02')).members.find(p=>p.player_id===b.player_id).presence).toBe('left');
- const revisionAudit=await (await rest(`club_audit_events?action=eq.absence_reviewed&target_id=eq.${s2.snapshot_id}`,owner)).json();expect(revisionAudit[0].details.decisions).toHaveLength(1);
+ const revisionAudit=audits(`action='absence_reviewed' and target_id='${s2.snapshot_id}'`);expect(revisionAudit[0].details.decisions).toHaveLength(1);
  const baseline=await (await rest('rpc/club_absence_context',owner,{p_club:clubId,p_date:'2002-01-03'})).json();expect(baseline.members.map(p=>p.player_id)).not.toContain(b.player_id);
  const d3=await call('2002-01-03',[incoming],[{player_id:c.player_id,decision:'uncertain'}],s2.snapshot_id);expect(d3.ok,await d3.clone().text()).toBe(true);const s3=await d3.json();
  const d4=await call('2002-01-04',[incoming,{...row(b.name),player_id:b.player_id,identity_confirmed:true}],[{player_id:c.player_id,decision:'uncertain'}],s3.snapshot_id);expect(d4.ok,await d4.clone().text()).toBe(true);
@@ -34,5 +34,5 @@ test('reviewed absences preserve missing data, departures, revisions, rejoining 
  expect((await rest('rpc/club_commit_reviewed_import',(await auth('foreign')).access_token,{...base,p_date:'2002-01-05',p_rows:[incoming],p_absences:[],p_baseline:null,p_request_id:randomUUID()})).status).toBe(403);
  expect(await (await rest(`club_snapshot_absences?club_id=eq.${foreignClubId}`,owner)).json()).toEqual([]);
  expect((await rest('club_snapshot_absences',owner,{club_id:clubId,snapshot_id:s2.snapshot_id,player_id:a.player_id,decision:'left'})).status).toBe(403);
- const audit=await (await rest(`club_audit_events?action=eq.absence_reviewed&target_id=eq.${d2.snapshot.id}`,owner)).json();expect(audit).toHaveLength(1);expect(audit[0].details.actor_role).toBe('admin');
+ const audit=audits(`action='absence_reviewed' and target_id='${d2.snapshot.id}'`);expect(audit).toHaveLength(1);expect(audit[0].details.actor_role).toBe('admin');
 });

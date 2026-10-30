@@ -59,6 +59,8 @@ export function sql(query,initial=false) {
   const guard=initial ? '' : `do $$ begin if not exists(select 1 from integration_test.guard where id='${project}') then raise exception 'Missing integration test marker'; end if; end $$;`;
   return command('docker',['exec','-i',`supabase_db_${project}`,'psql','--no-psqlrc','--host=/var/run/postgresql','--username=postgres','--dbname=postgres','-Atq','--set=ON_ERROR_STOP=1'],{input:`begin;\n${guard}\n${query}\ncommit;`}).trim();
 }
+// Raw audit rows are not readable by any client role; tests inspect them as the local database owner.
+export const audits=where=>JSON.parse(sql(`select coalesce(json_agg(e order by e.created_at),'[]') from (select id,actor_id,action,target_id,details,created_at from public.club_audit_events where ${where}) e;`));
 export async function rest(path,token,body,method) {
   const r=await localFetch(`/rest/v1/${path}`,{method:method??(body===undefined?'GET':'POST'),headers:{apikey:state().anonKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json',Prefer:'return=representation'},...(body===undefined?{}:{body:JSON.stringify(body)})});
   return r;

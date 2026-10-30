@@ -1,5 +1,12 @@
 # SquirrelAPI — Decision Log
 
+## Club authorization and Admin Panel — 2026-10-30
+
+- D-033 Confirmed (owner): RBAC + scope + per-user exceptions, delivered in phases P1–P8. Default deny, deny wins, revocation takes effect immediately, checks in both Worker and database, append-only audit. One permission registry; roles are permission sets bound to a scope (platform / alliance / club). Delegation is separate from holding a permission. Alliance roles are read-only; writes are granted per club. A club belongs to at most one alliance.
+- D-034 Confirmed: the owner is the only Super Admin. The identity lives in `platform_super_admins`, which no client role, assignment or override can change. The Super Admin has full authority over every club, alliance and future feature, active only with TOTP MFA (`aal2`) enforced in the database. Without MFA the account keeps only its ordinary memberships, so it cannot lock itself out. The Super Admin can move a club between alliances directly (audited, Leader notified); ordinary joins need Leader consent.
+- D-035 Confirmed: audit identity privacy. Nobody but the MFA-verified Super Admin sees the Super Admin's email or user ID; other viewers see the public name (default 「超级管理员」). By default no role sees any actor email (`audit.actor_email.read` must be granted). The real `actor_id` is always stored; rows are never rewritten. Historical rows are masked when read.
+- **Supersedes:** D-023's "no automatic Super Admin access to other clubs' business data", D-026's "no Super Admin business-data bypass" and D-025's implementation note that platform administration cannot bypass business RLS. Super Admin access goes through `can()` in the database, still without any privileged key (Workers keep the publishable key). Takes effect for business data in P2; P1 adds the core without changing business access.
+
 ## CI deploy correctness — 2026-10-29
 
 - D-032 Confirmed (owner request): keep direct push to `main` with automatic deploy; no PR, branch protection or rulesets.

@@ -48,6 +48,14 @@ enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 minimum_password_length = 12
 
+# Real TOTP so tests obtain aal2 only through Auth, never by editing claims (hosted projects enable TOTP by default).
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
 [auth.email]
 # Enable email/password login; global auth.enable_signup remains false.
 enable_signup = true

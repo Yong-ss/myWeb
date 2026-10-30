@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {randomUUID} from 'node:crypto';
-import {auth,rest,sql,clubId,foreignClubId,playerId,baseURL,users,password} from './local.mjs';
+import {auth,rest,sql,audits,clubId,foreignClubId,playerId,baseURL,users,password} from './local.mjs';
 test('audited date deletion hides every version, isolates tenants and permits safe reimport',async({page,context,request})=>{
  await context.route('**/*',r=>new URL(r.request().url()).origin===baseURL?r.continue():r.abort());
  const owner=(await auth('owner')).access_token,admin=(await auth('admin')).access_token;
@@ -18,13 +18,14 @@ test('audited date deletion hides every version, isolates tenants and permits sa
  const dialog=page.getByRole('alertdialog');await expect(dialog.getByRole('button',{name:'确认删除',exact:true})).toBeDisabled();await dialog.getByLabel(`输入日期 ${date} 确认`).fill(date);await dialog.getByRole('button',{name:'确认删除',exact:true}).click();await expect(dialog).not.toBeVisible();
  for(const table of ['club_snapshots','club_snapshot_players','club_imports']){
   const query=table==='club_snapshots'?`snapshot_date=eq.${date}`:table==='club_snapshot_players'?`snapshot_id=in.(${first.snapshot_id},${second.snapshot_id})`:`id=in.(${sql(`select string_agg(import_id::text,',') from public.club_snapshots where club_id='${clubId}' and snapshot_date='${date}';` )})`;
-  expect(await (await rest(`${table}?${query}`,owner)).json()).toEqual([]);
+  expect(await (await rest(`${table}?select=club_id&${query}`,owner)).json()).toEqual([]);
  }
  expect((await rest('rpc/club_commit_import',owner,payload)).status).toBe(409);
  const hiddenVersion=await context.request.get(`${baseURL}/api/members?date=${date}&version=${first.snapshot_id}`);expect(hiddenVersion.status()).toBe(404);
  const hiddenHistory=await context.request.get(`${baseURL}/api/members?player=${playerId}&paged=1`);expect(hiddenHistory.ok()).toBe(true);expect(JSON.stringify(await hiddenHistory.json())).not.toContain(date);
  expect((await rest('rpc/club_delete_import_date',admin,deletion)).ok).toBe(true);
- let logs=await (await rest(`club_audit_events?club_id=eq.${clubId}&action=eq.import_date_deleted`,owner)).json();logs=logs.filter(l=>l.details?.date===date);expect(logs).toHaveLength(1);expect(logs[0].details).toMatchObject({date,versions:2,actor_email:users.admin.email,actor_role:'admin'});
+ expect((await rest(`club_audit_events?club_id=eq.${clubId}`,owner)).status).toBe(403);
+ let logs=audits(`club_id='${clubId}' and action='import_date_deleted'`).filter(l=>l.details?.date===date);expect(logs).toHaveLength(1);expect(logs[0].details).toMatchObject({date,versions:2,actor_email:users.admin.email,actor_role:'admin'});
  expect((await rest('club_audit_events',owner,{action:'forged'})).status).toBe(403);
  expect((await rest(`club_audit_events?id=eq.${logs[0].id}`,owner,{},'DELETE')).status).toBe(403);
  const restored=await commit({...payload,p_request_id:randomUUID()});expect(restored.revision).toBe(3);
@@ -36,7 +37,11 @@ test('audited date deletion hides every version, isolates tenants and permits sa
  const seen=new Set();let cursor=null;do{const r=await rest('rpc/club_activity',owner,{p_club_id:clubId,p_before:cursor?.before??null,p_id:cursor?.id??null});expect(r.ok).toBe(true);const d=await r.json();expect(d.events.length).toBeLessThanOrEqual(50);for(const e of d.events){expect(seen.has(e.id)).toBe(false);seen.add(e.id);}cursor=d.next;}while(cursor);
  expect(seen.size).toBeGreaterThanOrEqual(65);
  expect((await (await rest('rpc/club_activity',owner,{p_club_id:foreignClubId})).json()).events).toEqual([]);
- await page.goto('/activity');await expect(page.getByRole('cell',{name:'删除当天数据',exact:true}).first()).toBeVisible();await expect(page.getByRole('main')).toContainText(users.admin.email);
+ await page.goto('/activity');await expect(page.getByRole('cell',{name:'删除当天数据',exact:true}).first()).toBeVisible();
+ // Default roles see roles, not emails; the Super Admin (the owner fixture) is never revealed, through the page or the RPC.
+ const main=page.getByRole('main');await expect(main).toContainText('超级管理员');await expect(main).toContainText('管理员');
+ await expect(main).not.toContainText(users.admin.email);await expect(main).not.toContainText(users.owner.email);
+ const viewed=JSON.stringify(await (await rest('rpc/club_activity',admin,{p_club_id:clubId})).json());expect(viewed).not.toContain(users.owner.email);expect(viewed).not.toContain(users.owner.id);expect(viewed).not.toContain('@');
  const foreign=(await auth('foreign')).access_token;expect((await request.get(`${baseURL}/api/activity`,{headers:{Cookie:`__Host-club_access=${foreign}`}})).status()).toBe(403);
  sql(`update public.club_memberships set status='revoked' where club_id='${clubId}' and user_id='${users.admin.id}';`);
  try{

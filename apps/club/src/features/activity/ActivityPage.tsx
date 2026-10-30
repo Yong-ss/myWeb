@@ -7,7 +7,9 @@ import {Button} from '../../components/ui/button';
 import {Badge} from '../../components/ui/badge';
 import {Table,TableBody,TableCaption,TableCell,TableHead,TableHeader,TableRow} from '../../components/ui/table';
 import {LoadingState,TableSkeleton} from '../../components/feedback';
-type Event={id:string;actor_id:string;action:string;details:Record<string,unknown>;created_at:string};
+// The server decides what identity each viewer may see; the page never derives it from details.
+type Event={id:string;actor_id:string|null;actor_label:string|null;actor_kind:'member'|'super_admin';actor_role:string|null;action:string;details:Record<string,unknown>;created_at:string};
+const roleName=(e:Event)=>e.actor_kind==='super_admin'?'超级管理员':e.actor_role==='owner'?'公会长':e.actor_role==='admin'?'管理员':'历史记录';
 type Cursor={before:string;id:string};
 const actions:Record<string,string>={club_initialized:'建立俱乐部',import_committed:'导入数据',import_date_deleted:'删除当天数据',alias_confirmed:'记住 AI 错名',alias_revoked:'解除错名关联',club_renamed:'修改俱乐部名称',player_renamed:'更正玩家昵称',absence_resolved:'处理待确认成员',absence_reviewed:'核对缺席成员'};
 function description(e:Event){const d=e.details;switch(e.action){
@@ -30,7 +32,7 @@ export function Activity(){
  {error&&<LoadingState status="error" detail={error} onRetry={()=>next&&events.length?void more():setRetry(n=>n+1)}/>}
  {busy&&!events.length?<TableSkeleton columns={4} label="正在读取操作日志…"/>:events.length?<Table containerClassName="members-table-wrap"><TableCaption>管理操作记录 · 按时间倒序</TableCaption><TableHeader><TableRow><TableHead>时间</TableHead><TableHead>操作人</TableHead><TableHead>操作</TableHead><TableHead>内容</TableHead></TableRow></TableHeader><TableBody>{events.map(e=><TableRow key={e.id}>
   <TableCell className="text-muted-foreground">{time.format(new Date(e.created_at))}</TableCell>
-  <TableCell className="min-w-36 whitespace-normal [overflow-wrap:anywhere]">{String(e.details.actor_email??e.actor_id)}<small className="block text-muted-foreground">{e.details.actor_role==='owner'?'公会长':e.details.actor_role==='admin'?'管理员':'历史记录'}</small></TableCell>
+  <TableCell className="min-w-36 whitespace-normal [overflow-wrap:anywhere]">{e.actor_label??roleName(e)}{e.actor_label&&e.actor_label!==roleName(e)&&<small className="block text-muted-foreground">{roleName(e)}</small>}</TableCell>
   <TableCell><Badge variant={e.action==='import_date_deleted'?'destructive':'default'}>{actions[e.action]??e.action}</Badge></TableCell>
   <TableCell className="min-w-36 whitespace-normal [overflow-wrap:anywhere]">{description(e)}</TableCell>
  </TableRow>)}</TableBody></Table>:!error&&<LoadingState status="empty" title="暂无操作记录"/>}

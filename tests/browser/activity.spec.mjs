@@ -9,7 +9,7 @@ for(const width of [1440,390])test(`delete confirmation, retry, audit list and e
   if(url.pathname==='/api/delete-import'){attempts++;return route.fulfill(attempts===1?{status:502,json:{error:'连接失败，请重试'}}:(deleted=true,{json:{deleted:true}}));}
   if(url.pathname==='/api/activity'){
    logAttempts++;if(logAttempts===1)return route.fulfill({status:502,json:{error:'日志读取失败'}});
-   return route.fulfill({json:{events:logAttempts===2?[{id,actor_id:id,created_at:'2026-10-28T12:00:00Z',action:'import_date_deleted',details:{date,versions:2,actor_email:'owner@example.invalid',actor_role:'owner'}}]:[],next:logAttempts===2?{before:'2026-10-28T12:00:00Z',id}:null}});
+   return route.fulfill({json:{events:logAttempts===2?[{id,actor_id:id,actor_label:'manager@example.invalid',actor_kind:'member',actor_role:'admin',created_at:'2026-10-28T12:00:00Z',action:'import_date_deleted',details:{date,versions:2}},{id:id.slice(0,-1)+'2',actor_id:null,actor_label:'超级管理员',actor_kind:'super_admin',actor_role:null,created_at:'2026-10-28T11:00:00Z',action:'club_renamed',details:{old_name:'甲',new_name:'乙'}},{id:id.slice(0,-1)+'3',actor_id:null,actor_label:null,actor_kind:'member',actor_role:'owner',created_at:'2026-10-28T10:00:00Z',action:'import_committed',details:{date,revision:1,mode:'replace'}}]:[],next:logAttempts===2?{before:'2026-10-28T12:00:00Z',id}:null}});
   }
   return route.fulfill({json:{snapshot:deleted?null:{id,snapshot_date:date,revision:2,is_current:true,is_complete_roster:true},snapshots:deleted?[]:[{id,snapshot_date:date}],members:[],next:null}});
  });
@@ -19,6 +19,9 @@ for(const width of [1440,390])test(`delete confirmation, retry, audit list and e
  await dialog.getByRole('button',{name:'确认删除',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('连接失败');
  await dialog.getByRole('button',{name:'确认删除',exact:true}).click();await expect(dialog).not.toBeVisible();await expect(page.getByRole('heading',{name:'还没有保存记录'})).toBeVisible();expect(attempts).toBe(2);
  await page.goto('/activity');await page.getByRole('button',{name:'重试',exact:true}).click();await expect(page.getByRole('cell',{name:'删除当天数据',exact:true})).toBeVisible();
+ // Identity comes only from the server: a permitted email, the Super Admin public label, or just the role.
+ const rows=page.getByRole('row');await expect(rows.filter({hasText:'删除当天数据'})).toContainText('manager@example.invalid管理员');
+ await expect(rows.filter({hasText:'修改俱乐部名称'}).getByRole('cell').nth(1)).toHaveText('超级管理员');await expect(rows.filter({hasText:'导入数据'}).getByRole('cell').nth(1)).toHaveText('公会长');
  await page.screenshot({path:`.test-artifacts/activity-${width}.png`});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.getByRole('button',{name:'更早记录',exact:true}).click();await expect(page.getByRole('button',{name:'更早记录',exact:true})).toHaveCount(0);
  await page.reload();await expect(page.getByRole('heading',{name:'暂无操作记录',exact:true})).toBeVisible();

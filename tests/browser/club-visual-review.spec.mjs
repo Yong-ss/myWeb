@@ -14,7 +14,7 @@ for(const width of [1440,390])test(`whole Club visual review ${width}`,async({pa
     if(!url.pathname.startsWith('/api/'))return route.continue();
     const json=url.pathname==='/api/account'?{email:'archive@example.invalid',role:'owner'}:
       url.pathname==='/api/club-settings'?{name:'灰雾档案馆 · 测试',can_edit:true}:
-      url.pathname==='/api/activity'?{events:[{id,actor_id:id,created_at:'2026-10-28T12:00:00Z',action:'import_date_deleted',details:{date:'2026-10-27',versions:2,actor_email:'archive@example.invalid',actor_role:'owner'}}],next:null}:
+      url.pathname==='/api/activity'?{events:[{id,actor_id:null,actor_label:'超级管理员',actor_kind:'super_admin',actor_role:null,created_at:'2026-10-28T12:00:00Z',action:'import_date_deleted',details:{date:'2026-10-27',versions:2}}],next:null}:
       url.pathname==='/api/import-context'?{players:[],snapshot:null,members:[]}:
       url.searchParams.has('player')?{player:{id,display_name:'档案成员1'},timeline:[{date:'2026-10-28',revision:1,status:'present',event:'first_seen',member:members[0],changes:null}]}:
       {snapshot,snapshots:[snapshot],members,next:null,snapshot_count:8};

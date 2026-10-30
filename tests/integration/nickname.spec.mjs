@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {randomUUID} from 'node:crypto';
-import {auth,rest,clubId,foreignClubId,foreignPlayerId,baseURL,users,password} from './local.mjs';
+import {auth,rest,audits,clubId,foreignClubId,foreignPlayerId,baseURL,users,password} from './local.mjs';
 const member={name:'初次错误昵称',position:null,level:70,pathway:null,extraordinary_score:1,prosperity:null,weekly_activity:null,group:null,join_days:null};
 test('inline correction commits with import, preserves history and rolls back on conflict',async({page,context})=>{
  await context.route('**/*',r=>new URL(r.request().url()).origin===baseURL?r.continue():r.abort());
@@ -17,9 +17,9 @@ test('inline correction commits with import, preserves history and rolls back on
  await page.getByRole('checkbox',{name:/我已核对名单/}).check();const submitted=page.waitForRequest(r=>r.url().endsWith('/api/imports')&&r.method()==='POST');await page.getByRole('button',{name:'确认导入',exact:true}).click();await expect(page.getByRole('status')).toContainText('已保存');const body=(await submitted).postDataJSON();
  expect((await (await rest(`club_players?id=eq.${id}`,token)).json())[0].display_name).toBe('真正正确昵称');
  expect((await (await rest(`club_snapshot_players?snapshot_id=eq.${first.snapshot_id}`,token)).json())[0].name).toBe('初次错误昵称');
- const audits=await (await rest(`club_audit_events?action=eq.player_renamed&target_id=eq.${id}`,token)).json();expect(audits).toHaveLength(1);expect(audits[0].details).toMatchObject({old_name:'初次错误昵称',new_name:'真正正确昵称',actor_role:'admin'});
+ const renamed=audits(`action='player_renamed' and target_id='${id}'`);expect(renamed).toHaveLength(1);expect(renamed[0].details).toMatchObject({old_name:'初次错误昵称',new_name:'真正正确昵称',actor_role:'admin'});
  const replay=await context.request.post(`${baseURL}/api/imports`,{headers:{Origin:baseURL},data:body});expect(replay.ok()).toBe(true);expect((await replay.json()).replayed).toBe(true);
- expect(await (await rest(`club_audit_events?action=eq.player_renamed&target_id=eq.${id}`,token)).json()).toHaveLength(1);
+ expect(audits(`action='player_renamed' and target_id='${id}'`)).toHaveLength(1);
  const changedReplay=structuredClone(body);changedReplay.members[0].correct_name='不同内容';changedReplay.members[0].name='不同内容';expect((await context.request.post(`${baseURL}/api/imports`,{headers:{Origin:baseURL},data:changedReplay})).status()).toBe(400);
  const correction={...member,name:'另一正确昵称',player_id:id,identity_confirmed:true,correct_name:'另一正确昵称',expected_name:'真正正确昵称'};
  const payload={...base,p_date:'2085-01-03',p_rows:[correction],p_request_id:randomUUID()};
@@ -29,7 +29,7 @@ test('inline correction commits with import, preserves history and rolls back on
  expect((await rest('rpc/club_commit_import',token,{...payload,p_rows:[{...correction,expected_name:'过期昵称'}]})).status).toBe(409);
  const conflictName='已属于别人';expect((await rest('rpc/club_commit_import',token,{...base,p_date:'2085-01-04',p_rows:[{...member,name:conflictName,player_id:null}],p_request_id:randomUUID()})).ok).toBe(true);
  expect((await rest('rpc/club_commit_import',token,{...payload,p_rows:[{...correction,name:conflictName,correct_name:conflictName}]})).status).toBe(409);
- expect(await (await rest(`club_audit_events?action=eq.player_renamed&target_id=eq.${id}`,token)).json()).toHaveLength(1);
+ expect(audits(`action='player_renamed' and target_id='${id}'`)).toHaveLength(1);
  for(const role of ['outsider','foreign'])expect((await rest('rpc/club_commit_import',(await auth(role)).access_token,payload)).status).toBe(403);
  expect((await rest('rpc/club_commit_import',token,{...payload,p_club_id:foreignClubId})).status).toBe(403);
  const contextData=await (await rest('rpc/club_identity_context',token,{p_club_id:clubId,p_date:'2085-01-03'})).json();expect(contextData.players.find(p=>p.id===id).display_name).toBe('真正正确昵称');

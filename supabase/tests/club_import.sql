@@ -51,7 +51,7 @@ begin
  if result->>'revision'<>'3' or (select count(*) from public.club_snapshot_players where club_id=c and snapshot_id=(result->>'snapshot_id')::uuid)<>1 then raise exception 'Replacement failed'; end if;
  if (select count(*) from public.club_snapshots where club_id=c and snapshot_date=d)<>3 then raise exception 'Revision history lost'; end if;
  if (select count(*) from public.club_snapshots where club_id=c and snapshot_date=d and is_current)<>1 then raise exception 'More than one current revision'; end if;
- if (select count(*) from public.club_audit_events where club_id=c and action='import_committed' and target_id in (first_id,second_id,(result->>'snapshot_id')::uuid))<>3 then raise exception 'Audit trail missing'; end if;
+ if (select count(*) from jsonb_array_elements(public.club_activity(c)->'events') e where e->>'action'='import_committed' and (e->>'target_id')::uuid in (first_id,second_id,(result->>'snapshot_id')::uuid))<>3 then raise exception 'Audit trail missing'; end if;
 end $$;
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000099',true);
 do $$ begin
@@ -71,9 +71,10 @@ do $$ declare admin_rows jsonb; begin
  select jsonb_build_array((to_jsonb(s)-'club_id'-'snapshot_id'-'group_name')||jsonb_build_object('group',s.group_name)) into admin_rows
    from public.club_snapshot_players s where club_id='ce0c7103-1cdf-4b08-8619-f71d4915f598' limit 1;
  perform public.club_commit_import('ce0c7103-1cdf-4b08-8619-f71d4915f598','2099-12-02',false,'replace',admin_rows,'admin import fixture',gen_random_uuid(),null,true);
- if not exists(select 1 from public.club_audit_events where action='import_committed'
-   and details->>'date'='2099-12-02' and details->>'actor_email'='owner@club.test'
-   and details->>'actor_role'='admin') then raise exception 'Audit must retain actor email and role at action time'; end if;
+ -- This actor is the Super Admin: the log keeps the role at action time but never reveals the email.
+ if not exists(select 1 from jsonb_array_elements(public.club_activity('ce0c7103-1cdf-4b08-8619-f71d4915f598')->'events') e where e->>'action'='import_committed'
+   and e->'details'->>'date'='2099-12-02' and e->>'actor_role'='admin' and e->>'actor_kind'='super_admin' and e->>'actor_label'='超级管理员'
+   and e::text not like '%owner@club.test%') then raise exception 'Audit must retain role at action time and mask the Super Admin'; end if;
 end $$;
 reset role;
 update public.club_memberships set status='revoked' where club_id='ce0c7103-1cdf-4b08-8619-f71d4915f598' and user_id='d0ddb226-a10a-471c-be4b-d5e5153bd313';

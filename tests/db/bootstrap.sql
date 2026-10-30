@@ -10,6 +10,11 @@ create table auth.users(id uuid primary key, email text, email_confirmed_at time
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;
+-- Same claim source as Supabase's auth.jwt(); tests set request.jwt.claims to simulate aal2.
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb;
+$$;
 grant usage on schema auth to authenticated;
 grant execute on function auth.uid() to authenticated;
+grant execute on function auth.jwt() to authenticated;
 insert into auth.users(id,email,email_confirmed_at) values ('d0ddb226-a10a-471c-be4b-d5e5153bd313','owner@club.test',now());

@@ -91,7 +91,7 @@ test('real alias conflicts and same-name people cannot silently merge; explicit 
   await conflictDialog.getByRole('button',{name:'稍后处理',exact:true}).click();
   const rejected=await commit('2026-10-17',[{...row('冲突别名'),player_id:people[0].player_id,identity_confirmed:false}]);expect(rejected.status).toBe(409);
   // Wrong mapping corrected by revoking only that alias, without touching snapshots.
-  const aliases=await (await rest(`club_player_aliases?alias_name=eq.冲突别名&player_id=eq.${people[1].player_id}`,access)).json();
+  const aliases=await (await rest(`club_player_aliases?select=id&alias_name=eq.冲突别名&player_id=eq.${people[1].player_id}`,access)).json();
   expect((await context.request.post(baseURL+'/api/player-aliases',{headers:{Origin:baseURL},data:{revoke_id:aliases[0].id,confirmed:true}})).status()).toBe(200);
   expect((await commit('2026-10-18',[{...row('其他人'),player_id:people[1].player_id,identity_confirmed:true}])).status).toBe(200);
   expect((await commit('2026-10-19',[{...row('冲突别名'),player_id:people[0].player_id,identity_confirmed:false}])).status).toBe(200);
