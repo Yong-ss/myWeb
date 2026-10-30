@@ -4,7 +4,7 @@ import { validateRows, type ConfirmedMember, type ImportContext } from "./contra
 
 export const labels: Record<typeof fields[number], string> = { name: "昵称", position: "职位", level: "等级", pathway: "途径", extraordinary_score: "非凡评分", prosperity: "风尚度", weekly_activity: "周活跃", group: "分组", join_days: "入会天数" };
 export type Row = { /** Stable per-import key for rendering; never sent to the server. */ uid?: number; member: Member; identity: string; manual: boolean; sourceName: string | null; remember: boolean; needsReview: boolean; search?: string; correction?: { name: string; expected: string } };
-export type AbsenceChoice = "left" | "missed" | "uncertain";
+export type AbsenceChoice = "left" | "temporary" | "missed" | "uncertain";
 
 export function beijingToday() {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -26,16 +26,16 @@ export function confirmedMembers(rows: Row[]): ConfirmedMember[] {
 }
 
 /** Players from the previous roster that this import would drop, and whether every one has an explicit decision. */
-export function absenceReview(context: ImportContext | null, rows: Row[], mode: "merge" | "replace" | "", choices: Record<string, AbsenceChoice>) {
+export function absenceReview(context: ImportContext | null, rows: Row[], mode: "merge" | "replace" | "", choices: Record<string, AbsenceChoice>, reasons:Record<string,string>={}) {
   // In merge mode the day's existing players stay, so they are not missing.
   const retained = new Set([...rows.filter(r => r.identity && r.identity !== "new").map(r => r.identity), ...(mode === "merge" ? (context?.members ?? []).flatMap(r => r.player_id ? [r.player_id] : []) : [])]);
   const missing = (context?.absence_context?.members ?? []).filter(p => !retained.has(p.player_id));
   return {
     missing,
-    pending: missing.filter(p => !choices[p.player_id]).length,
-    // A roster can only be "complete" when every missing player is a confirmed departure.
-    completeAllowed: missing.every(p => choices[p.player_id] === "left"),
-    decisions: missing.map(p => ({ player_id: p.player_id, decision: choices[p.player_id] })),
+    pending: missing.filter(p => !choices[p.player_id]||(choices[p.player_id]==="temporary"&&!reasons[p.player_id]?.trim())).length,
+    // A complete roster requires every missing player to be confirmed outside the club.
+    completeAllowed: missing.every(p => ["left","temporary"].includes(choices[p.player_id])),
+    decisions: missing.map(p => ({ player_id: p.player_id, decision: choices[p.player_id], ...(choices[p.player_id]==="temporary"?{reason:reasons[p.player_id]?.trim()??""}:{}) })),
   };
 }
 

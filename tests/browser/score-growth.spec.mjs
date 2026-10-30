@@ -1,41 +1,38 @@
 import {test,expect} from '@playwright/test';
-for(const width of [1440,390])test(`score growth defaults, filters and dates ${width}`,async({page})=>{
- await page.setViewportSize({width,height:900});let reads=0;
+const id='00000000-0000-4000-8000-000000000001';
+for(const width of [1440,390,320])test(`score trend point summary, sheet and profile history ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:900});
  await page.route('**/api/**',r=>{
   const u=new URL(r.request().url());
-  if(u.pathname==='/api/account')return r.fulfill({json:{email:'growth@example.invalid',role:'owner'}});
-  if(u.pathname==='/api/club-settings')return r.fulfill({json:{name:'成长测试俱乐部'}});
-  reads++;const date=u.searchParams.get('date')??'2026-10-30',old=date!=='2026-10-30';
-  const snapshot={id:date,snapshot_date:date,revision:2,is_current:true,is_complete_roster:true};
-  return r.fulfill({json:{snapshot,snapshots:['2026-10-30','2026-10-29','2026-10-28'].map(snapshot_date=>({...snapshot,snapshot_date})),next:null,members:[
-   {player_id:'a',name:old?'旧名':'新名',pathway:'歌颂者',presence:'present',data_date:date,extraordinary_score:old?100:120},
-   {player_id:'b',name:'下降玩家',pathway:'观众',presence:'present',data_date:date,extraordinary_score:old?50:40},
-   {player_id:old?'gone':'new',name:'名单构成玩家',presence:'present',data_date:date,extraordinary_score:old?30:60},
-  ]}});
+  if(u.pathname==='/api/account')return r.fulfill({json:{email:'trend@example.invalid',role:'owner'}});
+  if(u.pathname==='/api/club-settings')return r.fulfill({json:{name:'趋势测试俱乐部'}});
+  if(u.searchParams.has('trend'))return r.fulfill({json:{points:u.searchParams.has('before')?[{date:'2026-10-20',score:170,partial:false,missing:0}]:[{date:'2026-10-29',score:180,partial:false,missing:0},{date:'2026-10-30',score:220,partial:false,missing:0}],next:u.searchParams.has('before')?null:'2026-10-29'}});
+  if(u.searchParams.has('player'))return r.fulfill({json:{player:{id,display_name:'成员甲'},timeline:[{date:'2026-10-29',status:'present',member:{name:'成员甲',pathway:'歌颂者',extraordinary_score:100},changes:null},{date:'2026-10-30',status:'present',member:{name:'成员甲',pathway:'歌颂者',extraordinary_score:120},changes:null}],next:null}});
+  const date=u.searchParams.get('date'),prior=date!=='2026-10-30';
+  return r.fulfill({json:{snapshot:{id:date,snapshot_date:date,is_current:true,is_complete_roster:true},snapshots:[],members:[{player_id:id,name:'成员甲',pathway:'歌颂者',presence:'present',data_date:date,extraordinary_score:prior?100:120},{player_id:'b',name:'下降玩家',presence:'present',data_date:date,extraordinary_score:prior?50:40},{player_id:prior?'old':'new',name:'名单差异',presence:'present',data_date:date,extraordinary_score:prior?30:60}],next:null}});
  });
- await page.goto('/analytics?view=growth');const card=page.getByRole('region',{name:'非凡评分成长分析'});
- await expect(card.getByRole('link',{name:'新名',exact:true})).toBeVisible();expect(reads).toBe(2);
- await card.getByRole('button',{name:'这些数字怎么算的？',exact:true}).click();
- await expect(card).toContainText('总变化 +40 = 共同成员成长 +10 + 只在结束日期出现 60 − 只在开始日期出现 30');
- await expect(card.getByRole('figure',{name:'评分变化构成图'})).toContainText('俱乐部总评分变化');
- await expect(card.getByRole('link',{name:'新名',exact:true})).toHaveAttribute('href','/players?id=a&date=2026-10-30');
- await card.getByRole('button',{name:'查看全部',exact:true}).click();
- await card.getByLabel('成长榜筛选').selectOption('down');
- await expect(card.getByRole('link',{name:'下降玩家',exact:true})).toBeVisible();
- await expect(card.getByRole('link',{name:'新名',exact:true})).toHaveCount(0);
- await card.getByLabel('成长榜筛选').selectOption('all');
- await card.getByRole('button',{name:/更改日期/}).click();
- await card.getByLabel('比较起始日期').selectOption('2026-10-30');
- await expect(card.getByText('起始日期必须早于结束日期。')).toBeVisible();
- await expect(card.getByRole('table')).toHaveCount(0);
- await card.getByLabel('比较起始日期').selectOption('2026-10-28');
- await expect(card.getByRole('link',{name:'新名',exact:true})).toBeVisible();
+ await page.goto('/account');
+ const chart=page.getByRole('group',{name:'俱乐部总评分趋势图表'});
+ const point=chart.getByRole('button',{name:/^2026-10-30/});
+ await point.focus();await expect(page.getByRole('region',{name:'俱乐部总评分趋势'})).toContainText('对比 2026-10-29：+40');
+ await expect(page.getByRole('region',{name:'俱乐部总评分趋势'})).toContainText('显著评分变化');
+ await page.screenshot({path:'.test-artifacts/score-trend-'+width+'.png',fullPage:true});
+ await point.click();const sheet=page.getByRole('dialog',{name:'2026-10-30 · 评分详情'});
+ await expect(sheet).toBeVisible();await expect(sheet.getByText('总评分变化：40')).toBeVisible();
+ await sheet.getByRole('button',{name:'查看所有人的变化'}).click();await sheet.getByLabel('想看哪些人').selectOption('down');await expect(sheet.getByRole('table').getByRole('link',{name:'下降玩家',exact:true})).toBeVisible();await expect(sheet.getByRole('table').getByRole('link',{name:'成员甲',exact:true})).toHaveCount(0);
+ await sheet.getByRole('button',{name:'换个日期比较'}).click();await sheet.getByLabel('和哪天比').selectOption('week');await expect(sheet.getByText('还没有更早的记录可比较。')).toBeVisible();
+ await sheet.getByRole('button',{name:'找更早的记录'}).click();
+ await sheet.getByLabel('和哪天比').selectOption('custom');await sheet.getByLabel('选择日期').selectOption('2026-10-20');
+ await expect(sheet).toContainText('和 2026-10-20 相比');
+ await sheet.getByRole('button',{name:'查看所有人的变化'}).click();await sheet.getByLabel('想看哪些人').selectOption('all');
+ await page.screenshot({path:'.test-artifacts/score-sheet-'+width+'.png',fullPage:true});
+ await page.keyboard.press('Escape');await expect(sheet).toHaveCount(0);await expect(point).toBeFocused();
+ await page.getByLabel('查看周期',{exact:true}).selectOption('month');await expect(chart.getByRole('button')).toHaveCount(1);
+ await page.goto('/players?id='+id);await expect(page.getByRole('region',{name:'个人非凡评分趋势'})).toBeVisible();
+ await page.getByRole('group',{name:'个人非凡评分趋势图表'}).getByRole('button',{name:/^2026-10-30/}).click();
+ await expect(page.getByRole('region',{name:'个人非凡评分趋势'})).toContainText('对比 2026-10-29：+20');
+ await page.getByRole('region',{name:'个人非凡评分趋势'}).screenshot({path:'.test-artifacts/player-score-trend-'+width+'.png'});
+ await page.getByLabel('查看周期',{exact:true}).selectOption('year');
+ await expect(page.getByRole('group',{name:'个人非凡评分趋势图表'}).getByRole('button')).toHaveCount(1);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await card.screenshot({path:`.test-artifacts/score-growth-${width}.png`});
-});
-test('dates from the overview link open the same comparison',async({page})=>{
- await page.route('**/api/**',r=>{const u=new URL(r.request().url());if(!u.pathname.includes('/api/members'))return r.fulfill({json:{name:'测试',role:'owner'}});
-  const date=u.searchParams.get('date')??'2026-10-30';return r.fulfill({json:{snapshot:{snapshot_date:date,is_complete_roster:true},snapshots:['2026-10-30','2026-10-29','2026-10-28'].map(snapshot_date=>({snapshot_date})),next:null,members:[{player_id:'a',name:'甲',presence:'present',extraordinary_score:date==='2026-10-28'?50:100}]}});});
- await page.goto('/analytics?view=growth&from=2026-10-28&to=2026-10-30');
- await expect(page.getByRole('region',{name:'非凡评分成长分析'}).locator('strong').filter({hasText:'+50'})).toBeVisible();
 });

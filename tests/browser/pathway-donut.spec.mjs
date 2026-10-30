@@ -38,7 +38,7 @@ for(const width of [1440,320])test(`donut counts, focus, navigation and neutral 
  await expect(page.getByLabel('途径',{exact:true})).toHaveValue('占卜家');
  await expect(page.getByRole('table').first().getByRole('link',{name:/^成员/})).toHaveCount(2);
  await expect(page.getByRole('link',{name:'待确认占卜家',exact:true})).toHaveCount(0);
- await expect(page.getByRole('button',{name:/暂时离会成员/})).toHaveAttribute('aria-expanded','false');
+ await expect(page.getByRole('button',{name:/不在会成员/})).toHaveAttribute('aria-expanded','false');
  await page.goto('/members?presence=present&pathway_missing=1');
  await expect(page.getByRole('link',{name:'成员5',exact:true})).toBeVisible();
  await expect(page.getByRole('table').first().getByRole('link',{name:/^成员/})).toHaveCount(1);

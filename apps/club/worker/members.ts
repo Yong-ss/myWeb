@@ -2,6 +2,7 @@ import { validDate, uuid } from "../src/domain/member.ts";
 import { absenceStatus, type SavedMember } from "../src/domain/presence.ts";
 import { playerHistory, historyPage, savedFields } from "./player-history.ts";
 import { reply, type Rest } from "./http.ts";
+import {scoreHistory} from './score-history.ts';
 
 export async function handleMembers(request: Request, clubId: string, rest: Rest) {
   const url = new URL(request.url);
@@ -9,6 +10,10 @@ export async function handleMembers(request: Request, clubId: string, rest: Rest
   const player = url.searchParams.get("player");
   if (player !== null && !uuid.test(player)) return reply({error:"玩家编号无效"},400);
   if ((date !== null && !validDate(date)) || (before !== null && !validDate(before)) || (version !== null && (!date || !uuid.test(version)))) return reply({ error: "日期或版本无效" }, 400);
+  if(url.searchParams.get('trend')==='1'){
+    if(player||date||version)return reply({error:'评分历史参数无效'},400);
+    return scoreHistory(clubId,rest,before);
+  }
   if (player && url.searchParams.has('paged')) {
     if(before!==null&&!validDate(before))return reply({error:'游标无效'},400);
     return historyPage(player,date,before,clubId,rest);

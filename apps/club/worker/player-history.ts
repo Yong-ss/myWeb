@@ -1,6 +1,6 @@
 import { savedColumns } from "../src/domain/member.ts";
 import { reply, type Rest } from "./http.ts";
-import { playerTimeline, type Day, type Presence, type SavedMember } from "../src/domain/presence.ts";
+import { playerTimeline, type Day, type Presence, type SavedMember, type AbsenceDetails } from "../src/domain/presence.ts";
 export async function historyPage(player:string,date:string|null,before:string|null,club:string,rest:Rest){
   const response=await rest('rpc/club_history_page',{p_club:club,p_player:player,p_date:date,p_before:before});
   if(!response.ok){
@@ -18,8 +18,8 @@ export async function historyPage(player:string,date:string|null,before:string|n
     }
     return reply({error:'暂时无法读取玩家历史，请重试'},502);
   }
-  const data=await response.json() as {player:unknown;days:Day[];previous:SavedMember|null;status:Presence|null;next:string|null}|null;
-  return data?reply({player:data.player,timeline:playerTimeline(data.days,{status:data.status,previous:data.previous}),next:data.next}):reply({error:'找不到此玩家或没有访问权限'},404);
+  const data=await response.json() as {player:unknown;days:Day[];previous:SavedMember|null;status:Presence|null;absence?:AbsenceDetails;next:string|null}|null;
+  return data?reply({player:data.player,timeline:playerTimeline(data.days,{status:data.absence?.absence_decision?(['left','temporary'].includes(data.absence.absence_decision)?'left':'unconfirmed'):data.status,previous:data.previous,...data.absence}),next:data.next}):reply({error:'找不到此玩家或没有访问权限'},404);
 }
 export const savedFields = `player_id,${savedColumns}`;
 export async function playerHistory(player: string, date: string | null, club: string, rest: (path: string) => Promise<Response>, before:string|null=null) {

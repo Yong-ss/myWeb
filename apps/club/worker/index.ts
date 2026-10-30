@@ -1,3 +1,4 @@
+import {resolveAbsence} from './resolve-absence.ts';
 import {handleActivity} from "./activity.ts";
 import { handleImport } from "./imports.ts";
 import {handleSettings} from "./settings.ts";
@@ -21,6 +22,7 @@ const routes: Record<string, { methods: string[]; handler?: Handler }> = {
   "/api/import-context": { methods: ["GET"], handler: handleImport },
   "/api/imports": { methods: ["POST"], handler: handleImport },
   "/api/player-aliases": { methods: ["POST"], handler: handleImport },
+  "/api/resolve-absence": { methods: ["POST"], handler: resolveAbsence },
   "/api/members": { methods: ["GET"], handler: handleMembers },
   "/api/club-settings": { methods: ["GET", "POST"], handler: (request, club, rest, role) => handleSettings(request, club, role, rest) },
   "/api/activity": { methods: ["GET"], handler: handleActivity },

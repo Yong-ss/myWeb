@@ -1,5 +1,9 @@
 # SquirrelAPI — Architecture
 
+## Score trends — 2026-10-30
+
+Club analytics uses `ClubScoreTrend` with the shared `components/ScoreTrend` and pure `lib/score-history` period grouping. Player history reuses the chart over its existing paged timeline. The existing authenticated members route has a read-only `trend=1` mode (bounded current snapshot/observed row embedding); per-date drawer comparisons reuse `score-growth` and the existing roster-presence API. No schema, write API, or permission change. Former ScoreGrowth/ScoreBridge presentation is retired; pure growth calculations remain.
+
 ## Club overview and analytics workspace — 2026-10-30
 
 `/account` shows current snapshot status, confirmed member count, recent observed changes and a concise strength summary. `/analytics?view=growth|pathways` is registered in the shared private navigation and uses the existing analytics feature. Radix Tabs synchronize with URL navigation, including Back/Forward. The pathway view does not fetch the prior roster. Existing pure growth calculations and pathway counts remain unchanged; growth dates, formulas, complete sortable rankings, population charts and older overview detail are progressively disclosed. No API or database change.
@@ -111,3 +115,11 @@ GET/POST /api/club-settings 复用现有认证、同源限制与服务端 CLUB_I
 
 ## Club 读取性能基础 — 2026-10-28
 统一内存数据入口、实时权限门、30 秒结果 TTL／后台刷新及写后跨标签失效；Worker 输出安全分段计时，名单独立读取并行且移除未使用精确计数。个人历史分页通过 SECURITY INVOKER club_history_page RPC，100 天上限和日期游标，页边界带可信数据库上下文。详见 PERFORMANCE.md；主站认证保持独立，未增加依赖。新增 20261028040000_club_history_read.sql 尚未应用正式库。
+
+## 成员缺席处理（2026-10-30）
+
+导入的 left / temporary / uncertain 分别显示已确认退会／暂离／待确认，旧 missed 保持待确认；presence 仍使用 present / left / unconfirmed 分组，temporary 与 left 均进入不在会名单。暂离必须保存 1–500 字理由。共享 presenceText 决定标签，实际评分记录不补零。
+
+新增迁移 20261029233256 扩展原有缺席记录并引入只追加的 club_absence_resolutions。POST /api/resolve-absence 经现有 Worker 身份、来源、membership 检查后调用专用 RPC；数据库再次校验 active owner/admin、当前版本、待确认状态，使用与导入相同的俱乐部事务锁，原子写处理记录和审计。重试相同选择幂等，不同选择返回冲突。历史版本不直接更新，后续同日修订保留已处理选择，重新出现的实际观察结束旧缺席状态，删除日期后忽略其选择。
+
+准备导入时检查 absence_version=2，不兼容的数据库在开始核对前阻止提交。生产迁移仍由维护者手动应用，本次没有应用生产迁移。

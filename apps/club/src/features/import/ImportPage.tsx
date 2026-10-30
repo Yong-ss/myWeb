@@ -37,6 +37,7 @@ const notice = "m-0 rounded-sm border px-4 py-3 text-sm leading-relaxed [overflo
 
 export function ImportPage() {
   const [raw, setRaw] = useState("");
+  const [absenceReasons,setAbsenceReasons]=useState<Record<string,string>>({});
   const [absenceChoices,setAbsenceChoices]=useState<Record<string,AbsenceChoice>>({});
   const [inputMode, setInputMode] = useState<"file" | "paste">("paste");
   const [original, setOriginal] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export function ImportPage() {
   }, [error, review, saved]);
   const matches = context ? matchPlayers(rows.map(r => r.member), context.players, { ...context, aliases: [...(context.aliases ?? []), ...rows.filter(r => r.remember && r.identity && r.identity !== "new" && r.sourceName).map((r,i) => ({ id: `pending-${i}`, player_id: r.identity, alias_name: r.sourceName! }))] }, date) : [];
   const pending = rows.filter(r => !r.identity).length;
-  const {missing,pending:missingPending,completeAllowed,decisions:absenceDecisions}=absenceReview(context,rows,mode,absenceChoices);
+  const {missing,pending:missingPending,completeAllowed,decisions:absenceDecisions}=absenceReview(context,rows,mode,absenceChoices,absenceReasons);
   const newCount = rows.filter(r => r.identity === "new").length;
   const bulkNewCount = rows.filter((r,i) => !r.identity && matches[i].tier === "D" && r.member.name && !matches[i].reasons.length).length;
   const openIdentity = (index: number) => setIdentityIndex(index);
@@ -88,7 +89,7 @@ export function ImportPage() {
       const matched = matchPlayers(parsed.members, data.players, data, date);
       setContext(data); setRows(parsed.members.map((member,i) => ({ uid: i, member, identity: matched[i].identity, manual: false, sourceName: typeof member.name === "string" ? member.name : null, remember: false, needsReview: !matched[i].identity })));
       setMode(data.snapshot ? "" : "replace"); setComplete(false); invalidate();
-      setIdentityIndex(null);setAbsenceChoices({});
+      setIdentityIndex(null);setAbsenceChoices({});setAbsenceReasons({});
     } catch (e) { setError(e instanceof Error ? e.message : "准备失败"); }
     finally { setBusy(false); }
   }
@@ -96,7 +97,7 @@ export function ImportPage() {
     try {
       if (!context || !mode) throw Error("请选择同日数据的处理方式");
       if (rows.some((r,i) => !r.manual && (!matches[i].identity || matches[i].identity !== r.identity))) throw Error("匹配结果需要重新确认，请手动选择有异常的玩家");
-      if(missingPending)throw Error("请先核对缺席成员，可选择暂不确定");
+      if(missingPending)throw Error("请先选择缺席成员的状态；暂离须填写理由，也可以先选待确认");
       if(!completeAllowed)setComplete(false);
       const list = mergePreview(context.members, members(), mode);
       if (list.length > 200) throw Error("最终名单超过 200 人");
@@ -198,9 +199,9 @@ export function ImportPage() {
           <FieldDescription className="text-xs">两种方式都会保留旧版本，不删除历史记录。</FieldDescription></FieldSet>}
         <section className="pending-list m-0 flex flex-col"><AnimatePresence initial={false}>{rows.map((r,i) => r.needsReview || !r.identity ? <motion.div key={r.uid ?? i} className="overflow-hidden" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto", transition: listIn }} exit={{ opacity: 0, height: 0, transition: listOut }}><div className="pb-2"><Button variant="secondary" className="identity-launcher min-h-14 w-full justify-between px-5 text-left text-foreground" onClick={() => openIdentity(i)}><strong className="mr-auto font-medium [overflow-wrap:anywhere]">{r.member.name ?? "昵称没看清"}</strong><Badge variant={r.identity ? "success" : "warning"}>{r.identity ? r.identity === "new" ? "新增玩家" : `已选：${context.players.find(p => p.id === r.identity)?.display_name}` : "选择玩家"}</Badge><span aria-hidden="true" className="text-gold">›</span></Button></div></motion.div> : null)}</AnimatePresence></section>
         {rows.some(r => !r.needsReview && r.identity) && <Collapsible className="matched-list"><CollapsibleTrigger>{rows.filter(r => !r.needsReview && r.identity).length} 人已自动对上</CollapsibleTrigger><CollapsibleContent className="grid gap-2 pt-2">{rows.map((r,i) => !r.needsReview && r.identity ? editRow(r,i,matches[i]) : null)}</CollapsibleContent></Collapsible>}
-        {pending===0&&mode&&missing.length>0&&<Card className="absence-review items-stretch" aria-labelledby="absence-heading"><CardTitle id="absence-heading">核对缺席成员 · {missing.length} 人</CardTitle><p className="m-0 text-sm text-muted-foreground">{context.absence_context?.snapshot?.snapshot_date} 有记录，本次未出现。</p>{missingPending>0&&<Button variant="secondary" className="self-start" onClick={()=>{setAbsenceChoices(old=>({...old,...Object.fromEntries(missing.filter(p=>!old[p.player_id]).map(p=>[p.player_id,"uncertain" as const]))}));setComplete(false);invalidate();}}>其余暂不确定</Button>}
+        {pending===0&&mode&&missing.length>0&&<Card className="absence-review items-stretch" aria-labelledby="absence-heading"><CardTitle id="absence-heading">核对缺席成员 · {missing.length} 人</CardTitle><p className="m-0 text-sm text-muted-foreground">{context.absence_context?.snapshot?.snapshot_date} 有记录，本次未出现。</p>{missingPending>0&&<Button variant="secondary" className="self-start" onClick={()=>{setAbsenceChoices(old=>({...old,...Object.fromEntries(missing.filter(p=>!old[p.player_id]).map(p=>[p.player_id,"uncertain" as const]))}));setComplete(false);invalidate();}}>其余待确认</Button>}
           {missing.map(p=><FieldSet className="absence-person rounded-sm border border-border p-4" key={p.player_id}><FieldLegend className="float-left w-full text-gold">{p.name}</FieldLegend>
-            <RadioGroup value={absenceChoices[p.player_id]??""} onValueChange={value=>{setAbsenceChoices(old=>({...old,[p.player_id]:value as AbsenceChoice}));setComplete(false);invalidate();}} className="flex flex-wrap">{([["left","确认已退会"],["missed","本次漏识别"],["uncertain","暂不确定"]] as const).map(([value,label])=><label key={value} className={cn(optionCard,"items-center p-3 text-sm")}><RadioGroupItem value={value}/>{label}</label>)}</RadioGroup></FieldSet>)}</Card>}
+            <RadioGroup value={absenceChoices[p.player_id]??""} onValueChange={value=>{setAbsenceChoices(old=>({...old,[p.player_id]:value as AbsenceChoice}));setComplete(false);invalidate();}} className="flex flex-wrap">{([["left","确认退会"],["temporary","暂离"],["uncertain","不确定，稍后确认"]] as const).map(([value,label])=><label key={value} className={cn(optionCard,"items-center p-3 text-sm")}><RadioGroupItem value={value}/>{label}</label>)}</RadioGroup>{absenceChoices[p.player_id]==="temporary"&&<Field><FieldLabel htmlFor={`absence-reason-${p.player_id}`}>暂离理由</FieldLabel><Input id={`absence-reason-${p.player_id}`} maxLength={500} required value={absenceReasons[p.player_id]??""} onChange={e=>{setAbsenceReasons(old=>({...old,[p.player_id]:e.target.value}));invalidate();}} /></Field>}</FieldSet>)}</Card>}
         <Collapsible className="review-settings"><CollapsibleTrigger>更多设置</CollapsibleTrigger><CollapsibleContent className="flex flex-col gap-3 pt-2">{(context.aliases?.length ?? 0) > 0 && <Collapsible><CollapsibleTrigger>已记住的名字（{context.aliases?.length}）</CollapsibleTrigger><CollapsibleContent className="grid gap-2 pt-2">{context.aliases?.map(a => <p key={a.id} className="m-0 flex flex-wrap items-center gap-3 text-sm">{a.alias_name} → {context.players.find(p => p.id === a.player_id)?.display_name} {revoke === a.id ? <><Button size="compact" variant="destructive" onClick={() => void removeAlias(a.id)}>确认解除此别名</Button><Button size="compact" variant="secondary" onClick={() => setRevoke("")}>取消</Button></> : <Button size="compact" variant="secondary" onClick={() => setRevoke(a.id)}>解除错误关联</Button>}</p>)}</CollapsibleContent></Collapsible>}<Button variant="ghost" size="compact" className="self-start text-destructive" onClick={() => setDiscard(true)}>放弃本批并重新开始</Button></CollapsibleContent></Collapsible>
         </div>
         <div className="mt-5 flex justify-end border-t border-border pt-6"><Button className="min-w-37.5" disabled={pending > 0 || !mode || missingPending>0} onClick={finalPreview}>下一步 →</Button></div>
@@ -209,10 +210,10 @@ export function ImportPage() {
           <Button variant="ghost" size="compact" className="self-start" onClick={invalidate}>← 返回核对，继续修改</Button><h2 className="m-0 text-xl">最终预览 · {review.length} 人</h2>
           <p className="match-summary ornate m-0 rounded-sm border border-border p-4 font-heading text-lg text-gold">新增 {review.filter(r => r.player_id === null).length} 人 · 既有 {review.filter(r => r.player_id !== null).length} 人 · 待确认 0 人</p>
           <p className="m-0 text-sm leading-relaxed">{complete ? "已人工确认完整名单。" : "本次未确认完整，仅记录明确确认的退会。"}{mode === "replace" ? "本次保存这份名单，之前的版本仍会保留。" : "保留此前未提交的玩家，更新本次核对的记录。"}</p>
-          {missing.length>0&&<ul className="absence-preview m-0 grid gap-1 pl-5 text-sm">{missing.map(p=><li key={p.player_id}>{p.name} · {absenceChoices[p.player_id]==="left"?"确认已退会":absenceChoices[p.player_id]==="missed"?"本次漏识别":"暂不确定"}</li>)}</ul>}
+          {missing.length>0&&<ul className="absence-preview m-0 grid gap-1 pl-5 text-sm">{missing.map(p=><li key={p.player_id}>{p.name} · {absenceChoices[p.player_id]==="left"?"已确认退会":absenceChoices[p.player_id]==="temporary"?`暂离 · ${absenceReasons[p.player_id]??""}`:"待确认"}</li>)}</ul>}
           <ul className="nickname-review m-0 grid gap-1 pl-5 text-sm empty:hidden">{rows.filter(r=>r.correction).map(r=><li key={r.identity}>更正昵称：{r.correction!.expected} → {r.correction!.name}</li>)}</ul>
           <Table containerClassName="table-scroll max-h-130 overflow-y-auto"><TableHeader><TableRow><TableHead className="sticky top-0">正式身份</TableHead><TableHead className="sticky top-0">AI 原始昵称</TableHead>{fields.map(k => <TableHead key={k} className="sticky top-0">{labels[k]}</TableHead>)}</TableRow></TableHeader><TableBody>{review.map((r,i) => <TableRow key={i}><TableCell className="text-gold">{r.player_id ? `${context.players.find(p => p.id === r.player_id)?.display_name ?? "既有玩家"}（${r.player_id.slice(-8)}）` : "人工确认的新玩家"}</TableCell><TableCell>{r.source_name === undefined ? "旧记录未单列；原始 JSON 已保留" : r.source_name ?? "null"}</TableCell>{fields.map(k => <TableCell key={k}>{k === "pathway" ? <PathwayLabel pathway={r[k]} missingText="null" /> : r[k] ?? "null"}</TableCell>)}</TableRow>)}</TableBody></Table>
-          <Field orientation="horizontal" className="rounded-sm border border-border bg-field p-4"><Checkbox id="complete-roster" disabled={!completeAllowed} checked={complete&&completeAllowed} onCheckedChange={v => { setComplete(v === true); setConfirmed(false); setRequestId(crypto.randomUUID()); setError(""); }} /><FieldLabel htmlFor="complete-roster">完整名单，没有漏人</FieldLabel></Field>{!completeAllowed&&<p className="m-0 -mt-2 text-sm text-muted-foreground">仍有漏识别或不确定的成员，不能确认名单完整。</p>}
+          <Field orientation="horizontal" className="rounded-sm border border-border bg-field p-4"><Checkbox id="complete-roster" disabled={!completeAllowed} checked={complete&&completeAllowed} onCheckedChange={v => { setComplete(v === true); setConfirmed(false); setRequestId(crypto.randomUUID()); setError(""); }} /><FieldLabel htmlFor="complete-roster">完整名单，没有漏人</FieldLabel></Field>{!completeAllowed&&<p className="m-0 -mt-2 text-sm text-muted-foreground">还有待确认的成员，暂时不能确认名单完整。</p>}
           <Field orientation="horizontal" className="rounded-sm border border-border bg-field p-4"><Checkbox id="confirm-review" checked={confirmed} onCheckedChange={v => setConfirmed(v === true)} /><FieldLabel htmlFor="confirm-review">我已核对名单，确认日期、成员身份和数据无误。</FieldLabel></Field>
           <Button className="self-start" disabled={!confirmed} loading={busy} loadingText="正在保存…" onClick={() => void save()}>确认导入</Button><p className="m-0 text-sm text-muted-foreground">连接失败可重试同一次提交，不会重复写入；若同日数据变化，请重新开始并核对最新预览。</p>
         </motion.section>}

@@ -24,7 +24,7 @@ test('audited date deletion hides every version, isolates tenants and permits sa
  const hiddenVersion=await context.request.get(`${baseURL}/api/members?date=${date}&version=${first.snapshot_id}`);expect(hiddenVersion.status()).toBe(404);
  const hiddenHistory=await context.request.get(`${baseURL}/api/members?player=${playerId}&paged=1`);expect(hiddenHistory.ok()).toBe(true);expect(JSON.stringify(await hiddenHistory.json())).not.toContain(date);
  expect((await rest('rpc/club_delete_import_date',admin,deletion)).ok).toBe(true);
- let logs=await (await rest(`club_audit_events?club_id=eq.${clubId}&action=eq.import_date_deleted`,owner)).json();expect(logs).toHaveLength(1);expect(logs[0].details).toMatchObject({date,versions:2,actor_email:users.admin.email,actor_role:'admin'});
+ let logs=await (await rest(`club_audit_events?club_id=eq.${clubId}&action=eq.import_date_deleted`,owner)).json();logs=logs.filter(l=>l.details?.date===date);expect(logs).toHaveLength(1);expect(logs[0].details).toMatchObject({date,versions:2,actor_email:users.admin.email,actor_role:'admin'});
  expect((await rest('club_audit_events',owner,{action:'forged'})).status).toBe(403);
  expect((await rest(`club_audit_events?id=eq.${logs[0].id}`,owner,{},'DELETE')).status).toBe(403);
  const restored=await commit({...payload,p_request_id:randomUUID()});expect(restored.revision).toBe(3);

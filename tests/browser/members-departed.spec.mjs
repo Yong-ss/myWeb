@@ -16,12 +16,12 @@ for(const width of [1440,390])test(`departed section shares date selection with 
   ]}});
  });
  await page.goto('/members');
- const trigger=page.getByRole('button',{name:/暂时离会成员/});
+ const trigger=page.getByRole('button',{name:/不在会成员/});
  await expect(trigger).toHaveAttribute('aria-expanded','false');
  await expect(trigger).toContainText('1 人');
  await expect(page.getByRole('link',{name:'离会玩家',exact:true})).toHaveCount(0);
  await expect(page.getByRole('link',{name:'未确认玩家',exact:true})).toBeVisible();
- await expect(page.getByRole('cell',{name:'本次未识别',exact:true})).toBeVisible();
+ await expect(page.getByRole('row').filter({hasText:'未确认玩家'})).toContainText('待确认');
  await page.setViewportSize({width,height:700});
  await page.evaluate(()=>{
   const scroll=window.scrollBy.bind(window);
@@ -78,6 +78,6 @@ for(const width of [1440,390])test(`departed section shares date selection with 
  await expect(trigger).toContainText('0 人');
  await expect(page.getByRole('link',{name:'离会玩家',exact:true})).toBeVisible();
  await trigger.click();
- await expect(page.getByText('当前记录暂无暂时离会成员。')).toBeVisible();
+ await expect(page.getByText('当前记录暂无不在会成员。')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

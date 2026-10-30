@@ -1,14 +1,14 @@
 import { fields, numericFields, uuid, validDate, type Member, type Player } from "../../domain/member.ts";
 import type { IdentityContext } from "./identity.ts";
 export type ConfirmedMember = Member & { player_id: string | null; source_name?: string | null; remember_alias?: boolean; identity_confirmed?: boolean; correct_name?: string; expected_name?: string };
-export type AbsenceDecision = {player_id:string;decision:'left'|'missed'|'uncertain'};
+export type AbsenceDecision = {player_id:string;decision:'left'|'temporary'|'missed'|'uncertain';reason?:string};
 export type AbsenceContext = {snapshot:{id:string;snapshot_date:string}|null;members:{player_id:string;name:string}[]};
 export type ImportContext = IdentityContext & { players: Player[]; snapshot: { id: string; revision: number; is_complete_roster: boolean } | null; members: ConfirmedMember[]; absence_context?:AbsenceContext };
 export const MAX_SOURCE_BYTES = 131072;
 export function validateAbsences(value:unknown):AbsenceDecision[]{
   if(!Array.isArray(value)||value.length>1000)throw Error('缺席核对资料无效');
   const seen=new Set<string>();
-  for(const a of value){if(!a||Object.keys(a).length!==2||typeof a.player_id!=='string'||!uuid.test(a.player_id)||!['left','missed','uncertain'].includes(a.decision)||seen.has(a.player_id.toLowerCase()))throw Error('请逐一核对缺席成员');seen.add(a.player_id.toLowerCase());}
+  for(const a of value){if(!a||Object.keys(a).some(k=>!['player_id','decision','reason'].includes(k))||typeof a.player_id!=='string'||!uuid.test(a.player_id)||!['left','temporary','missed','uncertain'].includes(a.decision)||seen.has(a.player_id.toLowerCase())||(a.reason!==undefined&&(typeof a.reason!=='string'||a.reason.length>500||/[\u0000-\u001f\u007f]/.test(a.reason)))||(a.decision==='temporary'&&(typeof a.reason!=='string'||!a.reason.trim()))||(a.decision!=='temporary'&&a.reason!==undefined))throw Error('请逐一核对缺席成员');seen.add(a.player_id.toLowerCase());}
   return value;
 }
 

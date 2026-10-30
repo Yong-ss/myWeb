@@ -18,9 +18,9 @@ async function prepare(page,date,members) {
 }
 async function save(page,{complete=false}={}) {
   await expect(page.getByRole('dialog')).toHaveCount(0); // closing dialogs animate out and hide the page from queries until gone
-  if(await page.getByRole('button',{name:'其余暂不确定',exact:true}).isVisible()){
-    if(complete){for(const radio of await page.getByRole('radio',{name:'确认已退会',exact:true}).all())await radio.check();}
-    else await page.getByRole('button',{name:'其余暂不确定',exact:true}).click();
+  if(await page.getByRole('button',{name:'其余待确认',exact:true}).isVisible()){
+    if(complete){for(const radio of await page.getByRole('radio',{name:'确认退会',exact:true}).all())await radio.check();}
+    else await page.getByRole('button',{name:'其余待确认',exact:true}).click();
   }
   await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'完整名单，没有漏人',exact:true})).not.toBeChecked();
@@ -47,7 +47,7 @@ test('79 players bulk-confirm once, then next-day exact matching needs no indivi
   expect(await (await rest('club_players?display_name=like.首批建档*',access)).json()).toHaveLength(79);
   await prepare(page,'2026-10-12',members.slice(0,71));
   await expect(page.getByText(/比上次少 8 人，请检查是否漏图/)).toBeVisible();
-  await expect(page.getByRole('heading',{name:'核对缺席成员 · 8 人'})).toBeVisible();await page.getByRole('button',{name:'其余暂不确定',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'核对缺席成员 · 8 人'})).toBeVisible();await page.getByRole('button',{name:'其余待确认',exact:true}).click();
   await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await expect(page.getByRole('checkbox',{name:'完整名单，没有漏人',exact:true})).not.toBeChecked();
 });

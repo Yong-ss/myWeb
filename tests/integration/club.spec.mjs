@@ -44,7 +44,7 @@ async function preview(page,date,{isNew=false,upload=false,score=member.extraord
     await item.getByLabel('第 1 行等级',{exact:true}).fill('');
   }
   await expect(page.getByRole('dialog')).toHaveCount(0); // closing dialogs animate out and hide the page from queries until gone
-  if(await page.getByRole('button',{name:'其余暂不确定',exact:true}).isVisible())await page.getByRole('button',{name:'其余暂不确定',exact:true}).click();
+  if(await page.getByRole('button',{name:'其余待确认',exact:true}).isVisible())await page.getByRole('button',{name:'其余待确认',exact:true}).click();
   await page.getByRole('button',{name:'下一步 →',exact:true}).click();
   await page.getByRole('checkbox',{name:confirmation}).check();
   return raw;

@@ -26,7 +26,7 @@ export async function handleImport(request: Request, clubId: string, rest: Rest)
       members = rows.map(({ group_name, ...row }) => ({ ...row, group: group_name }));
     }
     let absence_context;
-    if(absenceResponse){const response=absenceResponse;if(!response.ok){const e=await response.json().catch(()=>null) as {code?:string}|null;return reply({error:response.status===404&&e?.code==='PGRST202'?'数据库尚未更新，请先完成迁移；暂时不要开始核对。':'暂时无法读取对比名单，请重试'},503);}absence_context=await response.json();}
+    if(absenceResponse){const response=absenceResponse;if(!response.ok){const e=await response.json().catch(()=>null) as {code?:string}|null;return reply({error:response.status===404&&e?.code==='PGRST202'?'数据库尚未更新，请先完成迁移；暂时不要开始核对。':'暂时无法读取对比名单，请重试'},503);}absence_context=await response.json();if(absence_context?.absence_version!==2)return reply({error:"数据库尚未更新，请先完成迁移；暂时不要开始核对。"},503);}
     return reply({ ...identityData, snapshot, members, ...(absence_context?{absence_context}:{}) });
   }
   const raw = await readBody(request, 524288, { missing: "缺少导入内容", tooLarge: "导入请求最大 512 KiB" });
@@ -40,7 +40,7 @@ export async function handleImport(request: Request, clubId: string, rest: Rest)
     } else {
       if (!validDate(input.snapshot_date) || !["merge", "replace"].includes(input.mode) || input.confirmed !== true || typeof input.is_complete_roster !== "boolean" || typeof input.raw_text !== "string" || !input.raw_text.trim() || new TextEncoder().encode(input.raw_text).length > MAX_SOURCE_BYTES || typeof input.request_id !== "string" || !uuid.test(input.request_id) || (input.expected_snapshot_id !== null && (typeof input.expected_snapshot_id !== "string" || !uuid.test(input.expected_snapshot_id)))) throw Error("请确认日期、原始 JSON、身份和同日修正方式");
       validateRows(input.members);
-      if(Object.hasOwn(input,'absence_decisions')){validateAbsences(input.absence_decisions);if(input.baseline_snapshot_id!==null&&!uuid.test(input.baseline_snapshot_id??''))throw Error('对比名单无效，请重新准备');if(input.is_complete_roster&&input.absence_decisions.some((a:{decision:string})=>a.decision!=='left'))throw Error('仍有漏识别或不确定的成员，不能确认名单完整');}
+      if(Object.hasOwn(input,'absence_decisions')){validateAbsences(input.absence_decisions);if(input.baseline_snapshot_id!==null&&!uuid.test(input.baseline_snapshot_id??''))throw Error('对比名单无效，请重新准备');if(input.is_complete_roster&&input.absence_decisions.some((a:{decision:string})=>!['left','temporary'].includes(a.decision)))throw Error('仍有待确认的成员，不能确认名单完整');}
     }
   } catch (error) { return reply({ error: error instanceof Error ? error.message : "导入内容无效" }, 400); }
   const response = url.pathname === "/api/player-aliases" ? await rest("rpc/club_manage_alias", { p_club_id: clubId, p_player_id: input.player_id ?? null, p_alias: input.alias_name ?? null, p_revoke_id: input.revoke_id ?? null }) : await rest(Object.hasOwn(input,'absence_decisions')?"rpc/club_commit_reviewed_import":"rpc/club_commit_import", {

@@ -5,7 +5,7 @@ import {clubApi} from "../../lib/data-access";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {cn} from "cn";
-import {presenceLabels, type Presence} from "../../domain/presence";
+import {presenceText, type AbsenceDetails, type Presence} from "../../domain/presence";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button, ButtonLink } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -19,9 +19,10 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import type { Member } from "../../domain/member";
 
 import {compareMemberValues} from "./member-sort";
+import {ResolveAbsence} from "./ResolveAbsence";
 import {DeleteImport} from "./DeleteImport";
 type Snapshot = { id: string; snapshot_date: string; revision: number; is_complete_roster: boolean; is_current: boolean };
-type Row = Omit<Member, "group"> & { player_id: string; group_name: string | null; presence?: Presence; data_date?:string };
+type Row = Omit<Member, "group"> & { player_id: string; group_name: string | null; presence?: Presence; data_date?:string } & AbsenceDetails;
 type Result = { snapshots: Snapshot[]; snapshot: Snapshot | null; members: Row[]; next: string | null; snapshot_count?:number };
 type TableView = {sort:keyof Row;descending:boolean;pathway:string;group:string};
 const initialView:TableView={sort:"name",descending:false,pathway:"",group:""};
@@ -111,10 +112,10 @@ function MemberList() {
     return <Table containerClassName="members-table-wrap max-h-[min(72dvh,48rem)] animate-[club-fade-in_180ms_var(--club-ease-feedback)] overflow-y-auto overscroll-y-contain" className="[&_td]:px-2.5 [&_th]:px-2.5 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-2 [&_thead_th]:shadow-[inset_0_-1px_var(--club-divider)]"><TableCaption>{search||pathway||group ? `找到 ${rows.length} 人` : departed?"离会成员最后记录 · 数据日期为实际观察日期":"当天保存的数据 · — 表示未识别"}</TableCaption>
         <TableHeader><TableRow>{sortHeading("presence","状态",departed)}{columns.map(([value,title])=>value==="pathway"||value==="group_name"?filterHeading(value,title,departed):sortHeading(value,title,departed,value==="name"?cn(sticky,"z-3! bg-secondary"):undefined))}{sortHeading("data_date","数据日期",departed)}</TableRow></TableHeader>
         <TableBody>{rows.map(row => { const left=row.presence==="left"; return <TableRow key={row.player_id}>
-          <TableCell className={left?"text-destructive":undefined}>{row.presence==="unconfirmed"?<Badge variant="warning">{presenceLabels.unconfirmed}</Badge>:presenceLabels[row.presence??"present"]}</TableCell>
-          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&"text-destructive line-through")} href={`/players?id=${row.player_id}&date=${result!.snapshot!.snapshot_date}`}>{row[value]??"未识别昵称"}</Link>:value==="pathway"?<PathwayLabel pathway={row[value]} />:row[value]??"—"}</TableCell>)}
+          <TableCell className={left?"text-destructive":undefined}>{row.presence==="unconfirmed"?<><Badge variant="warning">待确认</Badge>{result?.snapshot?.is_current&&<ResolveAbsence playerId={row.player_id} name={String(row.name??"未识别昵称")} snapshotId={result.snapshot.id} onSaved={()=>setRetry(n=>n+1)}/>}</>:presenceText(row.presence??"present",row.absence_decision)}{row.absence_reason&&<span className="block max-w-48 whitespace-normal text-xs text-muted-foreground">{row.absence_reason}</span>}</TableCell>
+          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&row.absence_decision!=="temporary"&&"text-destructive line-through")} href={`/players?id=${row.player_id}&date=${result!.snapshot!.snapshot_date}`}>{row[value]??"未识别昵称"}</Link>:value==="pathway"?<PathwayLabel pathway={row[value]} />:row[value]??"—"}</TableCell>)}
           <TableCell className="text-muted-foreground">{row.data_date??(left?"—":result!.snapshot!.snapshot_date)}</TableCell></TableRow>; })}
-          {!rows.length&&<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{departed?departedTotal?"没有符合条件的离会成员，请调整搜索或筛选。":"当前记录暂无暂时离会成员。":"没有符合条件的玩家，请调整搜索或筛选。"}</TableCell></TableRow>}</TableBody></Table>;
+          {!rows.length&&<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{departed?departedTotal?"没有符合条件的离会成员，请调整搜索或筛选。":"当前记录暂无不在会成员。":"没有符合条件的玩家，请调整搜索或筛选。"}</TableCell></TableRow>}</TableBody></Table>;
   }
   return <main className="club-workspace club-members flex max-w-400 flex-col gap-6"><PageHeader eyebrow="THE ARCHIVES / 每日记录" title="成员名单" actions={<ButtonLink href="/import">导入数据</ButtonLink>} />
     <div className="members-toolbar -mt-6 flex flex-wrap items-end gap-4">
@@ -134,7 +135,7 @@ function MemberList() {
     {waiting ? <TableSkeleton columns={11} label="正在读取名单…" /> : !error && (result?.snapshot ?
       <>{renderTable(current,false)}
       <div ref={departedSection}><Collapsible className="rounded-sm border border-border">
-        <CollapsibleTrigger className="px-4 text-gold">暂时离会成员 <span className="ml-auto text-xs tabular-nums text-muted-foreground">{departed.length} 人{filtered&&departed.length!==departedTotal?` / 共 ${departedTotal} 人`:""}</span></CollapsibleTrigger>
+        <CollapsibleTrigger className="px-4 text-gold">不在会成员 <span className="ml-auto text-xs tabular-nums text-muted-foreground">{departed.length} 人{filtered&&departed.length!==departedTotal?` / 共 ${departedTotal} 人`:""}</span></CollapsibleTrigger>
         <CollapsibleContent className="px-3 pb-3" onExpandUpdate={revealDeparted}>{renderTable(departed,true)}</CollapsibleContent>
       </Collapsible></div></>
     : <LoadingState status="empty" title="还没有保存记录" detail="导入第一份数据后，就能在这里查看。" action={<ButtonLink href="/import">导入数据</ButtonLink>} />)}

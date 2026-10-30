@@ -1,4 +1,4 @@
-export type ScoreMember={player_id:string;name:string|null;pathway?:string|null;presence?:string;data_date?:string;extraordinary_score:number|null};
+export type ScoreMember={player_id:string;name:string|null;pathway?:string|null;presence?:string;absence_decision?:string|null;absence_reason?:string|null;data_date?:string;extraordinary_score:number|null};
 export type ScoreSnapshot={id?:string;snapshot_date:string;revision?:number;is_current?:boolean;is_complete_roster:boolean};
 export type ScoreData={snapshot:ScoreSnapshot|null;snapshots:ScoreSnapshot[];members:ScoreMember[];next?:string|null};
 export const usableDates=(snapshots:ScoreSnapshot[])=>[...new Set(snapshots.filter(s=>s.is_current!==false).map(s=>s.snapshot_date))].sort().reverse();

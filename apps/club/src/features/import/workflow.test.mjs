@@ -30,3 +30,11 @@ test('absence review: merge keeps the day roster, replace asks about everyone no
  assert.equal(absenceReview(null,[],'',{}).missing.length,0);
 });
 test('validation messages use Chinese field names',()=>assert.equal(readableError('第 1 行 join_days 必须是非负整数'),'第 1 行 入会天数 必须是非负整数'));
+
+test('a temporary absence cannot finish review without its reason, and carries the reason into the transaction',()=>{
+ const context={members:[],absence_context:{snapshot:null,members:[{player_id:id,name:'甲'}]}};
+ assert.equal(absenceReview(context,[],'replace',{[id]:'temporary'}).pending,1);
+ const review=absenceReview(context,[],'replace',{[id]:'temporary'},{[id]:'  买物资  '});
+ assert.equal(review.pending,0);assert.equal(review.completeAllowed,true);
+ assert.deepEqual(review.decisions,[{player_id:id,decision:'temporary',reason:'买物资'}]);
+});

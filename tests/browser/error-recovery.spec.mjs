@@ -16,6 +16,7 @@ test('a page crash keeps navigation usable, hides details, and Retry fetches fre
   const headers={'Cache-Control':'no-store','X-Club-Scope':`owner:${id}`};
   if(url.pathname==='/api/account')return route.fulfill({json:{email:'fixture@example.invalid',role:'owner',club_id:id},headers});
   if(url.pathname==='/api/club-settings')return route.fulfill({json:{name:'测试俱乐部',can_edit:true},headers});
+  if(url.pathname==='/api/members'&&url.searchParams.has('trend'))return route.fulfill({json:{points:[],next:null},headers});
   if(url.pathname==='/api/members')return route.fulfill({json:memberReads++===0?broken:good,headers});
   return route.fulfill({status:404,json:{error:'Unknown test endpoint'}});
  });

@@ -1,0 +1,55 @@
+import {test,expect} from '@playwright/test';
+import {randomUUID} from 'node:crypto';
+import {baseURL,clubId,foreignClubId,users,password,sql,auth,rest} from './local.mjs';
+
+test('absence choices persist through review, follow-up, revisions, rejoining and deletion without changing observations',async({page})=>{
+ const ids=Array.from({length:4},()=>randomUUID());
+ sql(ids.map((id,i)=>`insert into public.club_players(id,club_id,display_name,match_name) values('${id}','${clubId}','缺席测试${i}','缺席测试${i}');`).join('\n'));
+ const request=page.request;
+ const post=(path,data)=>request.post(path,{headers:{Origin:baseURL},data});
+ expect((await post('/api/login',{email:users.owner.email,password})).ok()).toBe(true);
+ const rows=ids.map((player_id,i)=>({player_id,name:`缺席测试${i}`,position:null,level:70,pathway:'歌颂者',extraordinary_score:100+i,prosperity:null,weekly_activity:null,group:null,join_days:null,identity_confirmed:true}));
+ async function commit(date,members,decisions=[],complete=false){
+  const contextResponse=await request.get(`/api/import-context?date=${date}&review_absences=1`);expect(contextResponse.ok(),await contextResponse.text()).toBe(true);
+  const context=await contextResponse.json();
+  const response=await post('/api/imports',{snapshot_date:date,members,raw_text:'synthetic local absence fixture',is_complete_roster:complete,mode:'replace',confirmed:true,request_id:randomUUID(),expected_snapshot_id:context.snapshot?.id??null,baseline_snapshot_id:context.absence_context.snapshot?.id??null,absence_decisions:decisions});
+  expect(response.ok(),await response.text()).toBe(true);return response.json();
+ }
+ const roster=async date=>{const r=await request.get(`/api/members?date=${date}`);expect(r.ok(),await r.text()).toBe(true);return r.json();};
+ await commit('2011-01-01',rows,[],true);
+ const second=await commit('2011-01-02',[rows[0]],[{player_id:ids[1],decision:'temporary',reason:'帮朋友打活动'},{player_id:ids[2],decision:'left'},{player_id:ids[3],decision:'uncertain'}]);
+ let data=await roster('2011-01-02');
+ expect(data.members.find(r=>r.player_id===ids[1])).toMatchObject({presence:'left',absence_decision:'temporary',absence_reason:'帮朋友打活动',data_date:'2011-01-01',extraordinary_score:101});
+ expect(data.members.find(r=>r.player_id===ids[2])).toMatchObject({presence:'left',absence_decision:'left'});
+ expect(data.members.find(r=>r.player_id===ids[3]).presence).toBe('unconfirmed');
+ const outsider=(await auth('outsider')).access_token;
+ expect((await rest('rpc/club_resolve_absence',outsider,{p_club:clubId,p_snapshot:second.snapshot_id,p_player:ids[3],p_decision:'left'})).ok).toBe(false);
+ const owner=(await auth('owner')).access_token;
+ expect(await (await rest(`club_absence_resolutions?club_id=eq.${clubId}`,outsider)).json()).toEqual([]);
+ expect((await rest('rpc/club_resolve_absence',owner,{p_club:foreignClubId,p_snapshot:second.snapshot_id,p_player:ids[3],p_decision:'left'})).ok).toBe(false);
+ expect((await post('/api/resolve-absence',{snapshot_id:second.snapshot_id,player_id:ids[3],decision:'temporary',reason:' ',confirmed:true})).status()).toBe(400);
+ await page.goto('/members?date=2011-01-02');
+ const pending=page.getByRole('row').filter({has:page.getByRole('link',{name:'缺席测试3',exact:true})});
+ await expect(pending).toContainText('待确认');await pending.getByRole('button',{name:'处理',exact:true}).click();
+ const dialog=page.getByRole('dialog');await dialog.getByText('暂离',{exact:true}).click();await dialog.getByLabel('暂离理由',{exact:true}).fill('出去买物资');await dialog.getByRole('button',{name:'保存',exact:true}).click();await expect(dialog).toBeHidden();
+ await page.getByRole('button',{name:/会成员/}).click();
+ await expect(page.locator('[data-slot=collapsible-content] > div')).toHaveCSS('opacity','1');
+ await page.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+ await page.screenshot({path:'.test-artifacts/absence-members-desktop.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:'.test-artifacts/absence-members-mobile.png',fullPage:true});await page.setViewportSize({width:1280,height:900});
+ data=await roster('2011-01-02');expect(data.members.find(r=>r.player_id===ids[3])).toMatchObject({presence:'left',absence_decision:'temporary',absence_reason:'出去买物资'});
+ await commit('2011-01-02',[{...rows[0],extraordinary_score:120}]);
+ data=await roster('2011-01-02');expect(data.members.find(r=>r.player_id===ids[3]).absence_reason).toBe('出去买物资');
+ expect((await post('/api/resolve-absence',{snapshot_id:second.snapshot_id,player_id:ids[3],decision:'left',confirmed:true})).status()).toBe(409);
+ await commit('2011-01-03',[rows[0]]);
+ data=await roster('2011-01-03');expect(data.members.find(r=>r.player_id===ids[3])).toMatchObject({presence:'left',absence_reason:'出去买物资',data_date:'2011-01-01'});
+ const history=await (await request.get(`/api/members?player=${ids[3]}&paged=1&date=2011-01-03`)).json();
+ expect(history.timeline.find(r=>r.date==='2011-01-03')).toMatchObject({status:'left',absence_decision:'temporary',absence_reason:'出去买物资',member:null});
+ await commit('2011-01-04',rows);
+ data=await roster('2011-01-04');expect(data.members.every(r=>r.presence==='present')).toBe(true);
+ const rejoined=await (await request.get(`/api/members?player=${ids[3]}&paged=1&date=2011-01-04`)).json();expect(rejoined.timeline.at(-1)).toMatchObject({status:'present',event:'rejoined'});
+ const secondCurrent=(await roster('2011-01-02')).snapshot;
+ expect((await post('/api/delete-import',{date:'2011-01-02',expected_snapshot_id:secondCurrent.id,confirmed:true})).ok()).toBe(true);
+ data=await roster('2011-01-03');expect(data.members.find(r=>r.player_id===ids[3]).presence).toBe('unconfirmed');
+ expect(Number(sql(`select count(*) from public.club_audit_events where club_id='${clubId}' and action='absence_resolved' and target_id='${ids[3]}';`))).toBe(1);
+});

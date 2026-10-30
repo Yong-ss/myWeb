@@ -1,9 +1,8 @@
 "use client";
 import {LoadingState} from "../../components/feedback";
 import {scoreGrowth,validComparison} from "./score-growth";
-import {ButtonLink} from "../../components/ui/button";
 import Link from "next/link";
-import {ScoreGrowth} from "./ScoreGrowth";
+
 import {PathwayDonut} from "./PathwayDonut";
 import {clubInsights,signed} from "./insights";
 import {useDataRefresh} from "../../lib/useDataRefresh";
@@ -33,7 +32,7 @@ export function Overview({view}:{view?:"growth"|"pathways"}){
   if(error)return <LoadingState status="error" detail={error} onRetry={()=>setRetry(n=>n+1)} />;
   if(!busy&&!data?.snapshot)return <LoadingState status="empty" title="还没有每日记录" detail="从侧栏导入第一份数据后，这里会显示统计。" />;
   if(view==="pathways")return <PathwayDonut members={data?.members??[]} loading={busy&&!data}/>;
-  if(view==="growth")return <ScoreGrowth latest={data} previous={previous} pending={busy||comparing}/>;
+
   const date=data?.snapshot?.snapshot_date,priorDate=previous?.snapshot?.snapshot_date;
   const present=(d:Data|null)=>d?.members.filter(r=>r.presence==='present').length??0;
   const strength=date&&priorDate&&validComparison(priorDate,date)?scoreGrowth(previous!,data!):null;
@@ -53,6 +52,5 @@ export function Overview({view}:{view?:"growth"|"pathways"}){
       {insights.length?<ul className="m-0 grid list-none gap-2 p-0">{insights.map(i=><li key={i.text} className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-sm border px-4 py-3 text-sm ${i.tone==='warning'?'border-warning/40 bg-warning-bg text-warning':'border-divider'}`}><span>{i.text}</span>{i.href&&<Link className="text-gold" href={i.href}>{i.action} →</Link>}</li>)}</ul>
       :<p className="m-0 rounded-sm border border-divider px-4 py-3 text-sm text-muted-foreground">名单完整，最近没有需要特别处理的变化。</p>}
     </section>}
-    <nav aria-label="俱乐部快捷操作" className="flex flex-wrap gap-3"><ButtonLink href="/members">查看成员</ButtonLink><ButtonLink variant="secondary" href="/import">导入今日名单</ButtonLink><ButtonLink variant="secondary" href={`/analytics?view=growth${priorDate&&date?`&from=${priorDate}&to=${date}`:""}`}>查看实力成长</ButtonLink><ButtonLink variant="secondary" href="/analytics?view=pathways">查看途径分布</ButtonLink></nav>
   </section>;
 }
