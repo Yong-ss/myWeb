@@ -22,7 +22,11 @@ export async function handleMfa(request:Request,auth:Auth,access:Access,trusted:
   const r=await auth('factors',{factor_type:'totp',friendly_name:`${name} ${new Date().toISOString().slice(0,16).replace('T',' ')}`,issuer:'SquirrelAPI Club'});
   if(!r.ok)return {response:reply({error:'暂时无法开始绑定，请稍后重试'},502)};
   const f=await r.json();
-  return {response:reply({id:f.id,qr_code:f.totp?.qr_code,secret:f.totp?.secret})};
+  // Auth returns raw SVG markup; as an <img src> it would be requested as a relative URL (leaking the secret in the
+  // path and showing a broken image). A data: URL renders locally; SVG in <img> cannot run scripts.
+  const svg=typeof f.totp?.qr_code==='string'?f.totp.qr_code:'';
+  const qr=svg.startsWith('data:image/')?svg:`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  return {response:reply({id:f.id,qr_code:qr,secret:f.totp?.secret})};
  }
  if(!['verify','remove'].includes(input?.action)||!uuid.test(input.factor_id??''))return {response:reply({error:'请选择验证器'},400)};
  if(input.action==='remove'){

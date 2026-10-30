@@ -130,7 +130,10 @@ test('the Super Admin binds and verifies real TOTP in Settings; powers appear on
   expect(await (await context.request.get(`${baseURL}/api/activity`)).text()).not.toContain('@');
   await page.goto('/settings');await expect(page.getByRole('heading',{name:/两步验证/})).toBeVisible();
   await page.getByLabel('设备名称').fill('集成手机');await page.getByRole('button',{name:'开始绑定'}).click();
-  await expect(page.getByRole('img',{name:'两步验证二维码'})).toBeVisible();
+  const qr=page.getByRole('img',{name:'两步验证二维码'});await expect(qr).toBeVisible();
+  // The image must actually decode (a broken data: URL is still "visible"); prints only the format, never the secret.
+  const loaded=await qr.evaluate(i=>i.decode().then(()=>i.naturalWidth>0,()=>false));
+  expect(loaded,await qr.evaluate(i=>`${i.src.slice(0,32)}… hash=${i.src.includes('#')}`)).toBe(true);
   const secret=(await page.locator('code').textContent()).trim();
   await page.getByLabel('验证码（6 位）').fill(totp(secret));await page.getByRole('button',{name:'完成绑定'}).click();
   await expect(page.getByText('已验证，验证器待确认')).toBeVisible();

@@ -134,6 +134,7 @@ test('MFA endpoints exist only for the Super Admin and never echo codes or token
     if (url.includes('club_my_trusted_factors')) return Response.json([]);
     seen.push([url, options.body]);
     if (url.endsWith('/user')) return Response.json({ ...user, factors: [{ id: '00000000-0000-4000-8000-000000000009', factor_type: 'totp', status: 'verified', friendly_name: 'phone' }] });
+    if (url.endsWith('/factors')) return Response.json({ id: 'f', totp: { qr_code: '<svg xmlns="http://www.w3.org/2000/svg"/>', secret: 'S' } });
     if (url.endsWith('/challenge')) return Response.json({ id: 'challenge' });
     if (url.endsWith('/verify')) return Response.json({ ...session, access_token: 'aal2-token' });
     return Response.json({});
@@ -144,7 +145,9 @@ test('MFA endpoints exist only for the Super Admin and never echo codes or token
   // With a verified factor, only an aal2 session may add another; a stolen password alone cannot.
   assert.equal((await handleRequest(req('mfa', { action: 'enroll' }, '__Host-club_access=access'), env, network)).status, 403);
   sa = { ...sa, session_aal2: true };
-  assert.equal((await handleRequest(req('mfa', { action: 'enroll' }, '__Host-club_access=access'), env, network)).status, 200);
+  // Auth returns raw SVG; it must reach the page as a local data: URL, never a path the browser would request.
+  const enrolled = await (await handleRequest(req('mfa', { action: 'enroll' }, '__Host-club_access=access'), env, network)).json();
+  assert.match(enrolled.qr_code, /^data:image\/svg\+xml;charset=utf-8,%3Csvg/);
   sa = { ...sa, session_aal2: false };
   for (const code of ['12345', '1234567', 'abcdef']) assert.equal((await handleRequest(req('mfa', { action: 'verify', factor_id: '00000000-0000-4000-8000-000000000009', code }, '__Host-club_access=access'), env, network)).status, 400);
   const ok = await handleRequest(req('mfa', { action: 'verify', factor_id: '00000000-0000-4000-8000-000000000009', code: '123456' }, '__Host-club_access=access'), env, network);
