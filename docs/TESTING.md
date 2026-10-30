@@ -15,6 +15,8 @@
 
 正式迁移后、更新 `CLUB_SCHEMA_VERSION` 前，在 Supabase SQL Editor 只读执行 `select version from supabase_migrations.schema_migrations order by version;`，确认每个 `supabase/migrations` 文件都已应用、没有遗漏中间版本。该变量只是人工确认，CI 不会读取正式数据库。
 
+执行迁移只用仓库原始文件，不手动转写 SQL（2026-10-30 曾因转写把 `'{}'::jsonb` 写成 `''::jsonb` 导致正式函数出错）。首选本人在本机运行 `supabase db push`（读取原文件并保留文件编号）；Supabase MCP `apply_migration` 需要把 SQL 复制进参数且会生成新编号，仅作备选，用后须把文件改名为生成的编号。`supabase db push` 前必须先确认目标与内容：`supabase/.temp/project-ref` 等于正式项目 `lnwifbsjfwchshtxyzcu`，并运行 `supabase db push --dry-run` 核对待执行的迁移列表只含预期文件，确认后再去掉 `--dry-run`。执行后运行 `node scripts/migration-checksums.mjs supabase/migrations/<文件>`，把输出的只读查询贴到 SQL Editor，每个函数都必须是 `ok` 才能更新 `CLUB_SCHEMA_VERSION`。该检查只覆盖函数体；表、约束、策略仍按上面的版本列表人工确认。
+
 ## 备份（Supabase 免费版没有自动备份）
 
 由本人在本机执行，CI 和 AI 不执行；连接串含数据库密码，只在当前终端输入，不写入仓库。每次重要导入后或每周一次：

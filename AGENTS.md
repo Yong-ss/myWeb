@@ -13,7 +13,7 @@ Long-term solo project (pnpm monorepo: `apps/web` main site, `apps/club` Club ap
 - Enforce access control on the server and database (Worker checks + RLS), never only in the UI.
 - Never commit secrets or expose privileged keys to clients; Workers use only the publishable key plus the user's token.
 - No paid services, production data changes or destructive migrations without explicit approval in the current task.
-- Production migrations are applied manually. Never rewrite or rename an applied migration; finalize filenames before applying.
+- Production migrations are applied manually. Never rewrite or rename an applied migration; finalize filenames before applying. Apply only the original file (never retyped SQL) and verify with `scripts/migration-checksums.mjs` before updating `CLUB_SCHEMA_VERSION`.
 - Explain the impact before substantial changes to authentication, database structure, deployment or shared interfaces.
 
 ## Delivery (solo, direct to main)

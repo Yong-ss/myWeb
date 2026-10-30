@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 for(const [width,height] of [[1440,900],[768,1024],[390,844],[320,800]]) {
   test(`shared account components and navigation ${width}`,async({page},info)=>{
     await page.setViewportSize({width,height});
-    await page.route('**/api/**',route=>route.fulfill({json:new URL(route.request().url()).pathname==='/api/account'?{email:'archive-keeper@example.invalid',role:'owner'}:{snapshot:null,snapshots:[],members:[]}}));
+    await page.route('**/api/**',route=>route.fulfill({json:new URL(route.request().url()).pathname==='/api/account'?{email:'archive-keeper@example.invalid',role:'owner'}:{snapshot:null,snapshots:[],members:[],points:[],next:null}}));
     await page.goto('/account');
     await expect(page.getByRole('heading',{name:'俱乐部总览',exact:true})).toBeVisible();
     await expect(page.getByText('archive-keeper@example.invalid')).toBeVisible();
@@ -19,7 +19,7 @@ test('shared logout button prevents duplicate requests and keeps error actionabl
   let finish;let requests=0;
   await page.route('**/api/**',async route=>{
     if(new URL(route.request().url()).pathname==='/api/logout') {requests++;await new Promise(resolve=>finish=resolve);return route.fulfill({status:503,json:{error:'暂时无法退出，请重试'}});}
-    return route.fulfill({json:new URL(route.request().url()).pathname==='/api/account'?{email:'archive-keeper@example.invalid',role:'owner'}:{snapshot:null,snapshots:[],members:[]}});
+    return route.fulfill({json:new URL(route.request().url()).pathname==='/api/account'?{email:'archive-keeper@example.invalid',role:'owner'}:{snapshot:null,snapshots:[],members:[],points:[],next:null}});
   });
   await page.goto('/account');const button=page.getByRole('button',{name:'退出登录',exact:true});
   const before=await button.boundingBox();await button.click();
