@@ -4,7 +4,7 @@ for(const width of [1440,390,320])test(`score trend point summary, sheet and pro
  await page.setViewportSize({width,height:900});
  await page.route('**/api/**',r=>{
   const u=new URL(r.request().url());
-  if(u.pathname==='/api/account')return r.fulfill({json:{email:'trend@example.invalid',role:'owner'}});
+  if(u.pathname==='/api/account')return r.fulfill({json:{email:'trend@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}});
   if(u.pathname==='/api/club-settings')return r.fulfill({json:{name:'趋势测试俱乐部'}});
   if(u.searchParams.has('trend'))return r.fulfill({json:{points:u.searchParams.has('before')?[{date:'2026-10-20',score:170,partial:false,missing:0}]:[{date:'2026-10-29',score:180,partial:false,missing:0},{date:'2026-10-30',score:220,partial:false,missing:0}],next:u.searchParams.has('before')?null:'2026-10-29'}});
   if(u.searchParams.has('player'))return r.fulfill({json:{player:{id,display_name:'成员甲'},timeline:[{date:'2026-10-29',status:'present',member:{name:'成员甲',pathway:'歌颂者',extraordinary_score:100},changes:null},{date:'2026-10-30',status:'present',member:{name:'成员甲',pathway:'歌颂者',extraordinary_score:120},changes:null}],next:null}});

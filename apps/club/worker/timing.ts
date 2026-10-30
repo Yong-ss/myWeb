@@ -4,7 +4,7 @@ export function instrument(fetcher: typeof fetch) {
   const totals = new Map<string, {duration:number;count:number}>();
   const measured: typeof fetch = async (input, init) => {
     const path = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url).pathname;
-    const label = path.includes('/auth/') ? 'auth' : path.endsWith('/club_memberships') ? 'membership' : 'database';
+    const label = path.includes('/auth/') ? 'auth' : path.endsWith('/rpc/club_my_access') ? 'membership' : 'database';
     const begin = performance.now();
     try { return await fetcher(input, init); }
     finally { const old=totals.get(label)??{duration:0,count:0};old.duration+=performance.now()-begin;old.count++;totals.set(label,old); }

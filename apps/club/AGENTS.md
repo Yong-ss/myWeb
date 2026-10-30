@@ -8,7 +8,7 @@
 - `src/domain/`：跨功能业务契约（成员字段、日期／UUID 校验、在会状态），只依赖自身。
 - `src/lib/`（`clubApi`、缓存、刷新、导航、品牌）与 `src/components/`（UI、布局、反馈）：共享基础设施，禁止 import 功能。
 - `src/app/<路由>/page.tsx` 只重新导出功能页面；`src/app/error.tsx` 让单页出错时外壳照常可用。
-- `worker/`：每个 API 一个处理文件，在 `index.ts` 的 `routes` 表登记；通用 HTTP 工具在 `worker/http.ts`。Worker 只能用 `domain/` 和功能目录中不含 React 的 `.ts`。
+- `worker/`：每个 API 一个处理文件，在 `index.ts` 的 `routes` 表登记，并为每个方法声明所需权限（`src/domain/permissions.ts`，未声明即拒绝）；数据库函数用 `club_private.require()`，RLS 用 `readable_clubs()`，不得再写 owner/admin 角色判断；通用 HTTP 工具在 `worker/http.ts`。Worker 只能用 `domain/` 和功能目录中不含 React 的 `.ts`。
 - 新功能：新建 `src/features/<名字>/`（页面 `<main className="club-workspace club-<名字>">`），加一行路由页、`src/lib/navigation.ts` 一项，需要时加 `worker/<名字>.ts` 和 `routes` 一项。不应修改其他功能。
 
 ## 共享约定
@@ -17,7 +17,7 @@
 - 读取复用 `clubApi` 的私人缓存与 `useDataRefresh`：每次复用都经实时权限校验，写入后失效；禁止公共缓存、持久化缓存，也不得为性能缓存 membership 或绕过 RLS。新查询先看 `docs/PERFORMANCE.md`：并行、有界、稳定游标，不逐行请求。
 - 导航和私有页面只在 `src/lib/navigation.ts` 登记；它只决定显示，不是权限控制。
 - 登录后页面统一使用 AppShell 页头和 AccountControls；页面不得另写账户或退出逻辑，公开页不显示私人账户控件。
-- 俱乐部名称以数据库为准，使用 `useClubBrand`／`/api/club-settings`，不得用 localStorage 冒充保存；只有已确认邮箱的有效 Owner 可改名。
+- 俱乐部名称以数据库为准，使用 `useClubBrand`／`/api/club-settings`，不得用 localStorage 冒充保存；改名需要 `club.rename` 权限（默认只有 Owner）。
 
 ## 业务数据安全
 

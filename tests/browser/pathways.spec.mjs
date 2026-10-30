@@ -8,7 +8,7 @@ test('profile name uses the latest observed pathway even after an absent day',as
    {date:'2026-10-21',status:'present',member:{name:'错误',pathway:'歌颂者'},changes:null},
    {date:'2026-10-22',status:'left',member:null,changes:null},
   ],
- }:{name:'测试俱乐部',email:'history@example.invalid',role:'owner'}}));
+ }:{name:'测试俱乐部',email:'history@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}}));
  await page.goto('/players?id=synthetic&date=2026-10-22');
  const heading=page.getByRole('heading',{name:'错误',exact:true});
  await expect(heading.locator('img')).toHaveAttribute('src','/pathway/sun.webp');
@@ -22,7 +22,7 @@ test('pathway artwork preserves stored names, neutral values and member search o
  const names=['占卜家','学徒','观众','窥秘人','战士','歌颂者','未知途径',null];
  const files=['seer','apprentice','spectator','mystery-pryer','warrior','sun'];
  const snapshot={id:'00000000-0000-4000-8000-000000000001',snapshot_date:'2026-10-30',revision:1,is_current:true,is_complete_roster:true};
- await page.route('**/api/account',r=>r.fulfill({json:{email:'pathways@example.invalid',role:'owner'}}));
+ await page.route('**/api/account',r=>r.fulfill({json:{email:'pathways@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}}));
  await page.route('**/api/club-settings',r=>r.fulfill({json:{name:'途径视觉核对'}}));
  await page.route('**/api/members*',r=>r.fulfill({json:{snapshot,snapshots:[snapshot],next:null,members:names.map((pathway,i)=>({player_id:`synthetic-${i}`,name:`成员${i}`,pathway,level:70,weekly_activity:0}))}}));
  await page.goto('/members');
@@ -51,7 +51,7 @@ test('pathway artwork preserves stored names, neutral values and member search o
 test('historical rows retain their own pathway names and missing values',async({page})=>{
  await page.route('**/api/**',r=>r.fulfill({json:r.request().url().includes('/api/members')?{
   player:{id:'synthetic',display_name:'历史途径'},timeline:['歌颂者','未知途径',null].map((pathway,i)=>({date:`2026-10-${20+i}`,status:'present',member:{name:'历史途径',pathway},changes:null})),
- }:{name:'测试俱乐部',email:'history@example.invalid',role:'owner'}}));
+ }:{name:'测试俱乐部',email:'history@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}}));
  await page.goto('/players?id=synthetic');
  const sun=page.getByRole('cell',{name:'歌颂者',exact:true});
  await expect(page.getByRole('heading',{name:'历史途径',exact:true}).locator('img')).toHaveCount(0);

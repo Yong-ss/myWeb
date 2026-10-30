@@ -1,5 +1,9 @@
 -- Run only through pnpm test:db on disposable PostgreSQL, never a linked project.
 do $$ begin if current_database() <> 'squirrelapi_test' then raise exception 'Isolated test database required'; end if; end $$;
+-- Simulated MFA: a confirmed TOTP factor and a live aal2 session for the Super Admin (see P2 activation).
+insert into auth.mfa_factors(id,user_id,friendly_name,factor_type,status) values ('00000000-0000-4000-8000-00000000f001','d0ddb226-a10a-471c-be4b-d5e5153bd313','fixture','totp','verified');
+insert into auth.sessions(id,user_id,aal,factor_id) values ('00000000-0000-4000-8000-00000000c001','d0ddb226-a10a-471c-be4b-d5e5153bd313','aal2','00000000-0000-4000-8000-00000000f001');
+insert into public.platform_super_admin_factors(factor_id,user_id) values ('00000000-0000-4000-8000-00000000f001','d0ddb226-a10a-471c-be4b-d5e5153bd313');
 -- d0dd... is the migration's Super Admin and the bootstrap club's owner.
 -- 0a01 owner, 0a02 admin, 0a03 revoked admin, 0a04 outsider, 0a05 unconfirmed admin; all in club X (0a10).
 insert into auth.users(id,email,email_confirmed_at) values
@@ -46,12 +50,12 @@ begin
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
   if public.club_my_permissions('00000000-0000-4000-8000-000000000a11') <> '{}' then raise exception 'Super Admin powers without MFA'; end if;
   if public.club_my_permissions('ce0c7103-1cdf-4b08-8619-f71d4915f598') <> array_remove(all_perms,'audit.actor_email.read') then raise exception 'Own owner membership lost without MFA'; end if;
-  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
+  perform set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000c001"}',true);
   if public.club_my_permissions('00000000-0000-4000-8000-000000000a11') <> all_perms then raise exception 'Super Admin lacks access to an unrelated club'; end if;
   if public.club_my_permissions('00000000-0000-4000-8000-0000000000ff') <> '{}' then raise exception 'Permissions for a nonexistent club'; end if;
   if not array['ce0c7103-1cdf-4b08-8619-f71d4915f598','00000000-0000-4000-8000-000000000a10','00000000-0000-4000-8000-000000000a11']::uuid[] <@ array(select club_private.readable_clubs('members.read')) then raise exception 'Super Admin readable_clubs incomplete'; end if;
-  -- P1 boundary: business RLS still uses plain membership until P2 switches it to readable_clubs.
-  if (select count(*) from public.club_clubs) <> 1 then raise exception 'Business RLS changed before P2'; end if;
+  -- Since P2 business RLS follows readable_clubs: an MFA-verified Super Admin reads every club.
+  if (select count(*) from public.club_clubs) <> (select count(*) from club_private.readable_clubs('members.read')) then raise exception 'Business RLS does not follow readable_clubs'; end if;
   -- MFA alone grants nothing.
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000a04',true);
   if public.club_my_permissions('00000000-0000-4000-8000-000000000a10') <> '{}' then raise exception 'aal2 alone grants access'; end if;
@@ -95,7 +99,7 @@ reset role;
 -- Unregistered keys are denied to everyone, including an MFA-verified Super Admin; require() fails closed.
 do $$ begin
   perform set_config('request.jwt.claim.sub','d0ddb226-a10a-471c-be4b-d5e5153bd313',true);
-  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
+  perform set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000c001"}',true);
   if club_private.can('00000000-0000-4000-8000-000000000a10','members.reed') then raise exception 'Typo permission granted'; end if;
   perform set_config('request.jwt.claims','{}',true);
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000a04',true);
@@ -156,7 +160,7 @@ begin
   if public.club_activity(x)->'events'<>'[]' then raise exception 'Unconfirmed user reads audit'; end if;
   perform set_config('request.jwt.claim.sub','d0ddb226-a10a-471c-be4b-d5e5153bd313',true);
   if public.club_activity(x)->'events'<>'[]' then raise exception 'Super Admin reads another club without MFA'; end if;
-  perform set_config('request.jwt.claims','{"aal":"aal2"}',true);
+  perform set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000c001"}',true);
   e := (select value from jsonb_array_elements(public.club_activity(x)->'events') where value->>'action'='authz_super');
   if e->>'actor_label'<>'owner@club.test' or e->>'actor_id'<>'d0ddb226-a10a-471c-be4b-d5e5153bd313' then raise exception 'Super Admin cannot trace own audit: %', e; end if;
   -- A null club reads nothing, even for the Super Admin. (Cursor arguments only page within an already authorized club.)
@@ -167,14 +171,10 @@ reset role;
 
 -- Granting the email field permission reveals ordinary emails, never the Super Admin's. The public name is display-only.
 insert into public.auth_role_permissions values ('admin','audit.actor_email.read'),('x_reader','members.read'),('x_reader','audit.read');
--- P1 keeps the legacy owner/admin check so the deployed Worker never receives an unknown role.
+-- Since P2 the legacy owner/admin check is gone; the scope trigger alone must stop cross-club and non-club roles.
 do $$ begin
-  insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000a10','00000000-0000-4000-8000-000000000a04','x_reader');
-  raise exception 'Custom role assignable before P2';
-exception when check_violation then null; end $$;
--- Simulate P2 (rolled back with this suite) to verify can() already evaluates custom roles.
-alter table public.club_memberships drop constraint club_memberships_role_check;
--- Without the legacy check, the scope trigger alone must stop cross-club and non-club roles.
+  if exists(select 1 from pg_constraint where conname='club_memberships_role_check') then raise exception 'Legacy role check still present'; end if;
+end $$;
 do $$ begin
   begin insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000a11','00000000-0000-4000-8000-000000000a04','x_reader');
     raise exception 'Club role assigned in another club'; exception when check_violation then null; end;

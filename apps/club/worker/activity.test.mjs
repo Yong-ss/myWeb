@@ -8,7 +8,7 @@ test('delete and log routes enforce session, origin, bounded input and server te
  const calls=[];
  const network=async(url,init)=>{
   if(url.includes('/auth/'))return Response.json({id:club,email_confirmed_at:'2026-01-01'});
-  if(url.includes('club_memberships'))return Response.json([{role:'admin'}]);
+  if(url.includes('club_my_access'))return Response.json({permissions:['audit.read','imports.delete'],roles:['admin'],super_admin:false,super_admin_active:false});
   calls.push([url,JSON.parse(init.body)]);return Response.json({deleted:true,events:[],next:null});
  };
  assert.equal((await handleRequest(new Request('https://club.test/api/activity'),env,async()=>Response.json({}))).status,401);
@@ -20,6 +20,6 @@ test('delete and log routes enforce session, origin, bounded input and server te
  assert.equal((await handleRequest(req('delete-import',{date:'2026-10-28',expected_snapshot_id:club,confirmed:true,padding:'x'.repeat(3000)}),env,network)).status,413);
  const cross=req('delete-import',{});cross.headers.set('Origin','https://other.test');assert.equal((await handleRequest(cross,env,network)).status,403);
  await handleRequest(req('activity'),env,network);assert.match(calls.at(-1)[0],/rpc\/club_activity$/);
- const conflict=async(url,init)=>url.includes('/rpc/')?Response.json({code:'PT409',message:'当天数据已变化'},{status:409}):network(url,init);
+ const conflict=async(url,init)=>url.includes('/rpc/')&&!url.includes('club_my_access')?Response.json({code:'PT409',message:'当天数据已变化'},{status:409}):network(url,init);
  assert.equal((await handleRequest(req('delete-import',{date:'2026-10-28',expected_snapshot_id:club,confirmed:true}),env,conflict)).status,409);
 });

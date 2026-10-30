@@ -12,7 +12,7 @@ for(const width of [1440,390])test(`whole Club visual review ${width}`,async({pa
     const url=new URL(route.request().url());
     if(url.origin!=='http://127.0.0.1:8791')return route.abort();
     if(!url.pathname.startsWith('/api/'))return route.continue();
-    const json=url.pathname==='/api/account'?{email:'archive@example.invalid',role:'owner'}:
+    const json=url.pathname==='/api/account'?{email:'archive@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}:
       url.pathname==='/api/club-settings'?{name:'灰雾档案馆 · 测试',can_edit:true}:
       url.pathname==='/api/activity'?{events:[{id,actor_id:null,actor_label:'超级管理员',actor_kind:'super_admin',actor_role:null,created_at:'2026-10-28T12:00:00Z',action:'import_date_deleted',details:{date:'2026-10-27',versions:2}}],next:null}:
       url.pathname==='/api/import-context'?{players:[],snapshot:null,members:[]}:

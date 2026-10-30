@@ -4,7 +4,7 @@ for(const width of [1440,390])test(`delete confirmation, retry, audit list and e
  await page.setViewportSize({width,height:900});let deleted=false,attempts=0,logAttempts=0;
  await page.route('**/api/**',route=>{
   const url=new URL(route.request().url());
-  if(url.pathname==='/api/account')return route.fulfill({json:{email:'owner@example.invalid',role:'owner'}});
+  if(url.pathname==='/api/account')return route.fulfill({json:{email:'owner@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}});
   if(url.pathname==='/api/club-settings')return route.fulfill({json:{name:'测试俱乐部'}});
   if(url.pathname==='/api/delete-import'){attempts++;return route.fulfill(attempts===1?{status:502,json:{error:'连接失败，请重试'}}:(deleted=true,{json:{deleted:true}}));}
   if(url.pathname==='/api/activity'){

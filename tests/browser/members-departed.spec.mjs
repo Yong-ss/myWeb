@@ -4,7 +4,7 @@ for(const width of [1440,390])test(`departed section shares date selection with 
  await page.setViewportSize({width,height:1000});
  const current={id:'current',snapshot_date:'2026-10-30',revision:2,is_current:true,is_complete_roster:true};
  const old={...current,id:'old',revision:1,is_current:false};
- await page.route('**/api/account',r=>r.fulfill({json:{email:'test@example.invalid',role:'owner'}}));
+ await page.route('**/api/account',r=>r.fulfill({json:{email:'test@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}}));
  await page.route('**/api/club-settings',r=>r.fulfill({json:{name:'测试俱乐部'}}));
  await page.route('**/api/members*',r=>{
   const params=new URL(r.request().url()).searchParams;

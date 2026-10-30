@@ -7,6 +7,7 @@ import {Input} from "../../components/ui/input";
 import {Button,useSuccessFlash} from "../../components/ui/button";
 import {Field,FieldDescription,FieldError,FieldGroup,FieldLabel} from "../../components/ui/field";
 import {useClubBrand,loadClubSettings,saveClubName} from "../../lib/club-brand";
+import {MfaCard} from "./MfaCard";
 export function Settings(){
  const [retry,setRetry]=useState(0);
  const [saved,flashSaved]=useSuccessFlash();
@@ -25,5 +26,6 @@ export function Settings(){
    </FieldGroup></form>
    <FieldDescription className="flex items-center gap-2">{loading&&<LoadingSpinner />}{loading?"正在读取俱乐部设置…":error&&!canEdit?"读取失败，可重试。":canEdit?"保存后，各设备读取同一个俱乐部名称。":"仅公会长可以修改名称。"}</FieldDescription>
   </Card>
+  <MfaCard/>
  </main>;
 }

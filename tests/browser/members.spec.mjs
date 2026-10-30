@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 test.beforeEach(async({page})=>{
- await page.route('**/api/account',r=>r.fulfill({json:{email:'members@example.invalid',role:'owner'}}));
+ await page.route('**/api/account',r=>r.fulfill({json:{email:'members@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}}));
  await page.route('**/api/club-settings',r=>r.fulfill({json:{name:'测试俱乐部'}}));
 });
 const id='00000000-0000-4000-8000-000000000001', old='00000000-0000-4000-8000-000000000002';

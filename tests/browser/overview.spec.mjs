@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 for(const width of [1440,390])test(`overview and analytics navigation ${width}`,async({page})=>{
  await page.setViewportSize({width,height:900});let comparisons=0;
  await page.route('**/api/**',r=>{
- const u=new URL(r.request().url());if(u.pathname==='/api/account')return r.fulfill({json:{email:'test@example.invalid',role:'owner'}});if(u.pathname==='/api/club-settings')return r.fulfill({json:{name:'测试俱乐部'}});
+ const u=new URL(r.request().url());if(u.pathname==='/api/account')return r.fulfill({json:{email:'test@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}});if(u.pathname==='/api/club-settings')return r.fulfill({json:{name:'测试俱乐部'}});
  if(u.searchParams.has('trend'))return r.fulfill({json:{points:[{date:'2026-10-29',score:100,partial:false,missing:0},{date:'2026-10-30',score:120,partial:false,missing:0}],next:null}});
  const prior=u.searchParams.has('date');if(prior)comparisons++;
  return r.fulfill({json:{snapshot:{snapshot_date:prior?'2026-10-29':'2026-10-30',is_complete_roster:true},snapshots:[{snapshot_date:'2026-10-30'},{snapshot_date:'2026-10-29'}],members:[{player_id:'p',name:'成员',presence:'present',pathway:'观众',extraordinary_score:prior?100:120}],next:null}});
