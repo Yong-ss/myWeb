@@ -120,6 +120,6 @@ GET/POST /api/club-settings 复用现有认证、同源限制与服务端 CLUB_I
 
 导入的 left / temporary / uncertain 分别显示已确认退会／暂离／待确认，旧 missed 保持待确认；presence 仍使用 present / left / unconfirmed 分组，temporary 与 left 均进入不在会名单。暂离必须保存 1–500 字理由。共享 presenceText 决定标签，实际评分记录不补零。
 
-新增迁移 20261029233256 扩展原有缺席记录并引入只追加的 club_absence_resolutions。POST /api/resolve-absence 经现有 Worker 身份、来源、membership 检查后调用专用 RPC；数据库再次校验 active owner/admin、当前版本、待确认状态，使用与导入相同的俱乐部事务锁，原子写处理记录和审计。重试相同选择幂等，不同选择返回冲突。历史版本不直接更新，后续同日修订保留已处理选择，重新出现的实际观察结束旧缺席状态，删除日期后忽略其选择。
+新增迁移 20261030014019 扩展原有缺席记录并引入只追加的 club_absence_resolutions。POST /api/resolve-absence 经现有 Worker 身份、来源、membership 检查后调用专用 RPC；数据库再次校验 active owner/admin、当前版本、待确认状态，使用与导入相同的俱乐部事务锁，原子写处理记录和审计。重试相同选择幂等，不同选择返回冲突。历史版本不直接更新，后续同日修订保留已处理选择，重新出现的实际观察结束旧缺席状态，删除日期后忽略其选择。
 
 准备导入时检查 absence_version=2，不兼容的数据库在开始核对前阻止提交。生产迁移仍由维护者手动应用，本次没有应用生产迁移。
