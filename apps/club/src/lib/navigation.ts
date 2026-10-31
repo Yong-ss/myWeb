@@ -10,6 +10,7 @@ const privateRoutes: { path: string; nav?: { icon: string; label: string }; acti
   { path: "/import", nav: { icon: "⊕", label: "导入数据" } },
   { path: "/activity", nav: { icon: "≡", label: "操作日志" } },
   { path: "/settings" }, // linked from the header, not the sidebar
+  { path: "/admin" }, // platform panel; header link shown only with platform.read
 ];
 
 export const privateLinks: NavLink[] = privateRoutes.flatMap(route => route.nav ? [{ href: route.path, ...route.nav }] : []);

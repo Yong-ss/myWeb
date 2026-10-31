@@ -182,3 +182,46 @@ test('the Super Admin binds and verifies real TOTP in Settings; powers appear on
   // Confirmation rows are an append-only record; they match nothing once their factor is gone.
  }
 });
+
+test('platform panel: only an aal2 Super Admin session from a confirmed device reads it, through the Worker and the database',async({request})=>{
+ const paths=['overview','users','roles','activity'];
+ const viaWorker=async(token,path)=>request.get(`${baseURL}/api/admin/${path}`,{headers:{Cookie:`__Host-club_access=${token}`}});
+ const rpcs=[['platform_overview',{}],['platform_users',{}],['platform_roles',{}],['platform_activity',{}]];
+ const refused=async(token,label)=>{
+  for(const path of paths)expect((await viaWorker(token,path)).status(),`${label} ${path}`).toBe(403);
+  // Calling the database directly with the same token (bypassing the Worker) is refused too.
+  for(const [fn,body] of rpcs)expect((await rest(`rpc/${fn}`,token,body)).status,`${label} ${fn}`).toBe(403);
+ };
+ for(const role of ['admin','foreign','outsider'])await refused((await auth(role)).access_token,role);
+ const aal1=(await auth('owner')).access_token;await refused(aal1,'Super Admin aal1');
+ const enrolled=await (await authApi('factors',aal1,{factor_type:'totp',friendly_name:'platform-integration'})).json();
+ try{
+  const challenge=await (await authApi(`factors/${enrolled.id}/challenge`,aal1,{})).json();
+  const aal2=(await (await authApi(`factors/${enrolled.id}/verify`,aal1,{challenge_id:challenge.id,code:totp(enrolled.totp.secret)})).json()).access_token;
+  expect(claims(aal2).aal).toBe('aal2');
+  // A real aal2 session from an unconfirmed device is not enough.
+  await refused(aal2,'aal2 unconfirmed device');
+  sql(`select club_private.trust_super_admin_factor('${enrolled.id}');`);
+  const account=await (await request.get(`${baseURL}/api/account`,{headers:{Cookie:`__Host-club_access=${aal2}`}})).json();
+  expect(account.platform_permissions).toContain('platform.read');
+  const overview=await (await viaWorker(aal2,'overview')).json();
+  expect(overview.totals).toMatchObject({clubs:Number(sql('select count(*) from public.club_clubs;')),users:Number(sql('select count(*) from auth.users;'))});
+  expect(overview.alliances).toBeNull();
+  const users=(await (await viaWorker(aal2,'users?q=admin@club.test')).json()).users;
+  expect(users).toHaveLength(1);
+  expect(Object.keys(users[0]).sort()).toEqual(['created_at','effective','email','email_confirmed','id','last_sign_in_at','memberships','super_admin']);
+  // What the panel shows as effective permissions is what the database grants that user.
+  expect(users[0].effective[0].permissions).toEqual(await (await rest('rpc/club_my_permissions',(await auth('admin')).access_token,{p_club:clubId})).json());
+  const roles=await (await viaWorker(aal2,'roles')).json();
+  expect(roles.permissions.map(p=>p.key)).toContain('platform.read');
+  // The SQL Editor confirmation is in the platform log, attributed to the database login.
+  const events=(await (await viaWorker(aal2,'activity')).json()).events;
+  expect(events.find(e=>e.action==='platform_super_admin_factors.insert'&&e.details.new.factor_id===enrolled.id)).toMatchObject({via:'postgres',actor:null});
+  // Ordinary members still never see the Super Admin's email anywhere they can read.
+  const admin=(await auth('admin')).access_token;
+  for(const path of ['/api/account','/api/activity','/api/members'])expect(await (await request.get(baseURL+path,{headers:{Cookie:`__Host-club_access=${admin}`}})).text(),path).not.toContain('owner@club.test');
+  // Removing the device ends platform access at once, with the same unexpired token.
+  expect((await authApi(`factors/${enrolled.id}`,aal2,undefined,'DELETE')).ok).toBe(true);
+  await refused(aal2,'after device removal');
+ }finally{sql(`delete from auth.mfa_factors where id='${enrolled.id}';`);}
+});

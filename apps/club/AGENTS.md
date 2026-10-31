@@ -4,11 +4,11 @@
 
 ## 模块边界（`src/architecture.test.mjs` 自动检查）
 
-- `src/features/<功能>/`：每个功能自带页面、组件、纯逻辑和测试（import、members、history、analytics、activity、settings、auth）。功能之间禁止互相 import；需共用的先移到共享层。
+- `src/features/<功能>/`：每个功能自带页面、组件、纯逻辑和测试（import、members、history、analytics、activity、settings、auth、admin）。功能之间禁止互相 import；需共用的先移到共享层。
 - `src/domain/`：跨功能业务契约（成员字段、日期／UUID 校验、在会状态），只依赖自身。
 - `src/lib/`（`clubApi`、缓存、刷新、导航、品牌）与 `src/components/`（UI、布局、反馈）：共享基础设施，禁止 import 功能。
 - `src/app/<路由>/page.tsx` 只重新导出功能页面；`src/app/error.tsx` 让单页出错时外壳照常可用。
-- `worker/`：每个 API 一个处理文件，在 `index.ts` 的 `routes` 表登记，并为每个方法声明所需权限（`src/domain/permissions.ts`，未声明即拒绝）；数据库函数用 `club_private.require()`，RLS 用 `readable_clubs()`，不得再写 owner/admin 角色判断；通用 HTTP 工具在 `worker/http.ts`。Worker 只能用 `domain/` 和功能目录中不含 React 的 `.ts`。
+- `worker/`：每个 API 一个处理文件，在 `index.ts` 的 `routes` 表登记，并为每个方法声明所需权限（`src/domain/permissions.ts`，未声明即拒绝）；数据库函数用 `club_private.require()`，RLS 用 `readable_clubs()`，不得再写 owner/admin 角色判断；平台接口在 `routes` 标 `platform: true` 并声明平台范围权限（只检查 `platformPermissions`），对应 `public.platform_*` RPC 开头必须调用 `club_private.can_platform()`；通用 HTTP 工具在 `worker/http.ts`。Worker 只能用 `domain/` 和功能目录中不含 React 的 `.ts`。
 - 新功能：新建 `src/features/<名字>/`（页面 `<main className="club-workspace club-<名字>">`），加一行路由页、`src/lib/navigation.ts` 一项，需要时加 `worker/<名字>.ts` 和 `routes` 一项。不应修改其他功能。
 
 ## 共享约定

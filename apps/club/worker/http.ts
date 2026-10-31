@@ -1,7 +1,9 @@
 // Small HTTP helpers shared by every Worker handler. No feature or business logic here.
 export type Rest = (path: string, body?: unknown) => Promise<Response>;
 /** The caller's live access for the configured club, read once per request from the database. */
-export type Access = { permissions: import("../src/domain/permissions.ts").Permission[]; roles: string[]; superAdmin: boolean; superAdminActive: boolean; sessionAal2: boolean };
+export type Access = { permissions: import("../src/domain/permissions.ts").Permission[]; roles: string[]; superAdmin: boolean; superAdminActive: boolean; sessionAal2: boolean;
+  /** Platform-scope permissions (club_private.can_platform); never satisfy a club route, and club ones never satisfy these. */
+  platformPermissions: import("../src/domain/permissions.ts").Permission[] };
 
 export const reply = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 

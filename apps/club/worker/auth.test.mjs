@@ -37,7 +37,7 @@ test('membership revocation applies to an already valid session', async () => {
   const request = req('account', null, '__Host-club_access=access');
   for (const role of ['owner', 'admin']) {
     const response = await handleRequest(request, env, mock(role));
-    assert.deepEqual(await response.json(), { email: user.email, club_id: 'club-a', roles: [role], permissions: grants[role], super_admin: false, mfa_verified: false, mfa_session: false });
+    assert.deepEqual(await response.json(), { email: user.email, club_id: 'club-a', roles: [role], permissions: grants[role], super_admin: false, mfa_verified: false, mfa_session: false, platform_permissions: [] });
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
   }
   assert.equal((await handleRequest(request, env, mock(null))).status, 403);
@@ -73,7 +73,7 @@ test('logout revokes only Club session and clears its cookies', async () => {
   assert.ok(response.headers.get('Set-Cookie').includes('Max-Age=0'));
 });
 test('every route accepts only its own methods, so a missed entry cannot fall through to account data', async () => {
-  const expected = { login:['POST'], logout:['POST'], account:['GET'], 'import-context':['GET'], imports:['POST'], 'player-aliases':['POST'], 'resolve-absence':['POST'], members:['GET'], 'club-settings':['GET','POST'], activity:['GET'], 'delete-import':['POST'], mfa:['GET','POST'] };
+  const expected = { login:['POST'], logout:['POST'], account:['GET'], 'import-context':['GET'], imports:['POST'], 'player-aliases':['POST'], 'resolve-absence':['POST'], members:['GET'], 'club-settings':['GET','POST'], activity:['GET'], 'delete-import':['POST'], mfa:['GET','POST'], 'admin/overview':['GET'], 'admin/users':['GET'], 'admin/roles':['GET'], 'admin/activity':['GET'] };
   for (const [path, methods] of Object.entries(expected)) for (const method of ['GET','POST','PUT','DELETE']) {
     const response = await handleRequest(new Request(`https://club.example/api/${path}`, { method, headers: { Origin: 'https://club.example', 'Content-Type': 'application/json' } }), env, async () => new Response(null, { status: 401 }));
     if (methods.includes(method)) assert.notEqual(response.status, 405, `${method} ${path}`); else assert.equal(response.status, 405, `${method} ${path}`);

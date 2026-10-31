@@ -4,6 +4,7 @@ import { handleImport } from "./imports.ts";
 import {handleSettings} from "./settings.ts";
 import { handleMembers } from "./members.ts";
 import {handleMfa} from "./mfa.ts";
+import {handleAdmin} from "./admin.ts";
 import {instrument} from "./timing.ts";
 import {reply, readBody, type Rest, type Access} from "./http.ts";
 import {isPermission, type Permission} from "../src/domain/permissions.ts";
@@ -18,7 +19,7 @@ interface Env {
 type Handler = (request: Request, club: string, rest: Rest, access: Access) => Promise<Response>;
 // Single source of truth: allowed paths, methods and the permission each business method requires.
 // A business route without a declared permission for a method is denied (default deny).
-const routes: Record<string, { methods: string[]; handler?: Handler; permission?: Partial<Record<string, Permission>>; mfa?: true }> = {
+const routes: Record<string, { methods: string[]; handler?: Handler; permission?: Partial<Record<string, Permission>>; mfa?: true; platform?: true }> = {
   "/api/login": { methods: ["POST"] },
   "/api/logout": { methods: ["POST"] },
   "/api/account": { methods: ["GET"] },
@@ -31,6 +32,11 @@ const routes: Record<string, { methods: string[]; handler?: Handler; permission?
   "/api/club-settings": { methods: ["GET", "POST"], handler: handleSettings, permission: { GET: "members.read", POST: "club.rename" } },
   "/api/activity": { methods: ["GET"], handler: handleActivity, permission: { GET: "audit.read" } },
   "/api/delete-import": { methods: ["POST"], handler: handleActivity, permission: { POST: "imports.delete" } },
+  // Platform routes check platform-scope permissions only (see Access.platformPermissions).
+  "/api/admin/overview": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
+  "/api/admin/users": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
+  "/api/admin/roles": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
+  "/api/admin/activity": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
 };
 export const routePermissions = Object.fromEntries(Object.entries(routes).map(([path, route]) => [path, route.permission]));
 
@@ -86,11 +92,12 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) throw new Error("Membership service unavailable");
-    const data = await response.json() as { permissions?: unknown; roles?: unknown; super_admin?: unknown; super_admin_active?: unknown; session_aal2?: unknown };
+    const data = await response.json() as { permissions?: unknown; roles?: unknown; super_admin?: unknown; super_admin_active?: unknown; session_aal2?: unknown; platform_permissions?: unknown };
     const result: Access = {
       permissions: Array.isArray(data.permissions) ? data.permissions.filter(isPermission) : [],
       roles: Array.isArray(data.roles) ? data.roles.filter((r): r is string => typeof r === "string") : [],
       superAdmin: data.super_admin === true, superAdminActive: data.super_admin_active === true, sessionAal2: data.session_aal2 === true,
+      platformPermissions: Array.isArray(data.platform_permissions) ? data.platform_permissions.filter(isPermission) : [],
     };
     // A listed Super Admin may sign in to complete MFA even without club permissions; powers still need aal2.
     return result.permissions.length || result.superAdmin ? result : undefined;
@@ -144,7 +151,7 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     const granted = await access(user, token);
     if (!granted) return setSession(reply({ error: "此账户没有俱乐部访问权限" }, 403), request);
     // Cached reads are keyed to the exact access they were fetched with, so any permission change clears them.
-    const scope = `${user.id}:${env.CLUB_ID}:${granted.superAdminActive ? "aal2" : "aal1"}:${granted.permissions.join(",")}`;
+    const scope = `${user.id}:${env.CLUB_ID}:${granted.superAdminActive ? "aal2" : "aal1"}:${granted.permissions.join(",")}:${granted.platformPermissions.join(",")}`;
     const finish = (response: Response, session = renewed) => { response.headers.set("X-Club-Scope", scope); return session ? setSession(response, request, session) : response; };
     if (route.mfa) {
       if (!granted.superAdmin) return finish(reply({ error: "此账户不需要两步验证设置" }, 403));
@@ -157,7 +164,8 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     }
     if (route.handler) {
       const required = route.permission?.[request.method];
-      if (!required || !granted.permissions.includes(required)) return finish(reply({ error: "此账户没有权限执行这个操作" }, 403));
+      if (!required || !(route.platform ? granted.platformPermissions : granted.permissions).includes(required))
+        return finish(reply({ error: route.platform ? "需要已完成两步验证、并使用已确认设备登录的超级管理员" : "此账户没有权限执行这个操作" }, 403));
       const response = await route.handler(request, env.CLUB_ID, (path: string, body?: unknown) => fetcher(`${env.SUPABASE_URL}/rest/v1/${path}`, {
         method: body === undefined ? "GET" : "POST",
         headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -166,7 +174,7 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
       }), granted);
       return finish(response);
     }
-    return finish(reply({ email: user.email, club_id: env.CLUB_ID, roles: granted.roles, permissions: granted.permissions, super_admin: granted.superAdmin, mfa_verified: granted.superAdminActive, mfa_session: granted.sessionAal2 }));
+    return finish(reply({ email: user.email, club_id: env.CLUB_ID, roles: granted.roles, permissions: granted.permissions, super_admin: granted.superAdmin, mfa_verified: granted.superAdminActive, mfa_session: granted.sessionAal2, platform_permissions: granted.platformPermissions }));
   } catch (error) {
     // Only path and error type/message: never cookies, tokens or request bodies.
     console.error(JSON.stringify({ event: "club_api_error", path: url.pathname, error: error instanceof Error ? `${error.name}: ${error.message}` : "unknown" }));

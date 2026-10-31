@@ -7,7 +7,7 @@ test('sidebar entries, labels and order stay exactly as approved',()=>{
  assert.deepEqual(publicLinks.map(l=>[l.href,l.icon,l.label]),[['/','◇','首页'],['/login','✧','登录']]);
 });
 test('every signed-in page uses the private shell; public and unknown pages never do',()=>{
- for(const path of ['/account','/analytics','/members','/players','/import','/activity','/settings','/members/'])assert.equal(isPrivateRoute(path),true,path);
+ for(const path of ['/account','/analytics','/members','/players','/import','/activity','/settings','/admin','/members/'])assert.equal(isPrivateRoute(path),true,path);
  // The login page must stay public, otherwise an expired session would redirect to itself.
  for(const path of ['/','/login','/missing-page','/_not-found','/accounts'])assert.equal(isPrivateRoute(path),false,path);
 });
@@ -15,5 +15,5 @@ test('a player history page highlights 成员名单; other pages highlight thems
  assert.equal(activeHref('/players'),'/members');
  for(const path of ['/account','/members','/import','/activity','/','/login'])assert.equal(activeHref(path),path);
  // Settings has no sidebar entry, so nothing in the sidebar is marked current.
- assert.ok(![...privateLinks,...publicLinks].some(l=>l.href===activeHref('/settings')));
+ for(const path of ['/settings','/admin'])assert.ok(![...privateLinks,...publicLinks].some(l=>l.href===activeHref(path)),path);
 });
