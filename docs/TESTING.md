@@ -36,6 +36,12 @@ Worker 的意外异常仍返回 502，同时用 `console.error` 输出一行 JSO
 
 下文带日期的章节是历史验证记录，若与本节冲突，以本节为准。
 
+## P3.1 本地回归范围 — 2026-10-31
+
+`supabase/tests/platform_player_counts.sql` 使用一次性数据库覆盖纯在会、明确退会、暂离、待确认、完整名单判定的其他不在会、重新出现、不完整名单、同日新版本、删除最新日期／全部观察、无快照、真实零值与多俱乐部隔离；历史身份总数不变。现有 `platform_admin.sql` 保留全部 MFA／权限检查并更新新响应契约。`tests/integration/authz.spec.mjs` 使用真实 TOTP、确认设备、Worker 和 REST，对每个俱乐部的总览结果与现有名单 RPC 逐类核对，并保留所有拒绝路径。
+
+`tests/browser/admin.spec.mjs` 覆盖 1440／390／320 宽度、人数详情键盘展开／收起、未知与零的区别、旧响应不误报历史总数和管理账户分离；`club-visual-review.spec.mjs` 增加 Admin 页面截图。仅使用合成数据，不连接生产。实际执行结果以本次交付报告为准。
+
 ## 日常命令
 
 Windows 每个新终端先运行 `. ./scripts/env.ps1`，将缓存和临时文件放在 Global_Env 或工作区。

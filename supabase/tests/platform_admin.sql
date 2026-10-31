@@ -69,7 +69,7 @@ begin
   o := public.platform_overview();
   if (o#>>'{totals,clubs}')::int <> 2 or (o#>>'{totals,users}')::int <> 64 or (o#>>'{totals,confirmed_users}')::int <> 63
     or (o#>>'{totals,members}')::int <> 3 or o->'alliances' <> 'null'::jsonb then raise exception 'Overview totals wrong: %', o->'totals'; end if;
-  if (select value from jsonb_array_elements(o->'clubs') where value->>'name'='Platform X') - 'id' - 'created_at' <> '{"name":"Platform X","members":2,"players":1,"latest_snapshot":null}' then raise exception 'Club row wrong: %', o->'clubs'; end if;
+  if (select value from jsonb_array_elements(o->'clubs') where value->>'name'='Platform X') - 'id' - 'created_at' <> '{"name":"Platform X","members":2,"players":1,"latest_snapshot":null,"is_complete_roster":null,"player_counts":null}' then raise exception 'Club row wrong: %', o->'clubs'; end if;
   -- Pages of 50 cover every user exactly once, in email order.
   page := public.platform_users();
   loop

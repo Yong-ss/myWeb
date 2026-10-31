@@ -12,7 +12,8 @@ for(const width of [1440,390])test(`whole Club visual review ${width}`,async({pa
     const url=new URL(route.request().url());
     if(url.origin!=='http://127.0.0.1:8791')return route.abort();
     if(!url.pathname.startsWith('/api/'))return route.continue();
-    const json=url.pathname==='/api/account'?{email:'archive@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}:
+    const json=url.pathname==='/api/account'?{email:'archive@example.invalid',roles:['owner'],super_admin:true,mfa_verified:true,platform_permissions:['platform.read']}:
+      url.pathname==='/api/admin/overview'?{totals:{clubs:1,users:1,confirmed_users:1,members:1,active_roles:1},alliances:null,clubs:[{id,name:'灰雾档案馆 · 测试',members:1,players:86,latest_snapshot:snapshot.snapshot_date,is_complete_roster:true,player_counts:{present:64,temporary:3,confirmed_left:8,unconfirmed:7,other_left:4}}]}:
       url.pathname==='/api/club-settings'?{name:'灰雾档案馆 · 测试',can_edit:true}:
       url.pathname==='/api/activity'?{events:[{id,actor_id:null,actor_label:'超级管理员',actor_kind:'super_admin',actor_role:null,created_at:'2026-10-28T12:00:00Z',action:'import_date_deleted',details:{date:'2026-10-27',versions:2}}],next:null}:
       url.pathname==='/api/import-context'?{players:[],snapshot:null,members:[]}:
@@ -20,7 +21,7 @@ for(const width of [1440,390])test(`whole Club visual review ${width}`,async({pa
       {snapshot,snapshots:[snapshot],members,next:null,snapshot_count:8};
     return route.fulfill({json});
   });
-  for(const [name,path] of [['home','/'],['login','/login'],['dashboard','/account'],['members','/members'],['player',`/players?id=${id}`],['import','/import'],['activity','/activity'],['settings','/settings'],['404','/404.html']]){
+  for(const [name,path] of [['home','/'],['login','/login'],['dashboard','/account'],['members','/members'],['player',`/players?id=${id}`],['import','/import'],['activity','/activity'],['settings','/settings'],['404','/404.html'],['admin','/admin']]){
     await page.goto(path);await page.waitForLoadState('networkidle');
     await expect(page.getByRole('main')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} must fit the viewport`).toBe(true);

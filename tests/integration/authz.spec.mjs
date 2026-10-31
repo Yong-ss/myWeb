@@ -207,6 +207,37 @@ test('platform panel: only an aal2 Super Admin session from a confirmed device r
   const overview=await (await viaWorker(aal2,'overview')).json();
   expect(overview.totals).toMatchObject({clubs:Number(sql('select count(*) from public.club_clubs;')),users:Number(sql('select count(*) from auth.users;'))});
   expect(overview.alliances).toBeNull();
+  if(process.env.P31_PERFORMANCE==='1'){
+   sql(`insert into public.club_clubs(id,name) select md5('p31-club-'||c)::uuid,'P31 performance '||c from generate_series(1,10)c;
+    insert into public.club_players(id,club_id,display_name) select md5('p31-player-'||c||'-'||p)::uuid,md5('p31-club-'||c)::uuid,'Player '||p from generate_series(1,10)c cross join generate_series(1,80)p;
+    insert into public.club_imports(id,club_id,submitted_by,raw_text,schema_version,request_id) select md5('p31-import-'||c||'-'||d)::uuid,md5('p31-club-'||c)::uuid,'${claims(aal2).sub}','{}',1,md5('p31-request-'||c||'-'||d)::uuid from generate_series(1,10)c cross join generate_series(1,30)d;
+    insert into public.club_snapshots(id,club_id,snapshot_date,revision,import_id,is_complete_roster) select md5('p31-snapshot-'||c||'-'||d)::uuid,md5('p31-club-'||c)::uuid,date '2040-01-01'+d,1,md5('p31-import-'||c||'-'||d)::uuid,true from generate_series(1,10)c cross join generate_series(1,30)d;
+    insert into public.club_snapshot_players(club_id,snapshot_id,player_id) select md5('p31-club-'||c)::uuid,md5('p31-snapshot-'||c||'-'||d)::uuid,md5('p31-player-'||c||'-'||p)::uuid from generate_series(1,10)c cross join generate_series(1,30)d cross join generate_series(1,80)p;
+    analyze public.club_snapshots;analyze public.club_snapshot_players;`);
+   const samples=[];
+   for(let i=0;i<7;i++){
+    const start=performance.now(),response=await viaWorker(aal2,'overview');expect(response.status()).toBe(200);
+    const result=await response.json();samples.push(Math.round(performance.now()-start));
+    const clubs=result.clubs.filter(c=>c.name.startsWith('P31 performance '));expect(clubs).toHaveLength(10);
+    for(const c of clubs){expect(c.player_counts).toEqual({present:80,temporary:0,confirmed_left:0,unconfirmed:0,other_left:0});expect(Object.values(c.player_counts).reduce((a,b)=>a+b,0)).toBe(c.players);}
+   }
+   console.log('P31 overview performance: '+JSON.stringify({clubs:10,playersPerClub:80,days:30,rows:24000,samplesMs:samples}));
+   (await import('node:fs')).writeFileSync('.test-artifacts/p31-overview-performance.json',JSON.stringify({clubs:10,playersPerClub:80,days:30,rows:24000,samplesMs:samples},null,2));
+   expect(Math.max(...samples)).toBeLessThan(2000);
+  }
+
+  // Every club uses its own latest effective roster; compare through real REST/RLS, not a second presence algorithm.
+  for(const c of overview.clubs){
+   const snapshots=await (await rest(`club_snapshots?club_id=eq.${c.id}&is_current=eq.true&deleted_at=is.null&order=snapshot_date.desc&limit=1&select=id,snapshot_date`,aal2)).json();
+   expect(c.latest_snapshot).toBe(snapshots[0]?.snapshot_date??null);
+   const players=await (await rest(`club_players?club_id=eq.${c.id}&select=id`,aal2)).json();
+   expect(c.players).toBe(players.length);
+   if(!snapshots.length){expect(c.player_counts).toBeNull();continue;}
+   const roster=await (await rest('rpc/club_roster_presence',aal2,{p_club:c.id,p_snapshot:snapshots[0].id})).json();
+   const count=(presence,decision)=>roster.members.filter(r=>r.presence===presence&&(decision===undefined||r.absence_decision===decision)).length;
+   expect(Object.values(c.player_counts).reduce((a,b)=>a+b,0)).toBe(c.players);
+   expect(c.player_counts).toEqual({present:count('present'),temporary:count('left','temporary'),confirmed_left:count('left','left'),unconfirmed:count('unconfirmed')+players.length-roster.members.length,other_left:count('left')-count('left','temporary')-count('left','left')});
+  }
   const users=(await (await viaWorker(aal2,'users?q=admin@club.test')).json()).users;
   expect(users).toHaveLength(1);
   expect(Object.keys(users[0]).sort()).toEqual(['created_at','effective','email','email_confirmed','id','last_sign_in_at','memberships','super_admin']);

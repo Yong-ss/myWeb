@@ -4,6 +4,7 @@ import {clubApi} from "../../lib/data-access";
 import {PageHeader} from "../../components/layout/PageHeader";
 import {LoadingState,TableSkeleton} from "../../components/feedback";
 import {Card} from "../../components/ui/card";
+import {Collapsible,CollapsibleContent,CollapsibleTrigger} from "../../components/ui/collapsible";
 import {Badge} from "../../components/ui/badge";
 import {Button,ButtonLink} from "../../components/ui/button";
 import {Input} from "../../components/ui/input";
@@ -14,7 +15,8 @@ import {actionLabel,actorLabel,changeSummary,scopeNames,type PlatformEvent} from
 
 // Platform panel, read-only (P3). What is shown here is display only: every request is checked by the Worker
 // (platform.read) and again by the database, which allows it only for an MFA-verified Super Admin on a confirmed device.
-type Overview={totals:{clubs:number;users:number;confirmed_users:number;members:number;active_roles:number};alliances:null|number;clubs:{id:string;name:string;members:number;players:number;latest_snapshot:string|null}[]};
+type PlayerCounts={present:number;temporary:number;confirmed_left:number;unconfirmed:number;other_left:number};
+type Overview={totals:{clubs:number;users:number;confirmed_users:number;members:number;active_roles:number};alliances:null|number;clubs:{id:string;name:string;members:number;players:number;latest_snapshot:string|null;is_complete_roster?:boolean|null;player_counts?:PlayerCounts|null}[]};
 type User={id:string;email:string|null;email_confirmed:boolean;created_at:string;last_sign_in_at:string|null;super_admin:boolean;memberships:{club_id:string;club_name:string;role:string;role_name:string|null;status:string}[];effective:{club_id:string;club_name:string;permissions:string[]}[]};
 type Roles={permissions:{key:string;kind:string;scopes:string[];sensitive:boolean;description:string}[];roles:{key:string;name:string;scope:string;club_name:string|null;system:boolean;permissions:string[];assigned:number}[]};
 const time=new Intl.DateTimeFormat("zh-CN",{timeZone:"Asia/Shanghai",dateStyle:"short",timeStyle:"short",hour12:false});
@@ -37,8 +39,18 @@ function OverviewPanel(){
    {metric("俱乐部",t.clubs)}{metric("联盟",data.alliances??"未启用",data.alliances===null?"联盟功能尚未上线":undefined)}
    {metric("账户",t.users,`${t.confirmed_users} 个已验证邮箱`)}{metric("有俱乐部角色的用户",t.members,`${t.active_roles} 个生效角色`)}
   </Card>
-  <Table><TableCaption>全部俱乐部 · 成员按有生效角色的账户计算</TableCaption><TableHeader><TableRow><TableHead>俱乐部</TableHead><TableHead>账户</TableHead><TableHead>玩家</TableHead><TableHead>最新记录</TableHead></TableRow></TableHeader>
-   <TableBody>{data.clubs.map(c=><TableRow key={c.id}><TableCell className="font-medium whitespace-normal">{c.name}</TableCell><TableCell>{c.members}</TableCell><TableCell>{c.players}</TableCell><TableCell className="text-muted-foreground">{c.latest_snapshot??"暂无"}</TableCell></TableRow>)}</TableBody></Table>
+  <p className="m-0 text-sm text-muted-foreground">玩家状态与成员名单使用同一规则，按最新有效记录统计，不代表实时游戏在线人数；网站管理账户独立计算。</p>
+  <Table className="max-sm:block"><TableCaption className="max-sm:block">全部俱乐部 · 网站管理账户按有生效角色的不同账户计算</TableCaption><TableHeader className="max-sm:sr-only"><TableRow><TableHead>俱乐部</TableHead><TableHead>网站管理账户</TableHead><TableHead>当前在会人数</TableHead></TableRow></TableHeader>
+   <TableBody className="max-sm:block">{data.clubs.map(c=><TableRow key={c.id} className="max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto]">
+    <TableCell className="align-top whitespace-normal max-sm:block"><span className="font-medium">{c.name}</span><small className="mt-1 block text-muted-foreground">最新记录：{c.latest_snapshot??"暂无数据"}</small>{c.latest_snapshot&&typeof c.is_complete_roster==="boolean"&&<Badge variant={c.is_complete_roster?"success":"warning"}>{c.is_complete_roster?"完整名单":"不完整名单"}</Badge>}</TableCell>
+    <TableCell className="align-top tabular-nums max-sm:block max-sm:text-right"><span className="block text-xs text-muted-foreground sm:hidden">网站管理账户</span>{c.members}</TableCell>
+    <TableCell className="align-top whitespace-normal max-sm:col-span-2 max-sm:block max-sm:border-t max-sm:border-border"><span className="block text-xs text-muted-foreground sm:hidden">当前在会人数</span><strong className="block font-heading text-2xl font-medium text-gold tabular-nums">{c.player_counts?.present??"暂无数据"}</strong><small className="block text-muted-foreground">历史累计玩家：{c.players}</small>
+     <Collapsible className="max-w-72"><CollapsibleTrigger aria-label={`${c.name}人数详情`} className="px-0">人数详情</CollapsibleTrigger><CollapsibleContent>
+      <dl className="m-0 grid gap-2 text-sm">{([["暂离人数","temporary"],["已确认退会人数","confirmed_left"],["待确认人数","unconfirmed"],["其他不在会人数","other_left"]] as const).map(([label,key])=><div key={key} className="flex flex-wrap justify-between gap-x-3"><dt className="text-muted-foreground">{label}</dt><dd className="m-0 tabular-nums">{c.player_counts?.[key]??"暂无数据"}</dd></div>)}</dl>
+      <p className="mb-0 max-w-72 text-xs text-muted-foreground">待确认包含没有有效观察的历史玩家；其他不在会指名单规则已判定不在会，但没有明确暂离或退会分类。</p>
+     </CollapsibleContent></Collapsible>
+    </TableCell>
+   </TableRow>)}</TableBody></Table>
  </div>;
 }
 
