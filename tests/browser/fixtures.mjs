@@ -17,7 +17,7 @@ export async function mockApp(page) {
       state.signedIn=true; return respond(200,{ok:true});
     }
     if (!state.signedIn) return respond(401,{error:'请先登录'});
-    if (url.pathname === '/api/account') return respond(200,{email:'fixture@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false,club_id:id});
+    if (url.pathname === '/api/account') return respond(200,{email:'fixture@example.invalid',roles:['owner'],permissions:['absences.resolve','aliases.manage','audit.read','club.rename','imports.create','imports.delete','members.read'],super_admin:false,mfa_verified:false,club_id:id,clubs:[{id,name:'测试俱乐部',roles:['owner']}]});
     if (url.pathname === '/api/logout') { state.signedIn=false; return respond(200,{ok:true}); }
     if (url.pathname === '/api/import-context') return respond(200,{players:[{id,display_name:'冷月',match_name:'冷月'}],snapshot:{id,revision:2,is_complete_roster:false},members:[{...member,name:'冷月',player_id:id}]});
     if (url.pathname === '/api/imports') {
