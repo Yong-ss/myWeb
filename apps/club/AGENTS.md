@@ -4,7 +4,7 @@
 
 ## 模块边界（`src/architecture.test.mjs` 自动检查）
 
-- `src/features/<功能>/`：每个功能自带页面、组件、纯逻辑和测试（import、members、history、analytics、activity、settings、auth、admin）。功能之间禁止互相 import；需共用的先移到共享层。
+- `src/features/<功能>/`：每个功能自带页面、组件、纯逻辑和测试（import、members、history、analytics、activity、settings、auth、admin、security）。功能之间禁止互相 import；需共用的先移到共享层。
 - `src/domain/`：跨功能业务契约（成员字段、日期／UUID 校验、在会状态），只依赖自身。
 - `src/lib/`（`clubApi`、缓存、刷新、导航、品牌）与 `src/components/`（UI、布局、反馈）：共享基础设施，禁止 import 功能。
 - `src/app/<路由>/page.tsx` 只重新导出功能页面；`src/app/error.tsx` 让单页出错时外壳照常可用。

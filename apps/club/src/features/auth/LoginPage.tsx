@@ -1,6 +1,7 @@
 "use client";
 import {clubApi} from "../../lib/data-access";
 import {landingPath} from "../../lib/navigation";
+import {useHydrated} from "../../lib/useHydrated";
 
 import Link from "next/link";
 import { Button } from "../../components/ui/button";
@@ -8,12 +9,20 @@ import { Input } from "../../components/ui/input";
 import { Card, CardDescription } from "../../components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../../components/ui/field";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const hydrated = useHydrated();
+  // Already signed in: go to the workspace instead of offering a second login, which would replace this session
+  // with a new password-only (aal1) one and make a Super Admin repeat two-step verification for no reason.
+  useEffect(() => {
+    let active = true;
+    clubApi<{ super_admin?: boolean }>("/api/account").then(account => { if (active) router.replace(landingPath(account)); }).catch(() => {});
+    return () => { active = false; };
+  }, [router]);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -31,11 +40,11 @@ export function LoginPage() {
       <p className="eyebrow">欢迎回来</p>
       <h1 className="gold-title m-0 text-title">登录俱乐部</h1>
       <CardDescription>使用你的 SquirrelAPI 账号，继续记录今天的数据。</CardDescription>
-      <form onSubmit={submit} aria-busy={busy} className="mt-4">
+      <form method="post" onSubmit={submit} aria-busy={busy} className="mt-4">
         <FieldGroup>
           <Field><FieldLabel htmlFor="email">邮箱</FieldLabel><Input id="email" name="email" type="email" placeholder="你的邮箱地址" autoComplete="username" maxLength={320} required /></Field>
           <Field><FieldLabel htmlFor="password">密码</FieldLabel><Input id="password" name="password" type="password" autoComplete="current-password" maxLength={1024} required /></Field>
-          <Button type="submit" className="w-full" loading={busy} loadingText="正在登录…">登录</Button>
+          <Button type="submit" className="w-full" disabled={!hydrated} loading={busy} loadingText="正在登录…">登录</Button>
           <FieldError>{error}</FieldError>
         </FieldGroup>
       </form>

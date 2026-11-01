@@ -130,7 +130,7 @@ function Gate({account}:{account:Account}){
  const [title,detail]=account.mfa_session
   ?["验证器尚未确认","本次登录已通过两步验证，但所用验证器还没有在 Supabase SQL Editor 中确认。确认后重新验证即可使用平台管理。"]
   :["请完成两步验证","你的超级管理员身份需要在本次登录完成两步验证（TOTP）后才能生效。在此之前，账户只保留普通俱乐部角色。"];
- return <LoadingState status="empty" title={title} detail={detail} action={<span className="flex flex-wrap justify-center gap-3"><ButtonLink href="/settings">前往两步验证</ButtonLink>{club}</span>}/>;
+ return <LoadingState status="empty" title={title} detail={detail} action={<span className="flex flex-wrap justify-center gap-3"><ButtonLink href="/admin/security">前往两步验证</ButtonLink>{club}</span>}/>;
 }
 
 export function AdminPage(){

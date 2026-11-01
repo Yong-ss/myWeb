@@ -2,7 +2,7 @@
 import {usePathname} from "next/navigation";
 import {useEffect,useState} from "react";
 import {CastleTurretIcon,GearSixIcon,ShieldCheckIcon} from "@phosphor-icons/react";
-import {workspaceHome,type Workspace} from "../../lib/navigation";
+import {workspaceHome,workspaceSettings,type Workspace} from "../../lib/navigation";
 import {clubApi} from "../../lib/data-access";
 import {Button,ButtonLink} from "../ui/button";
 import {Skeleton} from "../ui/skeleton";
@@ -56,7 +56,7 @@ export function AccountControls({ workspace }: { workspace: Workspace }){
   <Button variant="secondary" disabled={!email} loading={busy} loadingText="正在退出…" onClick={logout}>退出登录</Button>
   {workspace==="club"&&can.platform&&<ButtonLink variant="secondary" size="compact" className="club-header-admin text-gold" href={workspaceHome.platform}><ShieldCheckIcon aria-hidden="true"/>平台管理中心</ButtonLink>}
   {workspace==="platform"&&can.club&&<ButtonLink variant="secondary" size="compact" className="club-header-admin text-gold" href={workspaceHome.club}><CastleTurretIcon aria-hidden="true"/>俱乐部工作空间</ButtonLink>}
-  <ButtonLink variant="secondary" size="compact" className="club-header-settings text-gold aria-[current=page]:bg-selected" href="/settings" aria-current={pathname==="/settings"?"page":undefined}><GearSixIcon aria-hidden="true"/>设置</ButtonLink>
+  <ButtonLink variant="secondary" size="compact" className="club-header-settings text-gold aria-[current=page]:bg-selected" href={workspaceSettings[workspace].href} aria-current={pathname===workspaceSettings[workspace].href?"page":undefined}><GearSixIcon aria-hidden="true"/>{workspaceSettings[workspace].label}</ButtonLink>
   {error&&<p role="alert" className="club-header-error absolute top-full right-0 z-30 m-0 mt-2 flex max-w-[calc(100vw-32px)] items-center gap-3 rounded-sm border border-destructive bg-error-bg p-3 text-sm text-destructive">{error} <Button size="compact" onClick={()=>window.location.reload()}>刷新</Button></p>}
  </>;
 }

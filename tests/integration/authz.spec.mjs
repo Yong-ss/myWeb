@@ -115,7 +115,7 @@ test('multi-role union, Worker/database parity and immediate revocation through 
  }finally{sql(`delete from public.club_memberships where role='it_namer';`);}
 });
 
-test('the Super Admin binds and verifies real TOTP in Settings; powers appear only after aal2',async({page,context})=>{
+test('the Super Admin binds and verifies real TOTP in account security; powers appear only after aal2',async({page,context})=>{
  // The later-login check waits for the next 30 s TOTP window, because Auth may reject a code already used.
  test.setTimeout(90000);
  await context.route('**/*',r=>new URL(r.request().url()).origin===baseURL?r.continue():r.abort());
@@ -128,7 +128,7 @@ test('the Super Admin binds and verifies real TOTP in Settings; powers appear on
   expect(account).toMatchObject({super_admin:true,mfa_verified:false,roles:['owner']});expect(account.permissions).not.toContain('audit.actor_email.read');
   await expect(page.locator('.club-header-account')).toContainText('公会长');
   expect(await (await context.request.get(`${baseURL}/api/activity`)).text()).not.toContain('@');
-  await page.goto('/settings');await expect(page.getByRole('heading',{name:/两步验证/})).toBeVisible();
+  await page.goto('/admin/security');await expect(page.getByRole('heading',{name:/两步验证/})).toBeVisible();
   await page.getByLabel('设备名称').fill('集成手机');await page.getByRole('button',{name:'开始绑定'}).click();
   const qr=page.getByRole('img',{name:'两步验证二维码'});await expect(qr).toBeVisible();
   // The image must actually decode (a broken data: URL is still "visible"); prints only the format, never the secret.

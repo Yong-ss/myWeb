@@ -7,6 +7,7 @@ import { Card, CardDescription } from "../../components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../../components/ui/field";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useHydrated } from "../../lib/useHydrated";
 
 const post = (path: string, body: unknown) => clubApi(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, "请求失败，请重试");
 const message = (e: unknown) => e instanceof TypeError ? "连接失败，请稍后重试" : e instanceof Error ? e.message : "请求失败，请重试";
@@ -38,7 +39,7 @@ export function ConfirmPage() {
 
 export function SetPasswordPage() {
   const router = useRouter();
-  const [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  const [error, setError] = useState(""), [busy, setBusy] = useState(false), hydrated = useHydrated();
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -49,17 +50,17 @@ export function SetPasswordPage() {
   }
   return <Shell eyebrow="账号安全" title="设置登录密码">
     <CardDescription>密码需为 8–72 个字符。</CardDescription>
-    <form onSubmit={submit} aria-busy={busy} className="mt-4"><FieldGroup>
+    <form method="post" onSubmit={submit} aria-busy={busy} className="mt-4"><FieldGroup>
       <Field><FieldLabel htmlFor="password">新密码</FieldLabel><Input id="password" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required /></Field>
       <Field><FieldLabel htmlFor="confirm">再次输入</FieldLabel><Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={8} maxLength={72} required /></Field>
-      <Button type="submit" className="w-full" loading={busy} loadingText="正在保存…">保存密码</Button>
+      <Button type="submit" className="w-full" disabled={!hydrated} loading={busy} loadingText="正在保存…">保存密码</Button>
       <FieldError>{error}</FieldError>
     </FieldGroup></form>
   </Shell>;
 }
 
 export function ForgotPage() {
-  const [error, setError] = useState(""), [busy, setBusy] = useState(false), [sent, setSent] = useState(false);
+  const [error, setError] = useState(""), [busy, setBusy] = useState(false), [sent, setSent] = useState(false), hydrated = useHydrated();
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true); setError("");
@@ -69,9 +70,9 @@ export function ForgotPage() {
   return <Shell eyebrow="找回账号" title="忘记密码">
     {sent ? <CardDescription>如果该邮箱已注册，你将在几分钟内收到重置邮件，链接 1 小时内有效。</CardDescription> : <>
       <CardDescription>输入账号邮箱，我们会发送重置密码的链接。</CardDescription>
-      <form onSubmit={submit} aria-busy={busy} className="mt-4"><FieldGroup>
+      <form method="post" onSubmit={submit} aria-busy={busy} className="mt-4"><FieldGroup>
         <Field><FieldLabel htmlFor="email">邮箱</FieldLabel><Input id="email" name="email" type="email" autoComplete="username" maxLength={320} required /></Field>
-        <Button type="submit" className="w-full" loading={busy} loadingText="正在发送…">发送重置邮件</Button>
+        <Button type="submit" className="w-full" disabled={!hydrated} loading={busy} loadingText="正在发送…">发送重置邮件</Button>
         <FieldError>{error}</FieldError>
       </FieldGroup></form></>}
   </Shell>;

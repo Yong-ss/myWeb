@@ -7,6 +7,7 @@ import {Button} from "../../components/ui/button";
 import {Badge} from "../../components/ui/badge";
 import {NativeSelect,NativeSelectOption} from "../../components/ui/native-select";
 import {Field,FieldDescription,FieldError,FieldGroup,FieldLabel} from "../../components/ui/field";
+import {LoadingState} from "../../components/feedback";
 
 // Super Admin only. The secret and codes go straight to Supabase Auth through the Worker; nothing is stored here.
 // Display state is advisory: the database grants Super Admin powers only to an aal2 session from a factor the owner
@@ -22,7 +23,8 @@ export function MfaCard(){
   const a=await clubApi<Account>("/api/account");if(!active)return;setAccount(a);
   if(a.super_admin){const f=await clubApi<{factors:Factor[]}>("/api/mfa");if(active){setFactors(f.factors);setFactorId(f.factors[0]?.id??"");}}
  }catch(e){if(active)setError(e instanceof Error?e.message:"读取失败");}})();return()=>{active=false;};},[retry]);
- if(!account?.super_admin)return null;
+ if(!account)return error?<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/>:<LoadingState status="loading" label="正在读取账户安全设置…"/>;
+ if(!account.super_admin)return <LoadingState status="empty" title="没有需要设置的项目" detail="两步验证目前只用于超级管理员账户。"/>;
  async function run(action:()=>Promise<void>){setBusy(true);setError("");setNotice("");try{await action();}catch(e){setError(e instanceof Error?e.message:"操作失败");}finally{setBusy(false);}}
  const start=()=>run(async()=>{setSetup(await post({action:"enroll",name}));setCode("");});
  const verify=(id:string)=>run(async()=>{await post({action:"verify",factor_id:id,code});setSetup(null);setCode("");invalidateClubData();window.dispatchEvent(new Event("club-account-changed"));setNotice("验证成功。");setRetry(n=>n+1);});

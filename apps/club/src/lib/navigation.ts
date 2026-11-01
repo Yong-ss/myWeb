@@ -13,6 +13,7 @@ const privateRoutes: { path: string; nav?: { icon: string; label: string }; acti
   { path: "/activity", nav: { icon: "≡", label: "操作日志" } },
   { path: "/settings" }, // linked from the header, not the sidebar
   { path: "/admin", nav: { icon: "✠", label: "平台管理中心" }, workspace: "platform" },
+  { path: "/admin/security", nav: { icon: "⚿", label: "账户安全" }, workspace: "platform" },
 ];
 
 const linksOf = (workspace: Workspace): NavLink[] => privateRoutes.flatMap(route => route.nav && (route.workspace ?? "club") === workspace ? [{ href: route.path, ...route.nav }] : []);
@@ -35,6 +36,8 @@ export function workspaceOf(pathname: string): Workspace {
   return privateRoutes.find(route => route.path === path)?.workspace ?? "club";
 }
 export const workspaceHome: Record<Workspace, string> = { platform: "/admin", club: "/account" };
+/** The header settings link: each workspace has its own settings, never another workspace's. */
+export const workspaceSettings: Record<Workspace, { href: string; label: string }> = { platform: { href: "/admin/security", label: "账户安全" }, club: { href: "/settings", label: "设置" } };
 /** Where a signed-in account starts. Super Admin identity, not a club role, decides; the platform page explains any missing MFA. */
 export function landingPath(account: { super_admin?: boolean }) {
   return account.super_admin === true ? workspaceHome.platform : workspaceHome.club;

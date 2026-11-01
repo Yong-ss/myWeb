@@ -33,7 +33,8 @@ test('a Super Admin before MFA sees both identities, MFA guidance and no platfor
  await page.goto('/account');await expect(page.locator('.club-header-account')).toContainText('超级管理员（待两步验证） · 公会长');
  await page.getByRole('link',{name:'平台管理中心'}).click();await expect(page).toHaveURL(/\/admin$/);
  await expect(page.getByRole('heading',{name:'请完成两步验证'})).toBeVisible();
- await expect(page.getByRole('link',{name:'前往两步验证'})).toHaveAttribute('href','/settings');
+ await expect(page.getByRole('link',{name:'前往两步验证'})).toHaveAttribute('href','/admin/security');
+ await expect(page.locator('.club-header-settings')).toHaveText('账户安全');await expect(page.locator('.club-header-settings')).toHaveAttribute('href','/admin/security');
  await expect(page.locator('.club-brand-subtitle')).toHaveText('平台管理中心');
  // The page never even asks for platform data when the account has no platform permission.
  expect(seen.filter(p=>p.startsWith('/api/admin/'))).toEqual([]);

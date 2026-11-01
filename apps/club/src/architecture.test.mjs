@@ -59,7 +59,7 @@ test('no circular imports',()=>{
 
 // CSS isolation: shared stylesheets load on every page and stay loaded after client-side navigation, so a rule
 // whose classes belong to ONE feature must be scoped to that feature's page root (use :where() to keep specificity).
-const featureRoots={import:'club-import',members:'club-members',analytics:'club-account',history:'club-history',activity:'club-activity',auth:'club-login',admin:'club-admin'};
+const featureRoots={import:'club-import',members:'club-members',analytics:'club-account',history:'club-history',activity:'club-activity',auth:'club-login',admin:'club-admin',security:'club-security'};
 const sourceFiles=files(join(root,'src')).filter(f=>!/\.test\.mjs$/.test(f));
 const owners=cls=>{
  const word=new RegExp(`(?<![\w-])${cls}(?![\w-])`),prefix=cls.includes('--')?cls.split('--')[0]+'--${':null;
