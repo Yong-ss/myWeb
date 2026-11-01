@@ -61,7 +61,7 @@ export const clearClubData=client.clear;
 export async function clubApi<T=any>(path:string,init?:RequestInit,fallback="请求失败，请重试"):Promise<T>{ // eslint-disable-line @typescript-eslint/no-explicit-any
   const response=await clubFetch(path,init);
   if(response.status===401&&typeof window!=='undefined'&&isPrivateRoute(window.location.pathname)){window.location.replace('/login');throw Error('请重新登录');}
-  if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error??(response.status===403?'此账户没有权限执行这个操作':fallback));}
+  if(!response.ok){const data=await response.json().catch(()=>({}));throw Object.assign(Error(data.error??(response.status===403?'此账户没有权限执行这个操作':fallback)),{status:response.status});}
   return await response.json() as T;
 }
 if(typeof window!=='undefined'){

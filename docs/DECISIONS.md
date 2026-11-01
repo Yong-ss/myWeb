@@ -1,5 +1,13 @@
 # SquirrelAPI — Decision Log
 
+## P4 role assignments — 2026-10-31
+
+- Owner request: existing verified website accounts only, explicit target club, owner/admin roles, Super Admin trusted MFA in Worker and database. Owner cannot manage assignments in P4 despite the earlier requirements proposal.
+- Preserve the multiple-role primary key and unique active owner index. Transfer revokes only the old owner role, preserves all other roles and does not grant admin automatically; never revoke an active owner independently.
+- Default administrator cap is 5 active holders per club, stored as configuration for later changes; no cap editing UI or automatic cleanup of legacy excess.
+- Atomic locked RPC with optimistic club revision and actor/request idempotency; reuse P3 platform audit triggers. No custom role/permission/override editing. Local-only implementation validated by SQL, unit, browser, real Supabase integration and old-Worker compatibility tests; pending owner acceptance and separate production approval.
+
+
 ## Club authorization and Admin Panel — 2026-10-30
 
 - D-033 Confirmed (owner): RBAC + scope + per-user exceptions, delivered in phases P1–P8. Default deny, deny wins, revocation takes effect immediately, checks in both Worker and database, append-only audit. One permission registry; roles are permission sets bound to a scope (platform / alliance / club). Delegation is separate from holding a permission. Alliance roles are read-only; writes are granted per club. A club belongs to at most one alliance.

@@ -8,7 +8,7 @@ const tables: Record<string, string> = {
   club_memberships: "俱乐部角色", auth_roles: "角色", auth_role_permissions: "角色权限", auth_permissions: "权限登记",
   platform_super_admins: "超级管理员名单", platform_super_admin_factors: "超级管理员验证器",
 };
-const verbs: Record<string, string> = { insert: "新增", update: "修改", delete: "删除" };
+const verbs: Record<string, string> = { insert: "新增", update: "修改", delete: "删除", noop: "无需变更" };
 
 /** "修改 · 俱乐部角色" for any audited table; unknown actions fall back to the raw key, never to a guess. */
 export function actionLabel(action: string) {

@@ -33,6 +33,8 @@ const routes: Record<string, { methods: string[]; handler?: Handler; permission?
   "/api/activity": { methods: ["GET"], handler: handleActivity, permission: { GET: "audit.read" } },
   "/api/delete-import": { methods: ["POST"], handler: handleActivity, permission: { POST: "imports.delete" } },
   // Platform routes check platform-scope permissions only (see Access.platformPermissions).
+  "/api/admin/role-context": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.roles.assign" }, platform: true },
+  "/api/admin/assign-role": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.roles.assign" }, platform: true },
   "/api/admin/overview": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
   "/api/admin/users": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
   "/api/admin/roles": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },

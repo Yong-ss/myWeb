@@ -53,3 +53,22 @@ test('the database refusing (e.g. the device was just removed) is a 403, and the
   const account = await (await handleRequest(get('account'), env, network(access(owner, ['platform.read'], true)))).json();
   assert.deepEqual(account.platform_permissions, ['platform.read']);
 });
+
+test('P4 writes require platform assignment permission AND live Super Admin activation',async()=>{
+ const id='00000000-0000-4000-8000-000000000001';
+ const body={club_id:id,user_id:id,role:'admin',action:'grant',expected_version:0,request_id:id};
+ const post=(data=body,origin='https://club.example')=>new Request('https://club.example/api/admin/assign-role',{method:'POST',headers:{Cookie:'__Host-club_access=access',Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(data)});
+ for(const grant of [access(owner),access(owner,['platform.read'],true),{...access(owner,['platform.roles.assign'],true),super_admin_active:false}]){
+  const calls=[];assert.equal((await handleRequest(post(),env,network(grant,calls))).status,403);assert.deepEqual(calls,[]);
+ }
+ const calls=[],net=network(access(owner,['platform.roles.assign'],true),calls,{ok:true});
+ assert.equal((await handleRequest(post(),env,net)).status,200);
+ assert.deepEqual(calls[0],['/rest/v1/rpc/platform_assign_role',{p_club:id,p_user:id,p_role:'admin',p_action:'grant',p_expected:0,p_request:id}]);
+ assert.equal((await handleRequest(post(body,'https://evil.example'),env,net)).status,403);
+ for(const bad of [{...body,role:'super_admin'},{...body,action:'transfer'},{...body,expected_version:-1},{...body,user_id:'nickname'},{...body,unexpected:true},null])assert.equal((await handleRequest(post(bad),env,net)).status,400);
+ assert.equal(calls.length,1);
+ assert.equal((await handleRequest(get('admin/role-context?user='+id),env,net)).status,200);
+ assert.deepEqual(calls[1],['/rest/v1/rpc/platform_role_context',{p_user:id}]);
+ const denied=network(access(owner,['platform.roles.assign'],true),[],()=>Response.json({code:'PT409',message:'角色已变化，请刷新'},{status:409}));
+ assert.equal((await handleRequest(post(),env,denied)).status,409);
+});

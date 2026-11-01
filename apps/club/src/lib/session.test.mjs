@@ -38,3 +38,8 @@ test('success returns the JSON body; other failures use the server message or th
  globalThis.fetch=async()=>new Response('<html>proxy</html>',{status:502});clearClubData();
  await assert.rejects(clubApi('/api/members',undefined,'读取失败'),/读取失败/);
 });
+
+test('a conflict keeps HTTP status so role changes require refreshed confirmation',async()=>{
+ browser('/admin',409,{error:'角色已变化，请刷新'});
+ await assert.rejects(clubApi('/api/admin/assign-role',{method:'POST',body:'{}'}),e=>e.status===409&&e.message==='角色已变化，请刷新');
+});

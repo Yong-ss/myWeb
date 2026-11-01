@@ -21,3 +21,8 @@ test('changes without a signed-in user are attributed to the database login, nev
  assert.equal(actorLabel({...base,actor:null,via:'postgres'}),'Supabase SQL Editor／迁移');
  assert.equal(actorLabel({...base,actor:null,via:'supabase_admin'}),'数据库（supabase_admin）');
 });
+
+test('an idempotent assignment with no membership change is described as no change',()=>{
+ assert.equal(actionLabel('club_memberships.noop'),'无需变更 · 俱乐部角色');
+ assert.equal(actionLabel('something_new.noop'),'something_new.noop');
+});

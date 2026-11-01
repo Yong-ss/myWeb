@@ -1,6 +1,9 @@
 "use client";
-import {useEffect,useState,type FormEvent} from "react";
+import {useEffect,useState,useRef,type FormEvent} from "react";
 import {clubApi} from "../../lib/data-access";
+import {useDataRefresh} from "../../lib/useDataRefresh";
+import {ManageRoles} from "./ManageRoles";
+import {DialogTrigger} from "../../components/ui/dialog";
 import {PageHeader} from "../../components/layout/PageHeader";
 import {LoadingState,TableSkeleton} from "../../components/feedback";
 import {Card} from "../../components/ui/card";
@@ -13,8 +16,8 @@ import {Tabs,TabsContent,TabsList,TabsTrigger} from "../../components/ui/tabs";
 import {Table,TableBody,TableCaption,TableCell,TableHead,TableHeader,TableRow} from "../../components/ui/table";
 import {actionLabel,actorLabel,changeSummary,scopeNames,type PlatformEvent} from "./labels";
 
-// Platform panel, read-only (P3). What is shown here is display only: every request is checked by the Worker
-// (platform.read) and again by the database, which allows it only for an MFA-verified Super Admin on a confirmed device.
+// Platform panel (P3/P4). What is shown here is display only: every request is checked by the Worker
+// (platform.read / platform.roles.assign) and again by the database, which allows it only for an MFA-verified Super Admin on a confirmed device.
 type PlayerCounts={present:number;temporary:number;confirmed_left:number;unconfirmed:number;other_left:number};
 type Overview={totals:{clubs:number;users:number;confirmed_users:number;members:number;active_roles:number};alliances:null|number;clubs:{id:string;name:string;members:number;players:number;latest_snapshot:string|null;is_complete_roster?:boolean|null;player_counts?:PlayerCounts|null}[]};
 type User={id:string;email:string|null;email_confirmed:boolean;created_at:string;last_sign_in_at:string|null;super_admin:boolean;memberships:{club_id:string;club_name:string;role:string;role_name:string|null;status:string}[];effective:{club_id:string;club_name:string;permissions:string[]}[]};
@@ -24,6 +27,7 @@ const when=(value:string|null)=>value?time.format(new Date(value)):"—";
 
 function useRead<T>(path:string){
  const [data,setData]=useState<T|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0);
+ useDataRefresh(()=>setRetry(n=>n+1));
  useEffect(()=>{let active=true;clubApi<T>(path,undefined,"平台资料读取失败").then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[path,retry]);
  return {data,error,reload:()=>{setError("");setRetry(n=>n+1);}};
 }
@@ -54,26 +58,31 @@ function OverviewPanel(){
  </div>;
 }
 
-function UsersPanel(){
+function UsersPanel({canManage}:{canManage:boolean}){
+ const generation=useRef(0),trigger=useRef<HTMLButtonElement|null>(null),searchInput=useRef<HTMLInputElement|null>(null);
+ const [selectedUser,setSelectedUser]=useState<User|null>(null);
  const [draft,setDraft]=useState(""),[query,setQuery]=useState(""),[users,setUsers]=useState<User[]|null>(null),[next,setNext]=useState<{key:string;id:string}|null>(null);
  const [error,setError]=useState(""),[busy,setBusy]=useState(false),[retry,setRetry]=useState(0);
  const read=(cursor?:{key:string;id:string})=>clubApi<{users:User[];next:{key:string;id:string}|null}>("/api/admin/users?"+new URLSearchParams({q:query,...(cursor?{after:cursor.key,id:cursor.id}:{})}),undefined,"用户读取失败");
- useEffect(()=>{let active=true;read().then(d=>{if(active){setUsers(d.users);setNext(d.next);}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[query,retry]); // eslint-disable-line react-hooks/exhaustive-deps
- async function more(){if(!next)return;setBusy(true);setError("");try{const d=await read(next);setUsers(old=>[...(old??[]),...d.users]);setNext(d.next);}catch(e){setError(e instanceof Error?e.message:"读取失败");}finally{setBusy(false);}}
- const search=(e:FormEvent)=>{e.preventDefault();setUsers(null);setError("");setQuery(draft.trim());setRetry(n=>n+1);};
- return <div className="grid gap-4">
-  <form role="search" onSubmit={search} className="flex flex-wrap items-end gap-3"><Field className="max-w-80 min-w-56 flex-1"><FieldLabel htmlFor="admin-user-search">搜索用户</FieldLabel><Input id="admin-user-search" type="search" maxLength={100} placeholder="邮箱或用户 ID" value={draft} onChange={e=>setDraft(e.target.value)}/></Field><Button type="submit" variant="secondary">搜索</Button></form>
+ useEffect(()=>{let active=true;const epoch=++generation.current;read().then(d=>{if(active&&epoch===generation.current){setUsers(d.users);setNext(d.next);setError("");}}).catch(e=>{if(active&&epoch===generation.current)setError(e.message);});return()=>{active=false;};},[query,retry]); // eslint-disable-line react-hooks/exhaustive-deps
+ async function more(){if(!next||busy)return;const epoch=generation.current;setBusy(true);setError("");try{const d=await read(next);if(epoch!==generation.current)return;setUsers(old=>[...(old??[]),...d.users]);setNext(d.next);}catch(e){if(epoch===generation.current)setError(e instanceof Error?e.message:"读取失败");}finally{setBusy(false);}}
+ const [notice,setNotice]=useState("");
+ useDataRefresh(()=>{generation.current++;setRetry(n=>n+1);});
+ const search=(e:FormEvent)=>{e.preventDefault();generation.current++;setUsers(null);setError("");setQuery(draft.trim());setRetry(n=>n+1);};
+ return <ManageRoles user={selectedUser} returnFocus={()=>{if(trigger.current?.isConnected)trigger.current.focus();else searchInput.current?.focus();}} onSaved={()=>{setNotice("角色已更新，有效权限与统计将按最新角色刷新。");setRetry(n=>n+1);}}><div className="grid gap-4">
+  <form role="search" onSubmit={search} className="flex flex-wrap items-end gap-3"><Field className="max-w-80 min-w-56 flex-1"><FieldLabel htmlFor="admin-user-search">搜索用户</FieldLabel><Input ref={searchInput} id="admin-user-search" type="search" maxLength={100} placeholder="邮箱或用户 ID" value={draft} onChange={e=>setDraft(e.target.value)}/></Field><Button type="submit" variant="secondary">搜索</Button></form>
+  {notice&&<p role="status" className="m-0 text-sm text-gold">{notice}</p>}
   {error&&<LoadingState status="error" title="用户读取失败" detail={error} onRetry={()=>{if(users?.length&&next)void more();else{setError("");setUsers(null);setRetry(n=>n+1);}}}/>}
   {!users&&!error?<TableSkeleton columns={4} label="正在读取用户…"/>:users&&(users.length?<Table><TableCaption>{query?`“${query}”的搜索结果`:"全部账户 · 按邮箱排序"} · 有效权限 = 生效角色的权限并集</TableCaption>
    <TableHeader><TableRow><TableHead>账户</TableHead><TableHead>俱乐部角色</TableHead><TableHead>有效权限</TableHead><TableHead>最近登录</TableHead></TableRow></TableHeader>
    <TableBody>{users.map(u=><TableRow key={u.id}>
-    <TableCell className="min-w-56 align-top whitespace-normal [overflow-wrap:anywhere]"><span className="block font-medium">{u.email??"（无邮箱）"}</span><span className="mt-1 flex flex-wrap gap-1">{u.super_admin&&<Badge>超级管理员</Badge>}{!u.email_confirmed&&<Badge variant="warning">邮箱未验证</Badge>}</span><small className="mt-1 block font-mono text-muted-foreground">{u.id}</small></TableCell>
-    <TableCell className="min-w-44 align-top whitespace-normal">{u.memberships.length?<ul className="m-0 grid list-none gap-1 p-0">{u.memberships.map(m=><li key={m.club_id+m.role} className={m.status==="active"?undefined:"text-muted-foreground line-through"}>{m.club_name} · {m.role_name??m.role}{m.status!=="active"&&<span className="sr-only">（已撤销）</span>}</li>)}</ul>:<span className="text-muted-foreground">无</span>}</TableCell>
+    <TableCell className="min-w-56 align-top whitespace-normal [overflow-wrap:anywhere]"><span className="block font-medium">{u.email??"（无邮箱）"}</span><span className="mt-1 flex flex-wrap gap-1">{u.super_admin&&<Badge>超级管理员</Badge>}{!u.email_confirmed&&<Badge variant="warning">邮箱未验证</Badge>}</span><small className="mt-1 block font-mono text-muted-foreground">{u.id}</small>{canManage&&<div className="mt-2"><DialogTrigger asChild><Button variant="secondary" size="compact" aria-label={`管理 ${u.email??u.id} 的角色`} onClick={e=>{trigger.current=e.currentTarget;setSelectedUser(u);}}>管理角色</Button></DialogTrigger></div>}</TableCell>
+    <TableCell className="min-w-44 align-top whitespace-normal">{u.memberships.length?<ul className="m-0 grid list-none gap-1 p-0">{u.memberships.map(m=><li key={m.club_id+m.role} className={m.status==="active"?undefined:"text-muted-foreground line-through"}>{m.club_name} · {m.role_name??m.role}{m.status!=="active"&&<span className="ml-1 inline-block text-xs">（已撤销）</span>}</li>)}</ul>:<span className="text-muted-foreground">无</span>}</TableCell>
     <TableCell className="min-w-56 align-top whitespace-normal">{u.effective.length?u.effective.map(e=><p key={e.club_id} className="m-0 mb-1 text-xs"><span className="text-gold">{e.club_name}</span>：{e.permissions.join("、")}</p>):<span className="text-muted-foreground">{u.super_admin?"仅在两步验证后拥有全部权限":"无"}</span>}</TableCell>
     <TableCell className="align-top text-muted-foreground">{when(u.last_sign_in_at)}</TableCell>
    </TableRow>)}</TableBody></Table>:<LoadingState status="empty" title="没有找到用户" detail="请换一个邮箱片段或完整用户 ID。"/>)}
   {next&&<Button className="self-start" loading={busy} loadingText="读取中…" onClick={more}>更多用户</Button>}
- </div>;
+ </div></ManageRoles>;
 }
 
 function RolesPanel(){
@@ -91,10 +100,12 @@ function RolesPanel(){
 }
 
 function ActivityPanel(){
+ const generation=useRef(0);
  const [events,setEvents]=useState<PlatformEvent[]|null>(null),[next,setNext]=useState<{before:string;id:string}|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[retry,setRetry]=useState(0);
+ useDataRefresh(()=>{generation.current++;setRetry(n=>n+1);});
  const read=(cursor?:{before:string;id:string})=>clubApi<{events:PlatformEvent[];next:{before:string;id:string}|null}>("/api/admin/activity"+(cursor?"?"+new URLSearchParams(cursor):""),undefined,"平台日志读取失败");
- useEffect(()=>{let active=true;read().then(d=>{if(active){setEvents(d.events);setNext(d.next);}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
- async function more(){if(!next)return;setBusy(true);setError("");try{const d=await read(next);setEvents(old=>[...(old??[]),...d.events.filter(e=>!old?.some(o=>o.id===e.id))]);setNext(d.next);}catch(e){setError(e instanceof Error?e.message:"读取失败");}finally{setBusy(false);}}
+ useEffect(()=>{let active=true;const epoch=++generation.current;read().then(d=>{if(active&&epoch===generation.current){setEvents(d.events);setNext(d.next);setError("");}}).catch(e=>{if(active&&epoch===generation.current)setError(e.message);});return()=>{active=false;};},[retry]);
+ async function more(){if(!next||busy)return;const epoch=generation.current;setBusy(true);setError("");try{const d=await read(next);if(epoch!==generation.current)return;setEvents(old=>[...(old??[]),...d.events.filter(e=>!old?.some(o=>o.id===e.id))]);setNext(d.next);}catch(e){if(epoch===generation.current)setError(e instanceof Error?e.message:"读取失败");}finally{setBusy(false);}}
  return <div className="grid gap-4"><p className="m-0 text-sm text-muted-foreground">记录角色、权限登记、超级管理员和验证器的每次变更，包括在 Supabase SQL Editor 中的操作；不可编辑或删除。时间为北京时间。</p>
   {error&&<LoadingState status="error" title="平台日志读取失败" detail={error} onRetry={()=>{if(events?.length&&next)void more();else{setError("");setRetry(n=>n+1);}}}/>}
   {!events&&!error?<TableSkeleton columns={4} label="正在读取平台日志…"/>:events&&(events.length?<Table><TableCaption>平台操作记录 · 按时间倒序</TableCaption>
@@ -110,15 +121,17 @@ function ActivityPanel(){
 }
 
 export function AdminPage(){
+ const [canManage,setCanManage]=useState(false);
  const [allowed,setAllowed]=useState<boolean|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0);
- useEffect(()=>{let active=true;clubApi<{platform_permissions?:string[]}>("/api/account",undefined,"暂时无法读取账户").then(a=>{if(active)setAllowed(a.platform_permissions?.includes("platform.read")===true);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
+ useDataRefresh(()=>setRetry(n=>n+1));
+ useEffect(()=>{let active=true;clubApi<{platform_permissions?:string[];mfa_verified?:boolean}>("/api/account",undefined,"暂时无法读取账户").then(a=>{if(active){setAllowed(a.platform_permissions?.includes("platform.read")===true);setCanManage(a.mfa_verified===true&&a.platform_permissions?.includes("platform.roles.assign")===true);}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
  return <main className="club-workspace club-admin flex flex-col gap-6"><PageHeader eyebrow="PLATFORM / 平台管理" title="平台管理"/>
   {error?<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/>:allowed===null?<LoadingState status="loading" label="正在确认权限…"/>:!allowed?
    <LoadingState status="empty" title="需要超级管理员权限" detail="平台管理只对完成两步验证、并使用已确认设备登录的超级管理员开放。" action={<ButtonLink variant="secondary" href="/settings">前往设置</ButtonLink>}/>:
    <Tabs defaultValue="overview" className="flex flex-col gap-6">
     <TabsList aria-label="平台管理"><TabsTrigger value="overview">总览</TabsTrigger><TabsTrigger value="users">用户与角色</TabsTrigger><TabsTrigger value="roles">角色与权限</TabsTrigger><TabsTrigger value="activity">平台日志</TabsTrigger></TabsList>
     <TabsContent value="overview"><OverviewPanel/></TabsContent>
-    <TabsContent value="users"><UsersPanel/></TabsContent>
+    <TabsContent value="users"><UsersPanel canManage={canManage}/></TabsContent>
     <TabsContent value="roles"><RolesPanel/></TabsContent>
     <TabsContent value="activity"><ActivityPanel/></TabsContent>
    </Tabs>}
