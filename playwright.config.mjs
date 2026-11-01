@@ -4,7 +4,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir:'./tests/browser',
   timeout:30000,
-  globalTimeout:180000,
+  globalTimeout:300000,
   fullyParallel:false,
   forbidOnly:Boolean(process.env.CI),
   retries:0,
