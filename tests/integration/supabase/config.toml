@@ -31,8 +31,10 @@ enabled = false
 [studio]
 enabled = false
 
+# Mailpit catches Auth mail locally so email-link flows run end to end; nothing leaves this machine.
 [local_smtp]
-enabled = false
+enabled = true
+port = 56324
 
 [storage]
 enabled = false
@@ -40,7 +42,7 @@ enabled = false
 [auth]
 enabled = true
 site_url = "https://127.0.0.1:8792"
-additional_redirect_urls = ["https://127.0.0.1:8792"]
+additional_redirect_urls = ["https://127.0.0.1:8792", "https://127.0.0.1:8792/auth/confirm"]
 jwt_expiry = 3600
 enable_signup = false
 enable_anonymous_sign_ins = false
@@ -60,6 +62,16 @@ verify_enabled = true
 # Enable email/password login; global auth.enable_signup remains false.
 enable_signup = true
 enable_confirmations = true
+
+# The same templates the owner pastes into the hosted dashboard (docs/email-templates).
+[auth.email.template.invite]
+subject = "【俱乐部数据检测平台】邀请你加入俱乐部"
+content_path = "./supabase/templates/invite.html"
+
+# The same templates the owner pastes into the hosted dashboard (docs/email-templates).
+[auth.email.template.recovery]
+subject = "【俱乐部数据检测平台】重置登录密码"
+content_path = "./supabase/templates/reset-password.html"
 
 [auth.rate_limit]
 sign_in_sign_ups = 200

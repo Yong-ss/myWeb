@@ -21,6 +21,8 @@ try {
   command(/\.(c?js|mjs)$/.test(manager)?process.execPath:manager,/\.(c?js|mjs)$/.test(manager)?[manager,...buildArgs]:buildArgs,{timeout:180000});
   mkdirSync(join(workdir,'supabase/migrations'),{recursive:true});
   copyFileSync('tests/integration/supabase/config.toml',join(workdir,'supabase/config.toml'));
+  mkdirSync(join(workdir,'supabase/templates'),{recursive:true});
+  for(const file of ['invite.html','reset-password.html']) copyFileSync(join('docs/email-templates',file),join(workdir,'supabase/templates',file));
   // Discard only this dedicated test stack; never --all, --linked or --db-url.
   cli(['stop','--no-backup']);
   for(const file of readdirSync(join(workdir,'supabase/migrations'))) {
@@ -29,7 +31,7 @@ try {
   }
   console.log('Integration: starting isolated Supabase Auth/PostgreSQL/REST.');
   started=true;
-  cli(['start','--exclude','realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor']);
+  cli(['start','--exclude','realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor']);
   const status=JSON.parse(cli(['status','-o','json']));
   if(status.API_URL!==apiURL || new URL(status.DB_URL).hostname!=='127.0.0.1' || new URL(status.DB_URL).port!=='56322') throw Error('Unexpected Supabase endpoint');
   const anonKey=status.PUBLISHABLE_KEY??status.ANON_KEY;
@@ -46,7 +48,7 @@ try {
     insert into public.club_memberships(club_id,user_id,role) values('${clubId}','${users.admin.id}','admin'),('${foreignClubId}','${users.foreign.id}','owner');
     insert into public.club_players(id,club_id,display_name,match_name) values('${playerId}','${clubId}','集成测试玩家','集成测试玩家'),('${foreignPlayerId}','${foreignClubId}','其他俱乐部玩家','其他俱乐部玩家');
     notify pgrst, 'reload schema';`);
-  writeFileSync(join(runtime,'state.json'),JSON.stringify({project,API_URL:apiURL,anonKey}),{mode:0o600});
+  writeFileSync(join(runtime,'state.json'),JSON.stringify({project,API_URL:apiURL,anonKey,serviceKey:status.SERVICE_ROLE_KEY}),{mode:0o600});
   const preflight=await localFetch('/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:anonKey,'Content-Type':'application/json'},body:JSON.stringify({email:users.owner.email,password})});
   if(!preflight.ok) throw Error(`Local Auth preflight failed: ${preflight.status} ${await preflight.text()}`);
   const vars={SUPABASE_URL:apiURL,SUPABASE_PUBLISHABLE_KEY:anonKey,CLUB_ID:clubId};

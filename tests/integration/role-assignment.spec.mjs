@@ -60,6 +60,24 @@ test('P4 assignments are atomic, tenant explicit, replay safe and protected by l
   expect(sql(`select count(*) from public.club_memberships where club_id='${club}' and role='owner' and status='active';`)).toBe('1');
   const event=JSON.parse(sql(`select row_to_json(e) from (select actor_id,details from public.platform_audit_events where details->'new'->>'club_id'='${club}' order by created_at desc,id desc limit 1)e;`));expect(event.actor_id).toBe(users.owner.id);expect(event.details.new.club_id).toBe(club);expect(JSON.stringify(event)).not.toMatch(/access_token|totp|password/);
   expect((await write(token,{...base,role:'super_admin'})).status()).toBe(400);
+  // First-invite order: a dashboard invitee cannot be appointed until the invite link confirms the email,
+  // can activate with no club role, sees no club data, and is then found and appointed normally.
+  const invitee=`p4-invitee-${club}@club.test`,key=state().serviceKey;
+  expect((await localFetch('/auth/v1/invite',{method:'POST',headers:{apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({email:invitee})})).ok).toBe(true);
+  const found=async()=>(await (await request.get(`${baseURL}/api/admin/users?q=${encodeURIComponent(invitee)}`,{headers:{Cookie:`__Host-club_access=${token}`}})).json()).users.find(u=>u.email===invitee);
+  const pending=await found();expect(pending.email_confirmed).toBe(false);
+  const grant=async()=>write(token,{...base,club_id:other,user_id:pending.id,expected_version:(await context(pending.id)).clubs.find(c=>c.id===other).role_version,request_id:randomUUID()});
+  expect((await grant()).status()).toBe(400);
+  let mail;for(let i=0;i<40&&!mail;i++){mail=(await (await fetch(`http://127.0.0.1:56324/api/v1/search?query=${encodeURIComponent(`to:${invitee}`)}`)).json()).messages?.[0];if(!mail)await new Promise(r=>setTimeout(r,250));}
+  const link=new URL((await (await fetch(`http://127.0.0.1:56324/api/v1/message/${mail.ID}`)).json()).HTML.match(/href="([^"]+)"/)[1].replaceAll('&amp;','&'));
+  const activated=await request.post(`${baseURL}/api/auth/verify`,{headers:{Origin:baseURL},data:{type:'invite',token_hash:link.searchParams.get('token_hash')}});expect(activated.status()).toBe(200);
+  const inviteeCookie=activated.headers()['set-cookie'].match(/__Host-club_access=[^;]+/)[0];
+  for(const path of ['account','members','activity','import-context?date=2026-10-01'])expect((await request.get(`${baseURL}/api/${path}`,{headers:{Cookie:inviteeCookie}})).status()).toBe(403);
+  const inviteeToken=inviteeCookie.split('=')[1];
+  expect(await (await rest('club_players?select=id',inviteeToken)).json()).toEqual([]);
+  expect((await found()).email_confirmed).toBe(true);
+  expect((await grant()).status()).toBe(200);
+  expect((await (await rest('rpc/club_my_access',inviteeToken,{p_club:other})).json()).roles).toEqual(['admin']);
   // Hold only this synthetic club lock, queue a real request, then revoke MFA while it waits.
   const countBefore=auditCount(),versionBefore=await version();
   const marker='p4-lock-'+club;

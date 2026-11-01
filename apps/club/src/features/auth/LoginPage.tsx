@@ -38,7 +38,8 @@ export function LoginPage() {
           <FieldError>{error}</FieldError>
         </FieldGroup>
       </form>
-      <p className="auth-note m-0 mt-2 border-t border-divider pt-4 text-sm text-muted-foreground">目前仅限已获授权的成员使用。忘记密码或无法进入？请联系俱乐部负责人。</p>
+      <Link href="/auth/forgot" className="w-fit text-sm text-gold">忘记密码？</Link>
+      <p className="auth-note m-0 mt-2 border-t border-divider pt-4 text-sm text-muted-foreground">目前仅限已获授权的成员使用。无法进入？请联系俱乐部负责人。</p>
       <Link href="/" className="w-fit py-2 text-sm text-gold">← 返回 Club 首页</Link>
     </Card>
   </main>;

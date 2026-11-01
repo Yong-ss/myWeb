@@ -100,7 +100,7 @@ test('unexpected handler errors are logged without secrets and still fail closed
 test('every business route declares its permission and the Worker enforces it before any business call', async () => {
   const { routePermissions } = await import('./index.ts');
   const { permissions } = await import('../src/domain/permissions.ts');
-  const open = ['/api/login', '/api/logout', '/api/account', '/api/mfa'];
+  const open = ['/api/login', '/api/logout', '/api/account', '/api/mfa', '/api/auth/verify', '/api/auth/recover', '/api/auth/password'];
   for (const [path, declared] of Object.entries(routePermissions)) {
     if (open.includes(path)) { assert.equal(declared, undefined, path); continue; }
     assert.ok(declared && Object.values(declared).every(p => permissions.includes(p)), path);
@@ -155,4 +155,24 @@ test('MFA endpoints exist only for the Super Admin and never echo codes or token
   assert.doesNotMatch(await ok.text(), /123456|aal2-token|access_token/);
   assert.ok(ok.headers.get('Set-Cookie').includes('__Host-club_access=aal2-token'));
   assert.ok(seen.some(([url, sent]) => url.endsWith('/verify') && JSON.parse(sent).challenge_id === 'challenge'));
+});
+
+// Email links: the one-time token is spent only by an explicit POST, and the recover form must not reveal accounts.
+test('email link flows verify by POST, set own password, and hide account existence', async () => {
+  const calls = [];
+  const auth = status => async (url, options) => { calls.push([url, options.method, options.body, options.headers.Authorization]); return status === 200 ? Response.json(url.includes('/verify') ? session : user) : new Response('{}', { status }); };
+  assert.equal((await handleRequest(new Request('https://club.example/api/auth/verify'), env, auth(200))).status, 405);
+  const ok = await handleRequest(req('auth/verify', { type: 'invite', token_hash: 'abc-1' }), env, auth(200));
+  assert.deepEqual(await ok.json(), { ok: true, set_password: true });
+  assert.ok(ok.headers.get('Set-Cookie').includes('__Host-club_access=access'));
+  assert.equal((await handleRequest(req('auth/verify', { type: 'signup', token_hash: 'abc' }), env, auth(200))).status, 400);
+  assert.equal((await handleRequest(req('auth/verify', { type: 'recovery', token_hash: 'used' }), env, auth(403))).status, 400);
+  for (const status of [200, 400]) assert.deepEqual(await (await handleRequest(req('auth/recover', { email: 'x@example.com' }), env, auth(status))).json(), { ok: true });
+  assert.ok(calls.some(([url]) => url.endsWith('/recover?redirect_to=' + encodeURIComponent('https://club.example/auth/confirm'))));
+  assert.equal((await handleRequest(req('auth/password', { password: 'longenough' }), env, auth(200))).status, 401);
+  assert.equal((await handleRequest(req('auth/password', { password: 'short' }, '__Host-club_access=access'), env, auth(200))).status, 400);
+  calls.length = 0;
+  assert.equal((await handleRequest(req('auth/password', { password: 'longenough' }, '__Host-club_access=access'), env, auth(200))).status, 200);
+  assert.deepEqual(calls[0].slice(1), ['PUT', JSON.stringify({ password: 'longenough' }), 'Bearer access']);
+  assert.equal((await handleRequest(req('auth/recover', { email: 'x@example.com' }, '', 'https://evil.example'), env, auth(200))).status, 403);
 });

@@ -22,6 +22,10 @@ type Handler = (request: Request, club: string, rest: Rest, access: Access) => P
 const routes: Record<string, { methods: string[]; handler?: Handler; permission?: Partial<Record<string, Permission>>; mfa?: true; platform?: true }> = {
   "/api/login": { methods: ["POST"] },
   "/api/logout": { methods: ["POST"] },
+  // Email-link flows: work before Club membership is checked, and only ever act on the link owner's own account.
+  "/api/auth/verify": { methods: ["POST"] },
+  "/api/auth/recover": { methods: ["POST"] },
+  "/api/auth/password": { methods: ["POST"] },
   "/api/account": { methods: ["GET"] },
   "/api/mfa": { methods: ["GET", "POST"], mfa: true },
   "/api/import-context": { methods: ["GET"], handler: handleImport, permission: { GET: "imports.create" } },
@@ -121,7 +125,44 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
       return setSession(reply({ ok: true }), request, session);
     }
 
+    if (url.pathname === "/api/auth/verify" || url.pathname === "/api/auth/recover") {
+      const text = await readBody(request, 2048, { missing: "请求内容无效" });
+      if (text instanceof Response) return text;
+      let input;
+      try { input = JSON.parse(text); } catch { return reply({ error: "请求内容无效" }, 400); }
+      if (url.pathname === "/api/auth/recover") {
+        if (typeof input?.email !== "string" || !input.email.trim() || input.email.length > 320) return reply({ error: "请输入有效的邮箱" }, 400);
+        // Same answer whether or not the address exists, so the form cannot be used to discover accounts.
+        const sent = await callAuth(`recover?redirect_to=${encodeURIComponent(`${url.origin}/auth/confirm`)}`, { email: input.email.trim() });
+        if (sent.status === 429) return reply({ error: "请求过于频繁，请稍后再试" }, 429);
+        if (sent.status >= 500) return reply({ error: "邮件服务暂时不可用，请稍后再试" }, 502);
+        return reply({ ok: true });
+      }
+      if (!["invite", "recovery", "email", "email_change"].includes(input?.type) || typeof input.token_hash !== "string" || !/^[\w-]{1,200}$/.test(input.token_hash)) return reply({ error: "链接无效" }, 400);
+      const result = await callAuth("verify", { type: input.type, token_hash: input.token_hash });
+      if (!result.ok) return setSession(reply({ error: result.status === 429 ? "尝试过于频繁，请稍后再试" : "链接已失效或已被使用，请重新申请" }, result.status === 429 ? 429 : 400), request);
+      return setSession(reply({ ok: true, set_password: input.type === "invite" || input.type === "recovery" }), request, await result.json());
+    }
+
     const stored = cookies(request);
+    if (url.pathname === "/api/auth/password") {
+      const text = await readBody(request, 2048, { missing: "请输入新密码" });
+      if (text instanceof Response) return text;
+      let input;
+      try { input = JSON.parse(text); } catch { return reply({ error: "请求内容无效" }, 400); }
+      if (typeof input?.password !== "string" || input.password.length < 8 || input.password.length > 72) return reply({ error: "密码需为 8–72 个字符" }, 400);
+      let token: string | undefined = stored["__Host-club_access"], renewed: Session | undefined;
+      if (!token && stored["__Host-club_refresh"]) {
+        const refresh = await callAuth("token?grant_type=refresh_token", { refresh_token: stored["__Host-club_refresh"] });
+        if (refresh.ok) { renewed = await refresh.json(); token = renewed?.access_token; }
+      }
+      if (!token) return reply({ error: "链接会话已过期，请重新打开邮件链接" }, 401);
+      const updated = await callAuth("user", { password: input.password }, token, "PUT");
+      if (updated.ok) return setSession(reply({ ok: true }), request, renewed);
+      const detail = await updated.json().catch(() => ({})) as { error_code?: string };
+      if (updated.status === 401) return reply({ error: "链接会话已过期，请重新打开邮件链接" }, 401);
+      return reply({ error: detail.error_code === "same_password" ? "新密码不能与旧密码相同" : detail.error_code === "weak_password" ? "密码强度不足，请换一个更复杂的密码" : detail.error_code === "insufficient_aal" ? "此账户已启用两步验证，请先登录并完成验证后再修改密码" : "暂时无法设置密码，请重试" }, updated.status === 422 || updated.status === 403 ? 400 : 502);
+    }
     if (url.pathname === "/api/logout") {
       let token = stored["__Host-club_access"];
       if (stored["__Host-club_refresh"]) {
