@@ -25,6 +25,8 @@ test('a Super Admin without any membership signs in to the platform, is guided t
   await expect(page.locator('.club-header-account')).not.toContainText('·'); // no club role is invented
   await expect(page.getByRole('link',{name:'俱乐部工作空间'})).toHaveCount(0);
   expect(seen.filter(p=>p.startsWith('/api/admin/'))).toEqual([]);
+  // No membership: the account context lists no club, before or after MFA (the platform panel is where all clubs appear).
+  expect((await (await page.request.get(`${baseURL}/api/account`)).json()).clubs).toEqual([]);
   // The server refuses platform data to this aal1 session no matter what the page shows.
   const cookie=(await context.cookies()).find(c=>c.name==='__Host-club_access');
   const aal1=cookie.value,asCookie=t=>({Cookie:`__Host-club_access=${t}`});
@@ -44,6 +46,7 @@ test('a Super Admin without any membership signs in to the platform, is guided t
   expect((await page.request.get(`${baseURL}/api/admin/overview`,{headers:asCookie(aal2)})).status()).toBe(200);
   await context.addCookies([{name:'__Host-club_access',value:aal2,url:baseURL,httpOnly:true,secure:true,sameSite:'Strict'}]);
   await page.goto('/admin');await expect(page.getByRole('tab',{name:'用户与角色'})).toBeVisible();
+  expect((await (await page.request.get(`${baseURL}/api/account`)).json()).clubs).toEqual([]);
   await expect(page.locator('.club-header-account')).toContainText('超级管理员');await expect(page.locator('.club-header-account')).not.toContainText('待两步验证');
  }finally{
   sql(`delete from auth.mfa_factors where user_id='${created.id}';delete from public.platform_super_admins where user_id='${created.id}';`);

@@ -19,7 +19,7 @@ Long-term solo project (pnpm monorepo: `apps/web` main site, `apps/club` Club ap
 ## Delivery (solo, direct to main)
 - The owner pushes to `main`; GitHub Actions runs the affected checks and deploys only apps whose shipped files changed, only after every check passes. Docs, tests, scripts, CI and migrations never deploy. No PRs, branch protection or approval steps.
 - Agents push, deploy, apply migrations or change CI secrets/variables only when the owner asks in the current task.
-- Club deploys are blocked until the repository Variable `CLUB_SCHEMA_VERSION` equals the newest migration filename.
+- Club deploys are blocked until the repository Variable `CLUB_SCHEMA_VERSION` equals the 14-digit timestamp prefix of the newest migration filename (e.g. `20261101163647`, not the full name); CI compares only that prefix.
 - Details: `docs/TESTING.md` (first section is the current workflow).
 
 ## Testing

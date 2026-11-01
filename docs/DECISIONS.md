@@ -110,3 +110,8 @@ The user accepted the static-first proposal and authorized implementation.
 
 ## Club 唯一视觉基准 — 2026-10-27（已确认）
 用户确定 Dark Victorian Occult Dashboard 为 Club 长期唯一设计语言；以 docs/club-design-system.md、仓库保存的原始参考稿和统一 Tokens 为依据。当前先建立规范和持久指令，不立即重做页面；后续渐进迁移，不改变业务／权限／数据库，不修改 apps/web。此前正式发布授权不用于此次改版，部署须另获授权。
+
+## Club phase 2: account context — 2026-11-02
+
+- Owner request: sign-in and identity must not depend on the fixed `CLUB_ID`; keep authentication, platform authorization, club authorization and club context separate. Local only; production migration, commit and deploy need separate approval.
+- Add read-only `public.club_my_context()` (caller only, own active memberships only, no parameters) instead of N per-club calls; reuse `can()`, `can_platform()` and `super_admin_active()`. Club requests keep `club_my_access(CLUB_ID)`. Accounts with a role only in another club may sign in and see it as not yet available. Details in `CLUB_ARCHITECTURE.md` §8.

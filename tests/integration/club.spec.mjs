@@ -120,8 +120,9 @@ test('admin imports real data but cannot appoint owners; revocation is immediate
   } finally { sql(`update public.club_memberships set status='active' where club_id='${clubId}' and user_id='${users.admin.id}';`); }
 });
 
-test('confirmed outsiders and owners of another club cannot enter the configured Club',async({page,context})=>{
-  for(const role of ['outsider','foreign']) {
+// Owners of another club may sign in since phase 2 but still cannot read this club (club-context.spec.mjs).
+test('confirmed accounts without any role cannot sign in',async({page,context})=>{
+  for(const role of ['outsider']) {
     await login(page,role,false);
     expect((await context.cookies()).some(c=>c.name==='__Host-club_access')).toBe(false);
     expect((await context.request.get(baseURL+'/api/account')).status()).toBe(401);

@@ -45,6 +45,7 @@ const routes: Record<string, { methods: string[]; handler?: Handler; permission?
   "/api/admin/activity": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
 };
 export const routePermissions = Object.fromEntries(Object.entries(routes).map(([path, route]) => [path, route.permission]));
+export const routeMethods = Object.fromEntries(Object.entries(routes).map(([path, route]) => [path, route.methods]));
 
 type AuthUser = { id: string; email?: string; email_confirmed_at?: string };
 type Session = { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
@@ -108,6 +109,22 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     // A listed Super Admin may sign in to complete MFA even without club permissions; powers still need aal2.
     return result.permissions.length || result.superAdmin ? result : undefined;
   };
+  // Account-wide context (club_my_context): the clubs the caller may enter, independent of CLUB_ID. Only sign-in and
+  // /api/account use it; every club request is still authorized by club_my_access for that club.
+  type ClubSummary = { id: string; name: string; roles: string[] };
+  const context = async (token: string): Promise<ClubSummary[]> => {
+    const response = await fetcher(`${env.SUPABASE_URL}/rest/v1/rpc/club_my_context`, {
+      method: "POST",
+      headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: "{}",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error("Account context unavailable");
+    const data = await response.json() as { clubs?: unknown };
+    return Array.isArray(data.clubs) ? data.clubs.filter((c): c is ClubSummary => typeof c?.id === "string" && typeof c?.name === "string" && Array.isArray(c?.roles))
+      .map(c => ({ id: c.id, name: c.name, roles: c.roles.filter(r => typeof r === "string") })) : [];
+  };
+  const noClubAccess: Access = { permissions: [], roles: [], superAdmin: false, superAdminActive: false, sessionAal2: false, platformPermissions: [] };
   try {
     if (url.pathname === "/api/login") {
       const text = await readBody(request, 4096, { missing: "请输入邮箱和密码" });
@@ -118,7 +135,8 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
       const result = await callAuth("token?grant_type=password", { email: input.email.trim(), password: input.password });
       if (!result.ok) return reply({ error: result.status === 429 ? "尝试过于频繁，请稍后再试" : "邮箱、密码不正确，或账户尚未确认" }, result.status === 429 ? 429 : 401);
       const session: Session = await result.json();
-      if (!await access(session.user, session.access_token)) {
+      // Signing in needs some authorization: this club, the Super Admin identity, or a role in another club.
+      if (!await access(session.user, session.access_token) && !(await context(session.access_token)).length) {
         await callAuth("logout?scope=local", {}, session.access_token);
         return setSession(reply({ error: "此账户没有访问权限" }, 403), request);
       }
@@ -191,8 +209,13 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     }
     if (!user) return setSession(reply({ error: "请先登录" }, 401), request);
     const token = renewed?.access_token ?? stored["__Host-club_access"];
-    const granted = await access(user, token);
-    if (!granted) return setSession(reply({ error: "此账户没有俱乐部访问权限" }, 403), request);
+    const accountPath = url.pathname === "/api/account";
+    const [found, listed] = await Promise.all([access(user, token), accountPath ? context(token) : undefined]);
+    // Without access to this club, only /api/account answers, and only for someone with a role in another club.
+    // Such a person keeps their session on other routes (403 only); with no authorization anywhere it ends.
+    const clubs = listed ?? (found ? undefined : await context(token));
+    const granted = found ?? (accountPath && clubs?.length ? noClubAccess : undefined);
+    if (!granted) { const denied = reply({ error: "此账户没有俱乐部访问权限" }, 403); return clubs?.length ? (renewed ? setSession(denied, request, renewed) : denied) : setSession(denied, request); }
     // Cached reads are keyed to the exact access they were fetched with, so any permission change clears them.
     const scope = `${user.id}:${env.CLUB_ID}:${granted.superAdminActive ? "aal2" : "aal1"}:${granted.permissions.join(",")}:${granted.platformPermissions.join(",")}`;
     const finish = (response: Response, session = renewed) => { response.headers.set("X-Club-Scope", scope); return session ? setSession(response, request, session) : response; };
@@ -217,7 +240,7 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
       }), granted);
       return finish(response);
     }
-    return finish(reply({ email: user.email, club_id: env.CLUB_ID, roles: granted.roles, permissions: granted.permissions, super_admin: granted.superAdmin, mfa_verified: granted.superAdminActive, mfa_session: granted.sessionAal2, platform_permissions: granted.platformPermissions }));
+    return finish(reply({ email: user.email, club_id: env.CLUB_ID, roles: granted.roles, permissions: granted.permissions, super_admin: granted.superAdmin, mfa_verified: granted.superAdminActive, mfa_session: granted.sessionAal2, platform_permissions: granted.platformPermissions, clubs }));
   } catch (error) {
     // Only path and error type/message: never cookies, tokens or request bodies.
     console.error(JSON.stringify({ event: "club_api_error", path: url.pathname, error: error instanceof Error ? `${error.name}: ${error.message}` : "unknown" }));

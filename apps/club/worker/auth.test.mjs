@@ -9,9 +9,11 @@ const req = (path, body, cookie = '', origin = 'https://club.example') => new Re
 // What the database's club_my_access returns for each seeded role (owner renames; admin does not).
 const grants = { owner: ['absences.resolve','aliases.manage','audit.read','club.rename','imports.create','imports.delete','members.read'], admin: ['absences.resolve','aliases.manage','audit.read','imports.create','imports.delete','members.read'] };
 const accessFor = role => ({ permissions: grants[role] ?? [], roles: grants[role] ? [role] : [], super_admin: false, super_admin_active: false });
-const mock = (role = 'owner', access = accessFor(role)) => async (url, options) => {
+const mock = (role = 'owner', access = accessFor(role), others = grants[role] ? [{ id: 'club-a', name: 'A', roles: [role] }] : []) => async (url, options) => {
   if (url.includes('/rest/v1/')) {
     assert.equal(options.headers.Authorization, 'Bearer access');
+    // Account-wide context takes no user or club from the client.
+    if (url.endsWith('/rest/v1/rpc/club_my_context')) { assert.equal(options.body, '{}'); return Response.json({ clubs: others }); }
     assert.ok(url.endsWith('/rest/v1/rpc/club_my_access'));
     assert.deepEqual(JSON.parse(options.body), { p_club: 'club-a' });
     return Response.json(access);
@@ -37,7 +39,7 @@ test('membership revocation applies to an already valid session', async () => {
   const request = req('account', null, '__Host-club_access=access');
   for (const role of ['owner', 'admin']) {
     const response = await handleRequest(request, env, mock(role));
-    assert.deepEqual(await response.json(), { email: user.email, club_id: 'club-a', roles: [role], permissions: grants[role], super_admin: false, mfa_verified: false, mfa_session: false, platform_permissions: [] });
+    assert.deepEqual(await response.json(), { email: user.email, club_id: 'club-a', roles: [role], permissions: grants[role], super_admin: false, mfa_verified: false, mfa_session: false, platform_permissions: [], clubs: [{ id: 'club-a', name: 'A', roles: [role] }] });
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
   }
   assert.equal((await handleRequest(request, env, mock(null))).status, 403);
@@ -175,4 +177,50 @@ test('email link flows verify by POST, set own password, and hide account existe
   assert.equal((await handleRequest(req('auth/password', { password: 'longenough' }, '__Host-club_access=access'), env, auth(200))).status, 200);
   assert.deepEqual(calls[0].slice(1), ['PUT', JSON.stringify({ password: 'longenough' }), 'Bearer access']);
   assert.equal((await handleRequest(req('auth/recover', { email: 'x@example.com' }, '', 'https://evil.example'), env, auth(200))).status, 403);
+});
+
+// Phase 2: sign-in no longer needs this deployment's club. A role in another club is enough to sign in and read the
+// account (with no permissions here); nothing else in this club opens, and no authorization at all still refuses.
+test('a role only in another club signs in and reads the account but no club route; no role anywhere is refused', async () => {
+  const elsewhere = [{ id: 'club-b', name: 'B', roles: ['admin'] }];
+  const onlyB = mock(null, accessFor(null), elsewhere);
+  assert.equal((await handleRequest(req('login', { email: 'a', password: 'b' }), env, onlyB)).status, 200);
+  const account = await handleRequest(req('account', null, '__Host-club_access=access'), env, onlyB);
+  assert.equal(account.status, 200);
+  assert.deepEqual(await account.json(), { email: user.email, club_id: 'club-a', roles: [], permissions: [], super_admin: false, mfa_verified: false, mfa_session: false, platform_permissions: [], clubs: elsewhere });
+  for (const path of ['members', 'activity', 'club-settings', 'mfa', 'admin/overview', 'import-context?date=2026-01-01'])
+    assert.equal((await handleRequest(req(path, null, '__Host-club_access=access'), env, onlyB)).status, 403, path);
+  const none = mock(null, accessFor(null), []);
+  assert.equal((await handleRequest(req('login', { email: 'a', password: 'b' }), env, none)).status, 403);
+  assert.equal((await handleRequest(req('account', null, '__Host-club_access=access'), env, none)).status, 403);
+});
+
+// Audit of every authenticated route for an account whose only role is in another club. Iterates the real route table,
+// so a route added later is covered too: each must refuse with 403, run no handler and no business query, and keep
+// the session (only club_my_access / club_my_context and the Auth user check may be called).
+test('every route refuses a role-only-elsewhere account without business calls and keeps its session', async () => {
+  const { routeMethods } = await import('./index.ts');
+  const open = ['/api/login', '/api/logout', '/api/auth/verify', '/api/auth/recover', '/api/auth/password', '/api/account'];
+  const calls = [];
+  const network = async (url, options) => {
+    calls.push(url.replace('https://auth.example', ''));
+    if (url.endsWith('/rpc/club_my_access')) return Response.json(accessFor(null));
+    if (url.endsWith('/rpc/club_my_context')) return Response.json({ clubs: [{ id: 'club-b', name: 'B', roles: ['owner'] }] });
+    if (url.endsWith('/auth/v1/user')) return Response.json(user);
+    return Response.json({ unexpected: true });
+  };
+  let checked = 0;
+  for (const [path, methods] of Object.entries(routeMethods)) {
+    if (open.includes(path)) continue;
+    for (const method of methods) {
+      calls.length = 0;
+      const request = new Request(`https://club.example${path}`, { method, headers: { Origin: 'https://club.example', 'Content-Type': 'application/json', Cookie: '__Host-club_access=access' }, ...(method === 'POST' ? { body: '{}' } : {}) });
+      const response = await handleRequest(request, env, network);
+      assert.equal(response.status, 403, `${method} ${path}`);
+      assert.equal(response.headers.get('Set-Cookie'), null, `${method} ${path} must not sign the account out`);
+      assert.deepEqual([...new Set(calls)].sort(), ['/auth/v1/user', '/rest/v1/rpc/club_my_access', '/rest/v1/rpc/club_my_context'], `${method} ${path}`);
+      checked++;
+    }
+  }
+  assert.ok(checked >= 16, `audited ${checked} route methods`);
 });

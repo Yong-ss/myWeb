@@ -1,8 +1,9 @@
 // Single source of truth for Club routes: which pages use the private shell, and the sidebar entries.
 // Presentation only. The Worker and database enforce every permission; hiding a link is never access control.
 export type NavLink = { href: string; icon: string; label: string };
-// Two workspaces share one shell: the platform (Super Admin) and the club this deployment serves (CLUB_ID).
-export type Workspace = "platform" | "club";
+// Workspaces share one shell: the platform (Super Admin), the club this deployment serves (CLUB_ID), and the
+// account hub listing every club the account has a role in.
+export type Workspace = "platform" | "club" | "hub";
 
 const privateRoutes: { path: string; nav?: { icon: string; label: string }; activeNav?: string; workspace?: Workspace }[] = [
   { path: "/account", nav: { icon: "◇", label: "俱乐部总览" } },
@@ -14,11 +15,13 @@ const privateRoutes: { path: string; nav?: { icon: string; label: string }; acti
   { path: "/settings" }, // linked from the header, not the sidebar
   { path: "/admin", nav: { icon: "✠", label: "平台管理中心" }, workspace: "platform" },
   { path: "/admin/security", nav: { icon: "⚿", label: "账户安全" }, workspace: "platform" },
+  { path: "/clubs", nav: { icon: "♜", label: "我的俱乐部" }, workspace: "hub" },
 ];
 
 const linksOf = (workspace: Workspace): NavLink[] => privateRoutes.flatMap(route => route.nav && (route.workspace ?? "club") === workspace ? [{ href: route.path, ...route.nav }] : []);
 export const privateLinks = linksOf("club");
 export const platformLinks = linksOf("platform");
+export const hubLinks = linksOf("hub");
 export const publicLinks: NavLink[] = [{ href: "/", icon: "◇", label: "首页" }, { href: "/login", icon: "✧", label: "登录" }];
 
 const normalize = (pathname: string) => pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
@@ -35,10 +38,12 @@ export function workspaceOf(pathname: string): Workspace {
   const path = normalize(pathname);
   return privateRoutes.find(route => route.path === path)?.workspace ?? "club";
 }
-export const workspaceHome: Record<Workspace, string> = { platform: "/admin", club: "/account" };
+export const workspaceHome: Record<Workspace, string> = { platform: "/admin", club: "/account", hub: "/clubs" };
 /** The header settings link: each workspace has its own settings, never another workspace's. */
-export const workspaceSettings: Record<Workspace, { href: string; label: string }> = { platform: { href: "/admin/security", label: "账户安全" }, club: { href: "/settings", label: "设置" } };
-/** Where a signed-in account starts. Super Admin identity, not a club role, decides; the platform page explains any missing MFA. */
-export function landingPath(account: { super_admin?: boolean }) {
-  return account.super_admin === true ? workspaceHome.platform : workspaceHome.club;
+export const workspaceSettings: Partial<Record<Workspace, { href: string; label: string }>> = { platform: { href: "/admin/security", label: "账户安全" }, club: { href: "/settings", label: "设置" } };
+/** Where a signed-in account starts. Super Admin identity, not a club role, decides; the platform page explains any
+ * missing MFA. Others start in this club only with permissions here, otherwise in the hub that lists their clubs. */
+export function landingPath(account: { super_admin?: boolean; permissions?: unknown[] }) {
+  if (account.super_admin === true) return workspaceHome.platform;
+  return (account.permissions?.length ?? 0) > 0 ? workspaceHome.club : workspaceHome.hub;
 }

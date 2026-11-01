@@ -211,3 +211,5 @@ CI 修复：简化 PostgreSQL Auth fixture 补齐真实 auth.users 的 email 列
 人数图表视觉增量：lint、类型及构建通过；最新 8 项图表／总览浏览器用例同轮通过，包含 1440／390／320 宽度、键盘 Tab／Escape、鼠标、真实触摸模拟、单点零值、reduced-motion、提示框边界及加载前后面板尺寸。审阅桌面／小屏截图并修复全局按钮样式覆盖数据点。未运行数据库／真实集成或完整套件（纯图表 UI，数据请求及业务未改），未 Push／部署。
 人数总览文案／交互收尾：删除原标题与说明，提示卡固定横向位置避免两端跳动；最新 lint、含 TypeScript 的构建和 8 项相关 Playwright 用例通过，检查桌面／手机截图。未运行无关数据库／完整回归，未 Push 或部署。
 零起点增量：构建（含类型检查）及 8 项图表／总览浏览器用例通过，验证展示基准节点、单日真实零值、触摸与窄屏；不改业务数据。
+
+发布记录（2026-11-02，Club 阶段 2）：本人用 `supabase db push --linked` 在正式 myWeb Supabase 应用 `20261101163647_club_my_context.sql`（dry-run 仅此一项）。验证全部通过：迁移记录共 15 项且无遗漏；函数 checksum `ok`；security definer、`search_path=""`，仅 authenticated 可执行；PostgREST 匿名调用返回 401 `42501`（非 `PGRST202`，schema cache 已识别）；以本人身份只读事务调用返回预期账户上下文（aal1 时平台权限为空）。之后才把 `CLUB_SCHEMA_VERSION` 更新为 `20261101163647`。发布前本地：SQL 9 组、Club 单元 110、真实集成 28（后续针对性 5）、旧 Worker 兼容 24 均通过。
