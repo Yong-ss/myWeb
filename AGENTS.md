@@ -23,11 +23,16 @@ Long-term solo project (pnpm monorepo: `apps/web` main site, `apps/club` Club ap
 - Details: `docs/TESTING.md` (first section is the current workflow).
 
 ## Testing
-- Before suggesting a push run `pnpm test:affected` (covers uncommitted and unpushed work). Run `pnpm test:full` or the manual full CI run before important releases.
+- During development, run the smallest affected checks first; do not run a full regression after every edit. Run real integration once the relevant changes are stable.
+- After a failure, diagnose and fix the cause, then rerun the failing and directly affected checks. Broaden testing only when the change or new evidence warrants it.
+- Reuse successful results when the tested code, dependencies, configuration and relevant environment are unchanged. Record the covered version/scope and outcome; a repeated report, approval or deployment request alone is not a reason to rerun checks.
+- Before suggesting a push, ensure `pnpm test:affected` covers the final uncommitted and unpushed work; reuse results that still cover it. Perform the necessary final validation once, not at every checkpoint. Important releases require `pnpm test:full` or the manual full CI run under `docs/TESTING.md`; avoid duplicating unchanged full suites locally and in CI unless required by that workflow or new evidence.
 - Add focused tests for new features and bug fixes that encode why the behaviour matters; no TDD mandate or coverage targets.
 - Prefer Playwright over manual or Computer Use clicking; use manual checks only for visual or motion issues automation can't judge.
 - SQL fixtures run only via `pnpm test:db` on disposable local/CI PostgreSQL. Auth, database and important Club flows also need `pnpm test:integration` (its own local Supabase and synthetic data). Never point any test at the hosted project or production keys.
-- Run fast checks first and real integration once changes are stable; on failure fix the cause and rerun focused tests. Never skip security, database or regression checks to save time.
+- High-risk permission, authentication and database changes require targeted security tests; changes with migrations also require `pnpm test:compat` before push, as specified in `docs/TESTING.md`. Never skip required security, database, compatibility or regression checks to save time.
+- Do not repeat a comprehensive security review without relevant code changes, new evidence or an unresolved concern; review the affected area instead.
+- GitHub CI remains the automatic deployment gate: all required checks must pass; never bypass it. Report successful checks as a concise summary, and inspect detailed logs when a check fails rather than repeatedly reading successful logs.
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph
