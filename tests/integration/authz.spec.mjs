@@ -142,7 +142,8 @@ test('the Super Admin binds and verifies real TOTP in account security; powers a
   // First activation: aal2 with an unconfirmed factor is still only the club owner; the page shows the SQL Editor step.
   account=await (await context.request.get(`${baseURL}/api/account`)).json();
   expect(account).toMatchObject({super_admin:true,mfa_verified:false,mfa_session:true,roles:['owner']});expect(account.permissions).not.toContain('audit.actor_email.read');
-  await expect(page.locator('.club-header-account')).toContainText('公会长');
+  // On the platform security page the header shows only the platform identity; the club role is checked via the API above.
+  await expect(page.locator('.club-header-account')).toContainText('超级管理员（待两步验证）');await expect(page.locator('.club-header-account')).not.toContainText('公会长');
   await expect(page.getByText(`select club_private.trust_super_admin_factor('${factorIds[0]}');`)).toBeVisible();
   // The owner confirms out of band (SQL Editor as postgres); the same aal2 session then has the full permission set.
   sql(`select club_private.trust_super_admin_factor('${factorIds[0]}');`);
