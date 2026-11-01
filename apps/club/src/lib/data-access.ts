@@ -32,8 +32,9 @@ export function createDataAccess(network:typeof fetch=fetch,now=()=>Date.now(),u
       clear();
     }
     const version=generation,response=await once(path,init);
-    if(version!==generation)return Response.json({error:'数据已更新，请重试'},{status:409});
+    // A denial carries no data, so it is never stale: show it even if a concurrent denial already cleared the cache.
     if([401,403].includes(response.status)){clear();return response;}
+    if(version!==generation)return Response.json({error:'数据已更新，请重试'},{status:409});
     const scope=response.headers.get('X-Club-Scope');
     if(response.ok&&scope&&version===generation){
       if(entries.size>=40)entries.delete(entries.keys().next().value!);

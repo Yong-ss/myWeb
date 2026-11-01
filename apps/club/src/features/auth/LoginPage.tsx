@@ -1,5 +1,6 @@
 "use client";
 import {clubApi} from "../../lib/data-access";
+import {landingPath} from "../../lib/navigation";
 
 import Link from "next/link";
 import { Button } from "../../components/ui/button";
@@ -21,7 +22,7 @@ export function LoginPage() {
     try {
       // /login is public, so a 401 (wrong password) is shown here instead of redirecting.
       await clubApi("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.get("email"), password: form.get("password") }) }, "登录失败，请重试");
-      router.replace("/account");
+      router.replace(landingPath(await clubApi<{ super_admin?: boolean }>("/api/account", undefined, "登录失败，请重试")));
     } catch (e) { setError(e instanceof TypeError ? "连接失败，请稍后重试" : e instanceof Error ? e.message : "登录失败，请重试"); }
     finally { setBusy(false); }
   }

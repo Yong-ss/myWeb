@@ -1,33 +1,36 @@
 "use client";
 import {usePathname} from "next/navigation";
 import {useEffect,useState} from "react";
-import {GearSixIcon,ShieldCheckIcon} from "@phosphor-icons/react";
+import {CastleTurretIcon,GearSixIcon,ShieldCheckIcon} from "@phosphor-icons/react";
+import {workspaceHome,type Workspace} from "../../lib/navigation";
 import {clubApi} from "../../lib/data-access";
 import {Button,ButtonLink} from "../ui/button";
 import {Skeleton} from "../ui/skeleton";
-// Display only: the highest role name. Access is decided by the Worker and database from permissions.
+// Display only. Platform identity and the club role are separate facts, so both are shown; access is decided by the
+// Worker and database from permissions.
 const roleNames: Record<string, string> = { owner: "公会长", admin: "管理员" };
-function roleLabel(data: { roles?: unknown; super_admin?: boolean; mfa_verified?: boolean }) {
-  if (data.super_admin && data.mfa_verified) return "超级管理员";
+export function roleLabel(data: { roles?: unknown; super_admin?: boolean; mfa_verified?: boolean }) {
   const roles = Array.isArray(data.roles) ? data.roles.filter((r): r is string => typeof r === "string") : [];
   const known = roles.find(r => r === "owner") ?? roles.find(r => r in roleNames);
-  return known ? roleNames[known] : data.super_admin ? "超级管理员（未验证）" : "成员";
+  const club = known ? roleNames[known] : undefined;
+  if (!data.super_admin) return club ?? "成员";
+  return [data.mfa_verified ? "超级管理员" : "超级管理员（待两步验证）", club].filter(Boolean).join(" · ");
 }
-export function AccountControls(){
+export function AccountControls({ workspace }: { workspace: Workspace }){
  const pathname=usePathname();
   const [email, setEmail] = useState<string>();
   const [label, setLabel] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  // Display only: the Worker and database decide platform access on every request.
-  const [platform, setPlatform] = useState(false);
+  // Display only: which workspace switch to offer. The Worker and database decide access on every request.
+  const [can, setCan] = useState({ platform: false, club: false });
   useEffect(() => {
     let active = true;
     async function load() {
       try {
         // An expired session (401) goes to login inside clubApi; a revoked membership (403) shows its message here.
-        const data = await clubApi<{ email: string; roles: string[]; super_admin: boolean; mfa_verified: boolean; platform_permissions?: string[] }>("/api/account", undefined, "暂时无法读取账户");
-        if (active) { setEmail(data.email); setLabel(roleLabel(data)); setPlatform(data.platform_permissions?.includes("platform.read") === true); setError(""); }
+        const data = await clubApi<{ email: string; roles: string[]; permissions?: string[]; super_admin: boolean; mfa_verified: boolean }>("/api/account", undefined, "暂时无法读取账户");
+        if (active) { setEmail(data.email); setLabel(roleLabel(data)); setCan({ platform: data.super_admin === true, club: (data.permissions?.length ?? 0) > 0 }); setError(""); }
       } catch (e) { if (active) { setEmail(undefined); setError(e instanceof TypeError ? "连接失败，请刷新重试" : e instanceof Error ? e.message : "暂时无法读取账户"); } }
     }
     void load();
@@ -51,7 +54,8 @@ export function AccountControls(){
    <small className="block text-muted-foreground">{email?label:<Skeleton className="my-1.5 w-2/5"/>}</small>
   </span>
   <Button variant="secondary" disabled={!email} loading={busy} loadingText="正在退出…" onClick={logout}>退出登录</Button>
-  {platform&&<ButtonLink variant="secondary" size="compact" className="club-header-admin text-gold aria-[current=page]:bg-selected" href="/admin" aria-current={pathname==="/admin"?"page":undefined}><ShieldCheckIcon aria-hidden="true"/>平台管理</ButtonLink>}
+  {workspace==="club"&&can.platform&&<ButtonLink variant="secondary" size="compact" className="club-header-admin text-gold" href={workspaceHome.platform}><ShieldCheckIcon aria-hidden="true"/>平台管理中心</ButtonLink>}
+  {workspace==="platform"&&can.club&&<ButtonLink variant="secondary" size="compact" className="club-header-admin text-gold" href={workspaceHome.club}><CastleTurretIcon aria-hidden="true"/>俱乐部工作空间</ButtonLink>}
   <ButtonLink variant="secondary" size="compact" className="club-header-settings text-gold aria-[current=page]:bg-selected" href="/settings" aria-current={pathname==="/settings"?"page":undefined}><GearSixIcon aria-hidden="true"/>设置</ButtonLink>
   {error&&<p role="alert" className="club-header-error absolute top-full right-0 z-30 m-0 mt-2 flex max-w-[calc(100vw-32px)] items-center gap-3 rounded-sm border border-destructive bg-error-bg p-3 text-sm text-destructive">{error} <Button size="compact" onClick={()=>window.location.reload()}>刷新</Button></p>}
  </>;

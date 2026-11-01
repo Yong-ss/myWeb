@@ -11,4 +11,5 @@ export function loadClubSettings(){
  return pending;
 }
 export async function saveClubName(value:string,expected:string){const data=await clubApi<{name:string}>("/api/club-settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:value,expected_name:expected})},"保存失败");update(data.name);return data.name;}
-export function useClubBrand(){const value=useSyncExternalStore(subscribe,()=>name,()=>"俱乐部名称");useEffect(()=>{void loadClubSettings().catch(()=>{});},[]);return value;}
+// enabled=false: the platform workspace shows no club, and a Super Admin may have no membership to read one.
+export function useClubBrand(enabled=true){const value=useSyncExternalStore(subscribe,()=>name,()=>"俱乐部名称");useEffect(()=>{if(enabled)void loadClubSettings().catch(()=>{});},[enabled]);return value;}

@@ -32,7 +32,8 @@ function useRead<T>(path:string){
  return {data,error,reload:()=>{setError("");setRetry(n=>n+1);}};
 }
 
-function OverviewPanel(){
+// This Worker serves exactly one club (CLUB_ID), so only that club can be entered; others are listed honestly as not yet enterable.
+function OverviewPanel({currentClub}:{currentClub?:string}){
  const {data,error,reload}=useRead<Overview>("/api/admin/overview");
  if(error)return <LoadingState status="error" title="总览读取失败" detail={error} onRetry={reload}/>;
  if(!data)return <TableSkeleton columns={4} rows={3} label="正在读取平台总览…"/>;
@@ -44,7 +45,7 @@ function OverviewPanel(){
    {metric("账户",t.users,`${t.confirmed_users} 个已验证邮箱`)}{metric("有俱乐部角色的用户",t.members,`${t.active_roles} 个生效角色`)}
   </Card>
   <p className="m-0 text-sm text-muted-foreground">玩家状态与成员名单使用同一规则，按最新有效记录统计，不代表实时游戏在线人数；网站管理账户独立计算。</p>
-  <Table className="max-sm:block"><TableCaption className="max-sm:block">全部俱乐部 · 网站管理账户按有生效角色的不同账户计算</TableCaption><TableHeader className="max-sm:sr-only"><TableRow><TableHead>俱乐部</TableHead><TableHead>网站管理账户</TableHead><TableHead>当前在会人数</TableHead></TableRow></TableHeader>
+  <Table className="max-sm:block"><TableCaption className="max-sm:block">全部俱乐部 · 网站管理账户按有生效角色的不同账户计算</TableCaption><TableHeader className="max-sm:sr-only"><TableRow><TableHead>俱乐部</TableHead><TableHead>网站管理账户</TableHead><TableHead>当前在会人数</TableHead><TableHead>工作空间</TableHead></TableRow></TableHeader>
    <TableBody className="max-sm:block">{data.clubs.map(c=><TableRow key={c.id} className="max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto]">
     <TableCell className="align-top whitespace-normal max-sm:block"><span className="font-medium">{c.name}</span><small className="mt-1 block text-muted-foreground">最新记录：{c.latest_snapshot??"暂无数据"}</small>{c.latest_snapshot&&typeof c.is_complete_roster==="boolean"&&<Badge variant={c.is_complete_roster?"success":"warning"}>{c.is_complete_roster?"完整名单":"不完整名单"}</Badge>}</TableCell>
     <TableCell className="align-top tabular-nums max-sm:block max-sm:text-right"><span className="block text-xs text-muted-foreground sm:hidden">网站管理账户</span>{c.members}</TableCell>
@@ -54,6 +55,7 @@ function OverviewPanel(){
       <p className="mb-0 max-w-72 text-xs text-muted-foreground">待确认包含没有有效观察的历史玩家；其他不在会指名单规则已判定不在会，但没有明确暂离或退会分类。</p>
      </CollapsibleContent></Collapsible>
     </TableCell>
+    <TableCell className="align-top whitespace-normal max-sm:col-span-2 max-sm:block">{c.id===currentClub?<ButtonLink size="compact" href="/account" aria-label={`进入管理${c.name}`}>进入管理</ButtonLink>:<span className="grid gap-1"><Badge variant="outline">暂未开放</Badge><small className="max-w-48 text-muted-foreground">多俱乐部切换将在后续版本提供</small></span>}</TableCell>
    </TableRow>)}</TableBody></Table>
  </div>;
 }
@@ -120,17 +122,28 @@ function ActivityPanel(){
  </div>;
 }
 
+type Account={club_id?:string;permissions?:string[];super_admin?:boolean;mfa_verified?:boolean;mfa_session?:boolean;platform_permissions?:string[]};
+// Display only: explains why platform data is unavailable. The Worker and database refuse it regardless.
+function Gate({account}:{account:Account}){
+ const club=(account.permissions?.length??0)>0&&<ButtonLink variant="secondary" href="/account">进入俱乐部工作空间</ButtonLink>;
+ if(!account.super_admin)return <LoadingState status="empty" title="需要超级管理员权限" detail="平台管理中心只对超级管理员开放。" action={club||undefined}/>;
+ const [title,detail]=account.mfa_session
+  ?["验证器尚未确认","本次登录已通过两步验证，但所用验证器还没有在 Supabase SQL Editor 中确认。确认后重新验证即可使用平台管理。"]
+  :["请完成两步验证","你的超级管理员身份需要在本次登录完成两步验证（TOTP）后才能生效。在此之前，账户只保留普通俱乐部角色。"];
+ return <LoadingState status="empty" title={title} detail={detail} action={<span className="flex flex-wrap justify-center gap-3"><ButtonLink href="/settings">前往两步验证</ButtonLink>{club}</span>}/>;
+}
+
 export function AdminPage(){
- const [canManage,setCanManage]=useState(false);
- const [allowed,setAllowed]=useState<boolean|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0);
+ const [account,setAccount]=useState<Account|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0);
  useDataRefresh(()=>setRetry(n=>n+1));
- useEffect(()=>{let active=true;clubApi<{platform_permissions?:string[];mfa_verified?:boolean}>("/api/account",undefined,"暂时无法读取账户").then(a=>{if(active){setAllowed(a.platform_permissions?.includes("platform.read")===true);setCanManage(a.mfa_verified===true&&a.platform_permissions?.includes("platform.roles.assign")===true);}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
- return <main className="club-workspace club-admin flex flex-col gap-6"><PageHeader eyebrow="PLATFORM / 平台管理" title="平台管理"/>
-  {error?<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/>:allowed===null?<LoadingState status="loading" label="正在确认权限…"/>:!allowed?
-   <LoadingState status="empty" title="需要超级管理员权限" detail="平台管理只对完成两步验证、并使用已确认设备登录的超级管理员开放。" action={<ButtonLink variant="secondary" href="/settings">前往设置</ButtonLink>}/>:
+ useEffect(()=>{let active=true;clubApi<Account>("/api/account",undefined,"暂时无法读取账户").then(a=>{if(active)setAccount(a);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
+ const allowed=account?.platform_permissions?.includes("platform.read")===true;
+ const canManage=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.roles.assign")===true;
+ return <main className="club-workspace club-admin flex flex-col gap-6"><PageHeader eyebrow="PLATFORM / 平台管理中心" title="平台管理中心"/>
+  {error?<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/>:!account?<LoadingState status="loading" label="正在确认权限…"/>:!allowed?<Gate account={account}/>:
    <Tabs defaultValue="overview" className="flex flex-col gap-6">
     <TabsList aria-label="平台管理"><TabsTrigger value="overview">总览</TabsTrigger><TabsTrigger value="users">用户与角色</TabsTrigger><TabsTrigger value="roles">角色与权限</TabsTrigger><TabsTrigger value="activity">平台日志</TabsTrigger></TabsList>
-    <TabsContent value="overview"><OverviewPanel/></TabsContent>
+    <TabsContent value="overview"><OverviewPanel currentClub={account.club_id}/></TabsContent>
     <TabsContent value="users"><UsersPanel canManage={canManage}/></TabsContent>
     <TabsContent value="roles"><RolesPanel/></TabsContent>
     <TabsContent value="activity"><ActivityPanel/></TabsContent>

@@ -30,3 +30,10 @@ test('stale reuse verifies permission then refreshes in the background',async()=
  await new Promise(r=>setTimeout(r,0));assert.equal(updates,1);
  assert.equal((await (await client.read('/api/members')).json()).value,2);
 });
+// A user without club permission loads a page that reads members and the club name together: both are refused, and
+// each must show the server's refusal, not a misleading "data changed, retry" caused by the other refusal clearing the cache.
+test('concurrent permission denials both surface as denials',async()=>{
+ const client=createDataAccess(async()=>{await new Promise(r=>setTimeout(r,1));return Response.json({error:'此账户没有权限执行这个操作'},{status:403});});
+ const results=await Promise.all([client.read('/api/members'),client.read('/api/club-settings')]);
+ assert.deepEqual(results.map(r=>r.status),[403,403]);
+});

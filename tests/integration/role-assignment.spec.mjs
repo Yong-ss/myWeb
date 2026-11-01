@@ -1,15 +1,8 @@
 import {spawn} from 'node:child_process';
 import {test,expect} from '@playwright/test';
-import {randomUUID,createHmac} from 'node:crypto';
-import {auth,rest,sql,audits,localFetch,state,clubId,foreignClubId,baseURL,users,password} from './local.mjs';
+import {randomUUID} from 'node:crypto';
+import {auth,rest,sql,audits,localFetch,state,totp,clubId,foreignClubId,baseURL,users,password} from './local.mjs';
 
-// RFC 6238 TOTP (SHA-1, 30 s, 6 digits) using the stdlib; used only against the local Auth server.
-function totp(secret){
-  const bits=[...secret.replace(/=+$/,'').toUpperCase()].map(c=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(c).toString(2).padStart(5,'0')).join('');
-  const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));
-  const h=createHmac('sha1',Buffer.from(bits.match(/.{8}/g).map(b=>parseInt(b,2)))).update(counter).digest(),o=h[19]&15;
-  return String((h.readUInt32BE(o)&0x7fffffff)%1e6).padStart(6,'0');
-}
 const authApi=(path,token,body,method='POST')=>localFetch(`/auth/v1/${path}`,{method,headers:{apikey:state().anonKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
 const claims=token=>JSON.parse(Buffer.from(token.split('.')[1],'base64url'));
 const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');

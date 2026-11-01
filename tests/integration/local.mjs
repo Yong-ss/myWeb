@@ -2,6 +2,7 @@ import '../runtime-env.mjs';
 import { spawnSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createHmac } from 'node:crypto';
 
 export const project = 'squirrelapi-club-integration';
 export const workdir = resolve('.test-runtime/integration/project');
@@ -69,4 +70,12 @@ export async function auth(role) {
   const r=await localFetch('/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:state().anonKey,'Content-Type':'application/json'},body:JSON.stringify({email:users[role].email,password})});
   if(!r.ok) throw Error(`Local Auth login failed: ${r.status} ${await r.text()}`);
   return r.json();
+}
+
+// RFC 6238 TOTP (SHA-1, 30 s, 6 digits) using the stdlib; used only against the local Auth server.
+export function totp(secret){
+  const bits=[...secret.replace(/=+$/,'').toUpperCase()].map(c=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(c).toString(2).padStart(5,'0')).join('');
+  const counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(Math.floor(Date.now()/30000)));
+  const h=createHmac('sha1',Buffer.from(bits.match(/.{8}/g).map(b=>parseInt(b,2)))).update(counter).digest(),o=h[19]&15;
+  return String((h.readUInt32BE(o)&0x7fffffff)%1e6).padStart(6,'0');
 }

@@ -9,7 +9,7 @@ test('real REST presence, rejoining and player history stay inside the configure
   await commit('2030-10-01',true,[member('C阶段测试甲'),member('C阶段测试乙')]);
   const players=await (await rest('club_players?display_name=like.C阶段测试*&select=id,display_name',access)).json();
   const a=players.find(p=>p.display_name==='C阶段测试甲').id,b=players.find(p=>p.display_name==='C阶段测试乙').id;
-  await page.goto('/login');await page.getByLabel('邮箱',{exact:true}).fill(users.owner.email);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/\/account$/);
+  await page.goto('/login');await page.getByLabel('邮箱',{exact:true}).fill(users.owner.email);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);await page.goto('/account'); // the Super Admin lands on the platform centre
   async function status(date){const response=await context.request.get(`${baseURL}/api/members?date=${date}&club_id=${foreignClubId}`);expect(response.status(),await response.text()).toBe(200);return (await response.json()).members.find(p=>p.player_id===a);}
   await commit('2030-10-02',false,[member('C阶段测试乙',b)]);expect((await status('2030-10-02')).presence).toBe('unconfirmed');
   await commit('2030-10-03',true,[member('C阶段测试乙',b)]);expect((await status('2030-10-03')).presence).toBe('left');

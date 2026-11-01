@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 // Platform panel UI with mocked APIs. Access itself is enforced by the Worker and database (see worker/admin.test.mjs,
 // supabase/tests/platform_admin.sql and tests/integration/admin.spec.mjs); here we check what each account is shown.
 const club='00000000-0000-4000-8000-000000000001',uid='00000000-0000-4000-8000-0000000000aa';
-const account=platform=>({email:'boss@example.invalid',roles:['owner'],super_admin:true,mfa_verified:platform,mfa_session:platform,platform_permissions:platform?['platform.read']:[]});
+const account=platform=>({email:'boss@example.invalid',club_id:club,roles:['owner'],permissions:['members.read'],super_admin:true,mfa_verified:platform,mfa_session:platform,platform_permissions:platform?['platform.read']:[]});
 const overview={totals:{clubs:2,users:5,confirmed_users:4,members:3,active_roles:4},alliances:null,clubs:[{id:club,name:'松鼠俱乐部',members:2,players:86,latest_snapshot:'2026-10-30',is_complete_roster:false,player_counts:{present:64,temporary:3,confirmed_left:8,unconfirmed:7,other_left:4}},{id:uid,name:'第二俱乐部',members:1,players:0,latest_snapshot:null,player_counts:null}]};
 const user=(email,extra={})=>({id:uid,email,email_confirmed:true,created_at:'2026-10-01T00:00:00Z',last_sign_in_at:null,super_admin:false,memberships:[{club_id:club,club_name:'松鼠俱乐部',role:'admin',role_name:'管理员',status:'active'}],effective:[{club_id:club,club_name:'松鼠俱乐部',permissions:['audit.read','members.read']}],...extra});
 const roles={permissions:[{key:'members.read',kind:'action',scopes:['platform','alliance','club'],sensitive:false,description:'查看成员名单'},{key:'club.rename',kind:'action',scopes:['club'],sensitive:false,description:'修改俱乐部名称'}],roles:[{key:'owner',name:'公会长',scope:'club',club_name:null,system:true,permissions:['club.rename','members.read'],assigned:1},{key:'admin',name:'管理员',scope:'club',club_name:null,system:true,permissions:['members.read'],assigned:2}]};
@@ -28,12 +28,13 @@ async function mock(page,platform,data=overview,write=false){
  return seen;
 }
 
-test('a Super Admin without platform access (aal1 or unconfirmed device) sees no link and no data',async({page})=>{
+test('a Super Admin before MFA sees both identities, MFA guidance and no platform data',async({page})=>{
  const seen=await mock(page,false);
- await page.goto('/account');await expect(page.locator('.club-header-account')).toContainText('boss@example.invalid');
- await expect(page.getByRole('link',{name:'平台管理'})).toHaveCount(0);
- await page.goto('/admin');await expect(page.getByRole('heading',{name:'需要超级管理员权限'})).toBeVisible();
- await expect(page.getByRole('link',{name:'前往设置'})).toBeVisible();
+ await page.goto('/account');await expect(page.locator('.club-header-account')).toContainText('超级管理员（待两步验证） · 公会长');
+ await page.getByRole('link',{name:'平台管理中心'}).click();await expect(page).toHaveURL(/\/admin$/);
+ await expect(page.getByRole('heading',{name:'请完成两步验证'})).toBeVisible();
+ await expect(page.getByRole('link',{name:'前往两步验证'})).toHaveAttribute('href','/settings');
+ await expect(page.locator('.club-brand-subtitle')).toHaveText('平台管理中心');
  // The page never even asks for platform data when the account has no platform permission.
  expect(seen.filter(p=>p.startsWith('/api/admin/'))).toEqual([]);
 });
@@ -41,8 +42,12 @@ test('a Super Admin without platform access (aal1 or unconfirmed device) sees no
 for(const width of [1440,390,320])test(`the active Super Admin reads overview, users, roles and the platform log ${width}`,async({page})=>{
  await page.setViewportSize({width,height:900});
  const seen=await mock(page,true);
- await page.goto('/account');await page.getByRole('link',{name:'平台管理'}).click();
- await expect(page).toHaveURL(/\/admin$/);await expect(page.getByRole('heading',{name:'平台管理',level:1})).toBeVisible();
+ await page.goto('/account');await page.getByRole('link',{name:'平台管理中心'}).click();
+ await expect(page).toHaveURL(/\/admin$/);await expect(page.getByRole('heading',{name:'平台管理中心',level:1})).toBeVisible();
+ // Only the club this deployment serves can be entered; the other is honestly marked as not yet available.
+ await expect(page.getByRole('link',{name:'进入管理松鼠俱乐部'})).toHaveAttribute('href','/account');
+ await expect(page.getByRole('link',{name:'进入管理第二俱乐部'})).toHaveCount(0);await expect(page.getByText('暂未开放')).toHaveCount(1);
+ await expect(page.getByRole('link',{name:'俱乐部工作空间'})).toHaveAttribute('href','/account');
  // Overview: real counts, and alliances are reported as not enabled rather than a made-up zero.
  await expect(page.getByText('未启用',{exact:true})).toBeVisible();await expect(page.getByText('4 个已验证邮箱')).toBeVisible();
  const row=page.getByRole('row',{name:/松鼠俱乐部/});

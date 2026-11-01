@@ -4,7 +4,7 @@ test('club name persists in PostgreSQL with owner-only rights and conflict prote
  await context.route('**/*',route=>new URL(route.request().url()).origin===baseURL?route.continue():route.abort());
  // Other specs may rename this club too; count only audit rows written during this test.
  const started=sql('select now();');
- await page.goto('/login');await page.getByLabel('邮箱',{exact:true}).fill(users.owner.email);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/\/account$/);
+ await page.goto('/login');await page.getByLabel('邮箱',{exact:true}).fill(users.owner.email);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);await page.goto('/account'); // the Super Admin lands on the platform centre
  const before=await (await context.request.get(`${baseURL}/api/club-settings`)).json();
  await page.goto('/settings');await page.getByLabel('名称',{exact:true}).fill('白银之手');await page.getByRole('button',{name:'保存名称',exact:true}).click();await expect(page.getByRole('status')).toHaveText('名称已保存。');await expect(page.locator('.club-brand-name')).toHaveText('白银之手');
  const owner=(await auth('owner')).access_token;const stored=await (await rest(`club_clubs?id=eq.${clubId}&select=name`,owner)).json();expect(stored[0].name).toBe('白银之手');

@@ -122,7 +122,7 @@ test('the Super Admin binds and verifies real TOTP in Settings; powers appear on
  let factorIds=[];
  try{
   await page.goto('/login');await page.getByLabel('邮箱',{exact:true}).fill(users.owner.email);await page.getByLabel('密码',{exact:true}).fill(password);
-  await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/\/account$/);
+  await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);await page.goto('/account'); // the Super Admin lands on the platform centre
   // Without MFA: still the club owner, no Super Admin powers, no emails in the log.
   let account=await (await context.request.get(`${baseURL}/api/account`)).json();
   expect(account).toMatchObject({super_admin:true,mfa_verified:false,roles:['owner']});expect(account.permissions).not.toContain('audit.actor_email.read');

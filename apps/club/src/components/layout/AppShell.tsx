@@ -9,7 +9,7 @@ import { useClubBrand } from "../../lib/club-brand";
 import { Button } from "../ui/button";
 import { glide, useMotion } from "../ui/motion";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../ui/sheet";
-import { privateLinks, publicLinks, activeHref, type NavLink } from "../../lib/navigation";
+import { privateLinks, platformLinks, publicLinks, activeHref, workspaceOf, workspaceHome, type NavLink } from "../../lib/navigation";
 
 function Navigation({ links, current, onNavigate, indicator }: { links: NavLink[]; current: string; onNavigate?: () => void; indicator: string }) {
   const move = useMotion(glide);
@@ -25,26 +25,27 @@ function Navigation({ links, current, onNavigate, indicator }: { links: NavLink[
 /** Shared shell; permissions remain enforced by the Worker and database. */
 export function AppShell({ children, publicPage = false }: { children: ReactNode; publicPage?: boolean }) {
   const pathname = usePathname();
-  const clubName = useClubBrand();
-  const links = publicPage ? publicLinks : privateLinks;
+  const workspace = workspaceOf(pathname), platform = !publicPage && workspace === "platform";
+  const clubName = useClubBrand(!platform);
+  const links = publicPage ? publicLinks : platform ? platformLinks : privateLinks;
   const current = activeHref(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   return <div className={cn("club-app mist grid min-h-dvh grid-cols-[var(--club-sidebar-width)_minmax(0,1fr)] grid-rows-[var(--club-header-height)_1fr] text-foreground max-lg:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr]", publicPage && "club-public grid-cols-[minmax(0,1fr)]")}>
     <header className="club-top sticky top-0 z-20 col-span-full flex items-center justify-between gap-4 border-b border-border bg-field px-6 max-md:grid max-md:min-h-16 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-2 max-md:px-4 max-md:py-2">
-      <Link className="club-wordmark flex min-w-0 items-center gap-3 font-heading text-gold no-underline max-md:col-start-1 max-md:row-start-1 max-md:gap-2 max-md:text-sm" href={publicPage ? "/" : "/account"}>
+      <Link className="club-wordmark flex min-w-0 items-center gap-3 font-heading text-gold no-underline max-md:col-start-1 max-md:row-start-1 max-md:gap-2 max-md:text-sm" href={publicPage ? "/" : workspaceHome[workspace]}>
         <span className="club-emblem grid size-9 shrink-0 place-items-center border border-brass text-xl" aria-hidden="true">✧</span>
         <span className="club-brand grid min-w-0 gap-1">
-          <span className="club-brand-name font-heading text-lg leading-tight [overflow-wrap:anywhere]">{clubName}</span>
-          <small className="club-brand-subtitle font-sans text-xs tracking-[.2em] text-muted-foreground">数据检测平台</small>
+          <span className="club-brand-name font-heading text-lg leading-tight [overflow-wrap:anywhere]">{platform ? "俱乐部数据检测平台" : clubName}</span>
+          <small className="club-brand-subtitle font-sans text-xs tracking-[.2em] text-muted-foreground">{platform ? "平台管理中心" : "数据检测平台"}</small>
         </span>
       </Link>
-      {!publicPage && <div className="club-header-account relative ml-auto flex min-w-0 items-center gap-4 max-md:col-span-full max-md:row-start-2 max-md:w-full max-md:justify-end max-md:gap-2"><AccountControls /></div>}
+      {!publicPage && <div className="club-header-account relative ml-auto flex min-w-0 items-center gap-4 max-md:col-span-full max-md:row-start-2 max-md:w-full max-md:justify-end max-md:gap-2"><AccountControls workspace={workspace} /></div>}
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetTrigger asChild><Button variant="secondary" size="compact" className="club-menu hidden max-lg:inline-flex max-md:col-start-2 max-md:row-start-1 max-md:ml-auto">菜单 <span aria-hidden="true">☰</span></Button></SheetTrigger>
         {/* Radix: focus starts on the close button, Tab loops inside, Escape or the backdrop closes and focus returns to 菜单. */}
         <SheetContent aria-describedby={undefined}>
           <SheetHeader>
-            <SheetTitle>俱乐部导航</SheetTitle>
+            <SheetTitle>{platform ? "平台导航" : "俱乐部导航"}</SheetTitle>
             <SheetClose asChild><Button variant="secondary" size="icon" aria-label="关闭菜单">×</Button></SheetClose>
           </SheetHeader>
           <Navigation links={links} current={current} indicator="nav-drawer" onNavigate={() => setMenuOpen(false)} />
@@ -52,7 +53,7 @@ export function AppShell({ children, publicPage = false }: { children: ReactNode
       </Sheet>
     </header>
     {!publicPage && <aside className="club-sidebar sticky top-(--club-header-height) flex h-[calc(100dvh-var(--club-header-height))] flex-col gap-4 self-start overflow-y-auto border-r border-border bg-sidebar py-6 max-lg:hidden">
-      <p className="eyebrow px-6">THE ARCHIVES</p>
+      <p className="eyebrow px-6">{platform ? "THE CONCLAVE" : "THE ARCHIVES"}</p>
       <Navigation links={links} current={current} indicator="nav-sidebar" />
     </aside>}
     {children}

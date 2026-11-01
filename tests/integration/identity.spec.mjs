@@ -7,7 +7,7 @@ test.beforeEach(async({context,page})=>{
   await context.route('**/*',route=>new URL(route.request().url()).origin===baseURL?route.continue():route.abort('blockedbyclient'));
   await page.goto('/login'); await page.waitForLoadState('networkidle');
   await page.getByLabel('邮箱',{exact:true}).fill(users.owner.email);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'登录',exact:true}).click();
-  await expect(page).toHaveURL(/\/account$/);
+  await expect(page).toHaveURL(/\/admin$/);await page.goto('/account'); // the Super Admin lands on the platform centre
 });
 async function prepare(page,date,members) {
   await page.goto('/import');await page.waitForLoadState('networkidle');
