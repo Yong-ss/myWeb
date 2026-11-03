@@ -17,18 +17,79 @@
 
 执行迁移只用仓库原始文件，不手动转写 SQL（2026-10-30 曾因转写把 `'{}'::jsonb` 写成 `''::jsonb` 导致正式函数出错）。首选本人在本机运行 `supabase db push`（读取原文件并保留文件编号）；Supabase MCP `apply_migration` 需要把 SQL 复制进参数且会生成新编号，仅作备选，用后须把文件改名为生成的编号。`supabase db push` 前必须先确认目标与内容：`supabase/.temp/project-ref` 等于正式项目 `lnwifbsjfwchshtxyzcu`，并运行 `supabase db push --dry-run` 核对待执行的迁移列表只含预期文件，确认后再去掉 `--dry-run`。执行后运行 `node scripts/migration-checksums.mjs supabase/migrations/<文件>`，把输出的只读查询贴到 SQL Editor，每个函数都必须是 `ok` 才能更新 `CLUB_SCHEMA_VERSION`。该检查只覆盖函数体；表、约束、策略仍按上面的版本列表人工确认。
 
-迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本（默认 `origin/main`）的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上；被新迁移有意收紧的旧断言在 `scripts/test-compat.mjs` 中逐条列出并说明由哪个新测试覆盖。已应用的迁移若被改动则直接失败。
+**Club 权限 V1 的 7 个迁移例外：不用 `supabase db push`**（它逐个文件提交，中途失败会留下半个迁移），改按 `docs/CLUB_PERMISSIONS_PLAN.md` 7.3 用 `psql --single-transaction` 执行 7 个原始文件加 `scripts/club-v1-structure-check.mjs` 生成的检查，成功后才运行 `supabase migration repair --status applied <7 个版本号>`。执行前的只读预检查是 `scripts/club-v1-precheck.sql`（只读事务，结束时回滚，每行 `ok` 都应为 true）。
 
-## 备份（Supabase 免费版没有自动备份）
+迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本（默认 `origin/main`）的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上；Club 权限 V1 的 7 个待部署迁移按「只有 A」「A～C」「A～E」「全部」四种数据库状态分别运行（模拟迁移中途停止），`pnpm test:compat origin/main all` 可只跑一种。旧测试中只因迁移有意改变的期望值（超管完整权限列表、`platform_users` 字段、`platform_overview.alliances`）和 P4 违反单职位规则的测试数据按状态精确替换，每处替换必须恰好匹配一次，否则直接失败；超管真实 TOTP、P2、平台面板和 P4 的原子性、并发、重放、撤销断言照常运行。只有一条测试整条排除（多职位合并，本身就违反单职位规则），原因写在 `scripts/test-compat.mjs`。已应用的迁移若被改动则直接失败。
 
-由本人在本机执行，CI 和 AI 不执行；连接串含数据库密码，只在当前终端输入，不写入仓库。每次重要导入后或每周一次：
+## 备份与恢复（Supabase 免费版没有自动备份，2026-11-03 本地实测）
+
+依据 Supabase 官方 [Backup and Restore using the CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)。只由本人在本机执行，CI 和 AI 不执行。连接串（含数据库密码）只在当前终端输入，不写进文件或命令历史以外的地方。
+
+### 备份（每次重要导入后、每周一次、每次正式迁移前）
+
+在仓库外新建一个目录（例如 `D:\club-backups\2026-11-03\`）再执行，`$DB` 为正式库 Session pooler 连接串：
 
 ```powershell
-supabase db dump --db-url "<正式库连接串>" -f club-schema.sql
-supabase db dump --db-url "<正式库连接串>" --data-only -f club-data.sql
+supabase db dump --db-url $DB -f roles.sql --role-only
+supabase db dump --db-url $DB -f schema.sql
+supabase db dump --db-url $DB -f data.sql --use-copy --data-only -x storage.buckets_vectors -x storage.vector_indexes
+supabase db dump --db-url $DB -f history_schema.sql --schema supabase_migrations
+supabase db dump --db-url $DB -f history_data.sql --use-copy --data-only --schema supabase_migrations
 ```
 
-文件含成员资料，加密后保存在仓库以外。`auth.users` 不在导出范围内，恢复后需重新确认账户与 Owner 关系。首次备份后，在可丢弃的本地 PostgreSQL 试恢复一次，确认文件可用。免费项目连续 7 天无活动会被暂停，留意 Supabase 提醒邮件。
+- `data.sql` 包含 `auth.users`、`auth.mfa_factors`、`auth.sessions` 等认证数据（密码哈希、TOTP 密钥、刷新令牌）和全部成员资料，属于最敏感文件：先生成 LF 换行的 `manifest.sha256`（PowerShell 的 `Set-Content` 会写成 CRLF，`sha256sum -c` 读不出文件名，实测失败），再用 `tar` 打包、`gpg --symmetric --cipher-algo AES256` 加密（口令存密码管理器），放在仓库和 OneDrive 同步目录以外，另存一份离线副本；明文文件用完即删。`backups/` 已在 `.gitignore`，但不要依赖它。
+- 每个文件不能为空：`schema.sql` 应含 `club_private`，`data.sql` 应含 `COPY "auth"."users"` 和 `COPY "public"."club_memberships"`，`history_data.sql` 的行数等于生产已应用的迁移数（Club V1 正式迁移前为 15；7 个 V1 迁移执行并 repair 后为 22，此后与 `supabase/migrations` 文件数一致）。
+- 一致性：5 条命令是 5 次独立的 `pg_dump`，各自一个快照；`data.sql` 内部是同一快照，所有表彼此一致。文件之间只有在备份期间发生 DDL 或迁移时才会不一致，所以备份期间不做迁移、导入和职位修改。登录仍会改动 `auth.sessions` 等，这只影响 `data.sql` 内的那一个快照，不影响一致性。
+- Auth：`data.sql` 包含 `auth` 下的全部数据（用户、身份、MFA、会话、刷新令牌）；`schema.sql` 不含 `auth` 的表结构（由 GoTrue 管理），`roles.sql` 不含角色密码。所以恢复目标必须先有与生产同版本的 GoTrue 表结构（版本见 `supabase/.temp/gotrue-version`）。
+
+### 恢复（只恢复到新的空 Supabase 项目；恢复覆盖正式库前需 owner 决定，会丢失备份后的数据）
+
+```powershell
+node scripts/club-v1-structure-check.mjs > check.sql   # 只在 V1 迁移已上线后加入
+psql --single-transaction -v ON_ERROR_STOP=1 `
+  -f roles.sql -f scripts/club-restore-pre.sql -f schema.sql `
+  -c "SET session_replication_role = replica" -f data.sql -c "SET session_replication_role = origin" `
+  -f check.sql --dbname $NEW_DB
+```
+
+- **必须加 `scripts/club-restore-pre.sql`**：新项目对 `public` 的默认授权是 anon/authenticated 拥有一切，而 dump 只写 `GRANT`，不写迁移里对 anon 的 `REVOKE`。只按官方命令恢复时，实测所有表和函数都对 anon、authenticated 开放（RLS 仍开启，但 `security definer` 函数的权限检查全靠执行权限和函数内检查），结构检查会报错并整体回滚。
+- 迁移记录：`history_schema.sql` 中若有 `OWNER TO "supabase_admin"`，按官方说明注释掉（2026-11-03 的正式备份里 owner 已是 `postgres`，无需修改），再执行 `psql --single-transaction -v ON_ERROR_STOP=1 -f history_schema.sql -f history_data.sql --dbname $NEW_DB`。
+- 任何一步出错：整体回滚，新项目保持空库。查明原因后修改命令重跑，不要手工补半个库。官方列出的已知错误（`supabase_admin` 所有者、`cli_login_postgres`）按官方说明处理。
+
+### 正式备份的本机恢复演练（方案 A，owner 2026-11-03 选定；不新建 Supabase 项目）
+
+只由本人执行。用本机已有的 Docker 和 Git 自带的 GnuPG（`C:\Program Files\Git\usr\bin\gpg.exe`），不安装 Windows psql 或 7-Zip。
+
+- **隔离**：`docker network create --internal club-rehearsal-net`，容器只加入这个网络，不加 `-p`。2026-11-03 实测：容器访问外网报 `Network unreachable`，宿主机也连不上它。所以演练库连不到正式库，正式库也连不到演练库。
+- **不落盘**：数据目录和 `/restore` 都用 `--tmpfs`，备份明文只在内存里。解密直接通过管道写进容器（`gpg -d … | docker exec -i <容器> tar -x -C /restore`），宿主机上没有明文文件。
+- **目标结构**：镜像 `public.ecr.aws/supabase/postgres:17.11.0.003`（与生产相同），先用 `public.ecr.aws/supabase/gotrue:v2.197.0 auth migrate` 建出生产版本的 auth 表（实测 75 条迁移，`auth.users` 35 列，`postgres` 对 auth 下的数据表都有 INSERT 权限）。GoTrue 需要 `supabase_auth_admin` 的密码，只给演练库设一个一次性密码。
+- **恢复**：`/restore` 里依次执行 `roles.sql` → `scripts/club-restore-pre.sql` → `schema.sql` → replica 模式下的 `data.sql`（单事务，`ON_ERROR_STOP=1`），然后按上文恢复迁移记录（15 条）。V1 上线前的备份不加 `check.sql`。
+- **真实正式备份演练中发现的三处修正（2026-11-03，演练成功）**：
+  1. `roles.sql` 里有 `GRANT SET ON PARAMETER "log_min_messages" TO "supabase_realtime_admin"`。本地镜像没有这个角色，而且只有 `supabase_admin` 能授予参数权限。先 `create role supabase_realtime_admin nologin noinherit`，再用 `-U supabase_admin` 单独执行 `roles.sql`；其余文件仍用 `postgres` 执行。
+  2. `data.sql` 里有 5 个 `storage.*` 的 `COPY` 块（buckets、buckets_analytics、objects、s3_multipart_uploads、s3_multipart_uploads_parts），本地没有 storage 表结构。Club 不使用 Storage，这 5 个块都是 0 行。先确认都是 0 行，再在容器里生成去掉这些块的 `data.restore.sql`（只删块头和 `\.`），原文件不改。如果以后某个块不是 0 行，不能删，要先用 storage-api 镜像建表。
+  3. 迁移记录表的 owner 已经是 `postgres`，不需要注释 `OWNER TO` 行。
+- **演练结果**：44 张表 1088 行逐表一致；15 条迁移记录；48 个外键没有孤儿行（replica 模式会跳过外键检查，所以要单独查）；超管验证器指向已验证的 TOTP；public 下所有表都开了 RLS，anon 没有表权限，实际读取成员表和超管验证器表都被拒绝。
+- **验证**（只输出表名和行数）：在容器里用 awk 统计 `data.sql` 每个 `COPY` 块的行数，生成 `select count(*)` 查询，到恢复库里逐表比对，必须完全一致（2026-11-03 用合成数据实测：31 张表 206 行一致）。比对只用备份文件本身，不连正式库。另外抽查 `auth.users`、`auth.mfa_factors`、`platform_super_admin_factors` 的行数大于 0，迁移记录为 15 条。
+- **清理**：`docker rm -f -v <容器>`，`docker network rm club-rehearsal-net`，再确认 `docker ps -a`、`docker network ls` 里没有残留。tmpfs 随容器删除。不碰 fyp-supabase 的容器。
+- 演练失败时，单事务会整体回滚（实测回滚后 public 0 张表、auth.users 0 行）。删除容器后查明原因，不要在半个库上手工修补。
+
+### 恢复后人工确认（数据库备份不包含）
+
+- Auth 设置：网站 URL、重定向白名单、邮件模板（`docs/email-templates/`）、SMTP、MFA/TOTP 开关、注册开关。
+- API：新项目的 URL 与 publishable key 写入 Worker 配置并重新部署（`wrangler.jsonc` 中的 `SUPABASE_URL` 等）；旧 key 不再使用。
+- Storage 文件、Edge Functions、Database Webhooks、Realtime：Club 目前都不使用，确认仍然如此。
+- Vault/pgsodium 根密钥：Club 不使用加密列；若以后使用，须按官方说明在旧项目暂停前另外导出。
+- 平台日志中会有恢复前的完整记录；恢复本身不写日志（触发器在 replica 模式下关闭）。
+- 超管验证器：`auth.mfa_factors` 随数据恢复，`platform_super_admin_factors` 的 id 一致；用真实 TOTP 登录一次确认。
+
+### 本地实测结果（2026-11-03，合成数据，容器用完已删除，未动 fyp-supabase）
+
+- 源库：Supabase 官方镜像 `postgres:17.11.0.004`，执行全部 22 个迁移，补上 GoTrue 平时创建的 `auth.jwt()`、`mfa_factors`、`sessions`（最小结构），合成数据含 2 个俱乐部、4 个 auth 账户（含未验证）、TOTP、超管、平台管理员、联盟与会长、俱乐部默认/个人/上限设置、导入与 50 名玩家，以及触发器自动写的 36 条平台日志。
+- 用上面的 5 条官方 `supabase db dump` 命令备份，恢复到另一个全新容器。
+- 对比源库与恢复库（`.test-runtime/stage4/fingerprint.sql`，438 行）：33 张表的行数、auth 账户与 TOTP 数据摘要、职位/日志/玩家数据摘要、全部约束与外键、RLS 状态、14 条策略（含 USING 原文）、81 个函数（definer、search_path、函数体、执行权限、所有者）、25 张表的权限、39 个触发器、54 个索引、schema 权限、API 角色设置、扩展、22 条迁移记录 —— 全部一致。唯一差异是 3 个 CHECK 约束的括号写法（PostgreSQL 重新解析后的打印差异，含义相同）。
+- 恢复库上 V1 结构检查通过；RLS 行为抽查与源库一致（anon 被拒、管理员看不到别的俱乐部、公会长能看到自己的俱乐部）。
+- 失败处理：① 只用官方命令（不加 `club-restore-pre.sql`）并把结构检查放在同一事务中 → 检查报告 API 角色有表权限，整体回滚，新库没有任何 Club 表；② 截断的 `data.sql` → 出错后整体回滚，Club 表和 auth 账户都是 0。
+- 无法用本地 PostgreSQL 证明：真实 GoTrue 的 auth 表结构与版本（本地是官方镜像的旧结构加最小补丁）、托管环境的角色权限、Auth/API 配置、pooler 连接、托管项目的恢复耗时。第一次在正式环境操作时，建议先恢复到一个新的免费临时项目，用 Worker 本地预览登录一次，再删除该项目。（2026-11-03 owner 决定 Club V1 不用这种方式，改用上文的本机方案 A；真实 GoTrue 表结构已由 GoTrue 镜像覆盖，托管环境的配置和 pooler 仍未验证。）
 
 ## 错误日志
 
@@ -61,7 +122,7 @@ Windows 每个新终端先运行 `. ./scripts/env.ps1`，将缓存和临时文�
 | 保留原有 Club 检查、类型、测试、构建及 dry-run | `pnpm club:check` |
 | 已构建 Club 后运行关键浏览器流程 | `pnpm test:e2e` |
 | 只运行登录或导入浏览器流程 | `pnpm test:e2e auth.spec.mjs` / `pnpm test:e2e import.spec.mjs` |
-| 隔离数据库迁移、RLS 和事务测试 | `pnpm test:db` |
+| 隔离数据库迁移、RLS 和事务测试（含 `supabase/tests/upgrade/` 升级检查：在对应迁移之前写入旧数据，迁移后断言） | `pnpm test:db` |
 | 真实本地 Auth／Worker／REST／数据库集成 | `pnpm test:integration` |
 | 重要阶段／正式发布前完整回归 | `pnpm test:full` |
 
@@ -89,7 +150,7 @@ Playwright 使用 Club 的静态构建，所以单独运行浏览器测试前先
 docker run --rm --name squirrelapi-test-db -e POSTGRES_DB=squirrelapi_test -e POSTGRES_PASSWORD=test-only-local -p 127.0.0.1:55432:5432 postgres:17
 ```
 
-另一个终端有 PostgreSQL 客户端后执行 `pnpm test:db`；`PSQL_BIN` 可指定客户端程序路径。此固定密码仅用于可丢弃的本机／CI 测试容器。
+另一个终端有 PostgreSQL 客户端后执行 `pnpm test:db`（SQL 套件之后运行 `scripts/test-db-race.mjs`：两个真实会话的确定性锁竞争，在独立的临时数据库 `squirrelapi_race` 中提交数据，结束时删除；`PSQL_DOCKER=<容器名>` 只对这一步有效，可改用容器内的 psql）；`PSQL_BIN` 可指定客户端程序路径，两步都生效。本机没有 psql 时，可在 WSL 中把 `PSQL_BIN` 指向一个转调 `docker.exe exec -i <容器> psql "$@"` 的脚本，从而原样运行 `test-db.mjs` 与 `test-db-race.mjs`（2026-11-03 阶段 6 用此方式实测）。此固定密码仅用于可丢弃的本机／CI 测试容器。
 
 ## CI 与费用控制
 

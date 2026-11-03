@@ -19,18 +19,23 @@ insert into public.club_memberships(club_id,user_id,role) values
 insert into public.club_players(id,club_id,display_name) values
  ('00000000-0000-4000-8000-000000000b20','00000000-0000-4000-8000-000000000b10','X player'),
  ('00000000-0000-4000-8000-000000000b21','00000000-0000-4000-8000-000000000b11','Y player');
--- A custom club role for X that adds only the rename permission.
+-- A custom club role for X: everything the admin role has, plus rename.
 insert into public.auth_roles(key,scope_kind,club_id,name) values ('x_namer','club','00000000-0000-4000-8000-000000000b10','X 改名');
+insert into public.auth_role_permissions select 'x_namer',permission_key from public.auth_role_permissions where role_key='admin';
 insert into public.auth_role_permissions values ('x_namer','club.rename');
 
--- Several roles per user: permissions are the union; still at most one active owner per club.
+-- Stage A single role (supersedes D-036 union): one active role per user per club; still at most one active owner.
 do $$ begin
+  begin insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000b10','00000000-0000-4000-8000-000000000b02','x_namer');
+    raise exception 'Second active role accepted'; exception when unique_violation then null; end;
+  -- Changing role = revoke the old one, then grant the new one; the old row stays as history.
+  update public.club_memberships set status='revoked' where club_id='00000000-0000-4000-8000-000000000b10' and user_id='00000000-0000-4000-8000-000000000b02' and role='admin';
   insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000b10','00000000-0000-4000-8000-000000000b02','x_namer');
   begin insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000b10','00000000-0000-4000-8000-000000000b02','owner');
     raise exception 'Second active owner accepted'; exception when unique_violation then null; end;
   begin insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000b11','00000000-0000-4000-8000-000000000b02','x_namer');
     raise exception 'Club-owned role used in another club'; exception when check_violation then null; end;
-  begin insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000b10','00000000-0000-4000-8000-000000000b02','admin');
+  begin insert into public.club_memberships(club_id,user_id,role) values ('00000000-0000-4000-8000-000000000b10','00000000-0000-4000-8000-000000000b02','x_namer');
     raise exception 'Duplicate role row accepted'; exception when unique_violation then null; end;
 end $$;
 
@@ -38,11 +43,11 @@ set local role authenticated;
 do $$
 declare x uuid := '00000000-0000-4000-8000-000000000b10'; y uuid := '00000000-0000-4000-8000-000000000b11'; a jsonb;
 begin
-  -- admin + x_namer: everything admin has plus rename, and the rename RPC now succeeds for this user.
+  -- x_namer: everything admin has plus rename, and the rename RPC now succeeds for this user.
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000b02',true);
   a := public.club_my_access(x);
   if a->'permissions' <> '["absences.resolve","aliases.manage","audit.read","club.rename","imports.create","imports.delete","members.read"]'::jsonb
-    or a->'roles' <> '["admin","x_namer"]'::jsonb or (a->>'super_admin')::boolean or (a->>'super_admin_active')::boolean then raise exception 'Multi-role access wrong: %', a; end if;
+    or a->'roles' <> '["x_namer"]'::jsonb or (a->>'super_admin')::boolean or (a->>'super_admin_active')::boolean then raise exception 'Multi-role access wrong: %', a; end if;
   if public.club_rename(x,'Switch X2','Switch X')->>'name' <> 'Switch X2' then raise exception 'Merged rename permission not usable'; end if;
   -- Business RLS: own club only.
   if (select count(*) from public.club_players) <> 1 or (select count(*) from public.club_clubs) <> 1 then raise exception 'Admin RLS scope wrong'; end if;
@@ -58,8 +63,9 @@ begin
 end $$;
 reset role;
 
--- Revoking one role removes only its permissions, immediately; revoking all removes access.
+-- Switching back to admin removes rename immediately; revoking all removes access.
 update public.club_memberships set status='revoked' where user_id='00000000-0000-4000-8000-000000000b02' and role='x_namer';
+update public.club_memberships set status='active' where user_id='00000000-0000-4000-8000-000000000b02' and role='admin';
 set local role authenticated;
 do $$ declare x uuid := '00000000-0000-4000-8000-000000000b10'; begin
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000b02',true);
@@ -86,7 +92,7 @@ do $$ declare y uuid := '00000000-0000-4000-8000-000000000b11'; a jsonb; begin
   if public.club_my_access('ce0c7103-1cdf-4b08-8619-f71d4915f598')->'roles' <> '["owner"]' then raise exception 'Super Admin lost own owner role without MFA'; end if;
   perform set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000c001"}',true);
   a := public.club_my_access(y);
-  if not (a->>'super_admin_active')::boolean or jsonb_array_length(a->'permissions') <> 8 or a->'roles' <> '[]' then raise exception 'Super Admin aal2 state wrong: %', a; end if;
+  if not (a->>'super_admin_active')::boolean or jsonb_array_length(a->'permissions') <> 11 or a->'roles' <> '[]' then raise exception 'Super Admin aal2 state wrong: %', a; end if;
   if (select count(*) from public.club_players where club_id in ('00000000-0000-4000-8000-000000000b10',y)) <> 2 then raise exception 'Super Admin cannot read all clubs'; end if;
   if public.club_rename(y,'Switch Y2','Switch Y')->>'name' <> 'Switch Y2' then raise exception 'Super Admin cannot write'; end if;
   -- Unconfirmed or nonexistent identities never become Super Admin.
@@ -102,8 +108,8 @@ do $$ begin
     and actor_id='d0ddb226-a10a-471c-be4b-d5e5153bd313' and details->>'actor_kind'='super_admin' and not details ? 'actor_email' and details->'actor_role'='null'::jsonb) then
     raise exception 'Super Admin cross-club audit wrong';
   end if;
-  -- A multi-role actor gets one deterministic role in the audit (owner first).
-  if (select details->>'actor_role' from public.club_audit_events where club_id='00000000-0000-4000-8000-000000000b10' and action='club_renamed' order by created_at limit 1) <> 'admin' then raise exception 'Multi-role audit role wrong'; end if;
+  -- The audit records the actor's active role at the time, not an older revoked row (admin was revoked then).
+  if (select details->>'actor_role' from public.club_audit_events where club_id='00000000-0000-4000-8000-000000000b10' and action='club_renamed' order by created_at limit 1) <> 'x_namer' then raise exception 'Audit role is not the active role'; end if;
   -- No write function keeps a hard-coded owner/admin check.
   if exists(select 1 from pg_proc where pronamespace in ('public'::regnamespace,'club_private'::regnamespace)
     and proname in ('commit_import','manage_alias','delete_import_date','resolve_absence','club_rename') and (prosrc ~ 'role in \(' or prosrc ~ 'role=''owner''')) then
@@ -195,4 +201,4 @@ do $$ declare sid text; begin
   perform set_config('request.jwt.claims','{}',true);
 end $$;
 reset role;
-select 'club_authz_switch: multi-role union, owner uniqueness, revocation, tenant RLS, MFA-gated Super Admin reads/writes and audit, first-activation confirmation passed' as result;
+select 'club_authz_switch: single active role, owner uniqueness, revocation, tenant RLS, MFA-gated Super Admin reads/writes and audit, first-activation confirmation passed' as result;

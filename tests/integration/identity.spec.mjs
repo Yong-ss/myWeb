@@ -26,7 +26,7 @@ async function save(page,{complete=false}={}) {
   await expect(page.getByRole('checkbox',{name:'完整名单，没有漏人',exact:true})).not.toBeChecked();
   if(complete)await page.getByRole('checkbox',{name:'完整名单，没有漏人',exact:true}).check();
   await page.getByRole('checkbox',{name:/我已核对名单/}).check();
-  const request=page.waitForRequest(r=>r.url().endsWith('/api/imports')&&r.method()==='POST');
+  const request=page.waitForRequest(r=>new URL(r.url()).pathname==='/api/imports'&&r.method()==='POST');
   await page.getByRole('button',{name:'确认导入',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('已保存');
   return (await request).postDataJSON();

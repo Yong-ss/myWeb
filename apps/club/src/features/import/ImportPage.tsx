@@ -30,12 +30,14 @@ import { labels, beijingToday, fieldValue, confirmedMembers, absenceReview, read
 import { matchPlayers, type Match } from "./identity";
 import { IdentityDialog, type IdentityChoice } from "./IdentityDialog";
 import { extractionPrompt } from "./prompt";
+import {useClubHref} from "../../lib/useClub";
 
 // A selectable card: the whole label is the click target, the brass edge marks the chosen option.
 const optionCard = "flex cursor-pointer items-start gap-3 rounded-sm border border-border bg-field p-4 transition-[border-color,background-color] duration-150 ease-club-feedback hover:border-gold has-[[data-state=checked]]:border-gold has-[[data-state=checked]]:bg-selected has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ring";
 const notice = "m-0 rounded-sm border px-4 py-3 text-sm leading-relaxed [overflow-wrap:anywhere] empty:hidden";
 
 export function ImportPage() {
+  const href=useClubHref();
   const [raw, setRaw] = useState("");
   const [absenceReasons,setAbsenceReasons]=useState<Record<string,string>>({});
   const [absenceChoices,setAbsenceChoices]=useState<Record<string,AbsenceChoice>>({});
@@ -174,7 +176,7 @@ export function ImportPage() {
       <p className="m-0 text-xs text-muted-foreground">* 建议使用<a className="text-muted-foreground" href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">豆包</a>，选择「专家」。</p>
     </div>}
     <p role={saved?undefined:"status"} className={cn(notice, "border-success/40 bg-success-bg text-success")}>{saved?"":notice_}</p><p id="import-feedback" tabIndex={-1} role="alert" className={cn(notice, "border-destructive bg-error-bg text-destructive")}>{readableError(error)}</p>
-    {saved ? <motion.section className="m-0" id="import-success" tabIndex={-1} initial={{opacity:0,y:6}} animate={{opacity:1,y:0,transition:fade}}><LoadingState status="ready" title="今天的记录，保存好了。" detail={`${notice_} 可以放心离开这个页面，或继续导入其他日期的数据。`} action={<><Button onClick={reset}>开始另一批导入</Button><Link className="text-gold" href="/account">回到工作台</Link></>}/></motion.section> : <fieldset className="club-import-busy relative m-0 min-w-0 border-0 p-0" disabled={busy} aria-busy={busy}>
+    {saved ? <motion.section className="m-0" id="import-success" tabIndex={-1} initial={{opacity:0,y:6}} animate={{opacity:1,y:0,transition:fade}}><LoadingState status="ready" title="今天的记录，保存好了。" detail={`${notice_} 可以放心离开这个页面，或继续导入其他日期的数据。`} action={<><Button onClick={reset}>开始另一批导入</Button><Link className="text-gold" href={href("/account")}>回到工作台</Link></>}/></motion.section> : <fieldset className="club-import-busy relative m-0 min-w-0 border-0 p-0" disabled={busy} aria-busy={busy}>
       {busy && <PageLoader className="club-import-processing invisible absolute inset-0 z-20 min-h-0 data-[visible=true]:visible data-[visible=true]:bg-[color-mix(in_srgb,var(--club-bg)_96%,transparent)] max-sm:min-h-0" title={review ? "正在保存记录…" : "正在读取数据…"} detail="请稍候，不要重复提交。" />}
       {!context ? <Card className="input-panel items-stretch gap-5">
         <Field className="max-w-60"><FieldLabel htmlFor="date">截图日期</FieldLabel><Input id="date" type="date" min="2000-01-01" max="2100-12-31" value={date} onChange={e => setDate(e.target.value)} /></Field>
@@ -224,6 +226,6 @@ export function ImportPage() {
       onEdit={(index, member) => setRows(rows.map((r,i) => i === index ? { ...r, member } : r))}
       onRemove={index => { setRemoved({ row: rows[index], index }); setRows(rows.filter((_,i) => i !== index)); setIdentityIndex(null); invalidate(); }} />
     <AlertDialog open={discard} onOpenChange={setDiscard}><AlertDialogContent><AlertDialogTitle>要放弃这次核对吗？</AlertDialogTitle><AlertDialogDescription>这批还没有保存。放弃后，需要重新上传并核对。</AlertDialogDescription><AlertDialogFooter><AlertDialogCancel asChild><Button>继续核对</Button></AlertDialogCancel><Button variant="destructive" onClick={reset}>确认放弃</Button></AlertDialogFooter></AlertDialogContent></AlertDialog>
-    <p className="m-0"><Link className="text-sm text-gold" href="/account">返回账户</Link></p>
+    <p className="m-0"><Link className="text-sm text-gold" href={href("/account")}>返回账户</Link></p>
   </main>;
 }

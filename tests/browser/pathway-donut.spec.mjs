@@ -1,11 +1,12 @@
 import {test,expect} from '@playwright/test';
+import {ownerAccount} from './fixtures.mjs';
 
 const members=['占卜家','占卜家','观众','歌颂者','未知途径很长的原始名称',null].map((pathway,i)=>({player_id:`p${i}`,name:`成员${i}`,pathway,presence:'present',extraordinary_score:10,prosperity:0}));
 members.push({player_id:'left',name:'离会占卜家',pathway:'占卜家',presence:'left'},{player_id:'uncertain',name:'待确认占卜家',pathway:'占卜家',presence:'unconfirmed'});
 async function mock(page,state){
  await page.route('**/api/**',route=>{
   const u=new URL(route.request().url());
-  if(u.pathname==='/api/account')return route.fulfill({json:{email:'chart@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}});
+  if(u.pathname==='/api/account')return route.fulfill({json:ownerAccount('chart@example.invalid')});
   if(u.pathname==='/api/club-settings')return route.fulfill({json:{name:'途径测试俱乐部'}});
   state.requests++;
   return state.fail?route.fulfill({status:503,json:{error:'模拟读取失败'}}):route.fulfill({json:{snapshot:state.empty?null:{id:'latest',snapshot_date:'2026-10-30',revision:2,is_current:true,is_complete_roster:true},snapshots:[],members:state.members,next:null}});

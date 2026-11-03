@@ -39,7 +39,7 @@ test('membership revocation applies to an already valid session', async () => {
   const request = req('account', null, '__Host-club_access=access');
   for (const role of ['owner', 'admin']) {
     const response = await handleRequest(request, env, mock(role));
-    assert.deepEqual(await response.json(), { email: user.email, club_id: 'club-a', roles: [role], permissions: grants[role], super_admin: false, mfa_verified: false, mfa_session: false, platform_permissions: [], clubs: [{ id: 'club-a', name: 'A', roles: [role] }] });
+    assert.deepEqual(await response.json(), { email: user.email, club_id: 'club-a', roles: [role], permissions: grants[role], super_admin: false, mfa_verified: false, mfa_session: false, platform_admin: false, alliance_leader: false, platform_permissions: [], clubs: [{ id: 'club-a', name: 'A', roles: [role] }] });
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
   }
   assert.equal((await handleRequest(request, env, mock(null))).status, 403);
@@ -187,7 +187,7 @@ test('a role only in another club signs in and reads the account but no club rou
   assert.equal((await handleRequest(req('login', { email: 'a', password: 'b' }), env, onlyB)).status, 200);
   const account = await handleRequest(req('account', null, '__Host-club_access=access'), env, onlyB);
   assert.equal(account.status, 200);
-  assert.deepEqual(await account.json(), { email: user.email, club_id: 'club-a', roles: [], permissions: [], super_admin: false, mfa_verified: false, mfa_session: false, platform_permissions: [], clubs: elsewhere });
+  assert.deepEqual(await account.json(), { email: user.email, club_id: 'club-a', roles: [], permissions: [], super_admin: false, mfa_verified: false, mfa_session: false, platform_admin: false, alliance_leader: false, platform_permissions: [], clubs: elsewhere });
   for (const path of ['members', 'activity', 'club-settings', 'mfa', 'admin/overview', 'import-context?date=2026-01-01'])
     assert.equal((await handleRequest(req(path, null, '__Host-club_access=access'), env, onlyB)).status, 403, path);
   const none = mock(null, accessFor(null), []);
@@ -202,7 +202,7 @@ test('every route refuses a role-only-elsewhere account without business calls a
   const { routeMethods } = await import('./index.ts');
   const open = ['/api/login', '/api/logout', '/api/auth/verify', '/api/auth/recover', '/api/auth/password', '/api/account'];
   const calls = [];
-  const network = async (url, options) => {
+  const network = async (url) => {
     calls.push(url.replace('https://auth.example', ''));
     if (url.endsWith('/rpc/club_my_access')) return Response.json(accessFor(null));
     if (url.endsWith('/rpc/club_my_context')) return Response.json({ clubs: [{ id: 'club-b', name: 'B', roles: ['owner'] }] });

@@ -1,6 +1,7 @@
 "use client";
 import {clubApi} from "../../lib/data-access";
 import {landingPath} from "../../lib/navigation";
+import {lastClub} from "../../lib/club-context";
 import {useHydrated} from "../../lib/useHydrated";
 
 import Link from "next/link";
@@ -20,7 +21,7 @@ export function LoginPage() {
   // with a new password-only (aal1) one and make a Super Admin repeat two-step verification for no reason.
   useEffect(() => {
     let active = true;
-    clubApi<{ super_admin?: boolean; permissions?: string[] }>("/api/account").then(account => { if (active) router.replace(landingPath(account)); }).catch(() => {});
+    clubApi<Parameters<typeof landingPath>[0]>("/api/account").then(account => { if (active) router.replace(landingPath(account, lastClub())); }).catch(() => {});
     return () => { active = false; };
   }, [router]);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -31,7 +32,7 @@ export function LoginPage() {
     try {
       // /login is public, so a 401 (wrong password) is shown here instead of redirecting.
       await clubApi("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.get("email"), password: form.get("password") }) }, "登录失败，请重试");
-      router.replace(landingPath(await clubApi<{ super_admin?: boolean; permissions?: string[] }>("/api/account", undefined, "登录失败，请重试")));
+      router.replace(landingPath(await clubApi<Parameters<typeof landingPath>[0]>("/api/account", undefined, "登录失败，请重试"), lastClub()));
     } catch (e) { setError(e instanceof TypeError ? "连接失败，请稍后重试" : e instanceof Error ? e.message : "登录失败，请重试"); }
     finally { setBusy(false); }
   }

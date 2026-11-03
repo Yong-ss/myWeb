@@ -16,6 +16,7 @@
 - 请求一律用 `clubApi`：401 在私有页跳转登录，403 留在原页显示服务端提示，公开页从不跳转。不要在页面里直接调用 `clubFetch` 或重写 401/403 处理。
 - 读取复用 `clubApi` 的私人缓存与 `useDataRefresh`：每次复用都经实时权限校验，写入后失效；禁止公共缓存、持久化缓存，也不得为性能缓存 membership 或绕过 RLS。新查询先看 `docs/PERFORMANCE.md`：并行、有界、稳定游标，不逐行请求。
 - 导航和私有页面只在 `src/lib/navigation.ts` 登记；它只决定显示，不是权限控制。
+- 俱乐部写在页面网址 `?club=<id>`（`src/lib/club-context.ts`）：页面内链接用 `useClubHref()`，请求由 `clubApi` 自动带上俱乐部，不要手写 `?club=`，也不要用记住的俱乐部做权限判断。
 - 登录后页面统一使用 AppShell 页头和 AccountControls；页面不得另写账户或退出逻辑，公开页不显示私人账户控件。
 - 俱乐部名称以数据库为准，使用 `useClubBrand`／`/api/club-settings`，不得用 localStorage 冒充保存；改名需要 `club.rename` 权限（默认只有 Owner）。
 

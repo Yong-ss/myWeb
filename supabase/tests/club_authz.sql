@@ -23,7 +23,7 @@ insert into public.club_memberships(club_id,user_id,role,status) values
 set local role authenticated;
 do $$
 declare
-  actions text[] := array['absences.resolve','aliases.manage','audit.read','club.rename','imports.create','imports.delete','members.read'];
+  actions text[] := array['absences.resolve','aliases.manage','audit.read','club.admins.manage','club.admins.permissions','club.alliance.request','club.rename','imports.create','imports.delete','members.read'];
   person record; perm text; expected text[];
 begin
   for person in select * from (values
@@ -32,8 +32,9 @@ begin
     perform set_config('request.jwt.claim.sub',person.id::text,true);
     expected := '{}';
     -- Legacy: an active, confirmed owner/admin does everything; only the owner renames. Nobody sees emails by default.
+    -- Stage C adds the owner-only management powers (club.admins.*), stage F the alliance request; never admins.
     foreach perm in array actions loop
-      if person.kind='owner' or (person.kind='admin' and perm<>'club.rename') then expected := expected || perm; end if;
+      if person.kind='owner' or (person.kind='admin' and perm not in ('club.rename','club.admins.manage','club.admins.permissions','club.alliance.request')) then expected := expected || perm; end if;
     end loop;
     if public.club_my_permissions('00000000-0000-4000-8000-000000000a10') is distinct from expected then
       raise exception 'Permission drift for %: % <> %', person.kind, public.club_my_permissions('00000000-0000-4000-8000-000000000a10'), expected;
@@ -44,7 +45,7 @@ end $$;
 
 -- Super Admin: every permission on every existing club, but only with MFA (aal2).
 do $$
-declare all_perms text[] := array['absences.resolve','aliases.manage','audit.actor_email.read','audit.read','club.rename','imports.create','imports.delete','members.read'];
+declare all_perms text[] := array['absences.resolve','aliases.manage','audit.actor_email.read','audit.read','club.admins.manage','club.admins.permissions','club.alliance.request','club.rename','imports.create','imports.delete','members.read'];
 begin
   perform set_config('request.jwt.claim.sub','d0ddb226-a10a-471c-be4b-d5e5153bd313',true);
   perform set_config('request.jwt.claims','{"aal":"aal1"}',true);

@@ -1,11 +1,12 @@
 import {test,expect} from '@playwright/test';
+import {ownerAccount,id} from './fixtures.mjs';
 
 for(const width of [1440,390])test(`departed section shares date selection with independent table controls without moving unconfirmed members ${width}`,async({page})=>{
  await page.setViewportSize({width,height:1000});
  const current={id:'current',snapshot_date:'2026-10-30',revision:2,is_current:true,is_complete_roster:true};
  const old={...current,id:'old',revision:1,is_current:false};
- await page.route('**/api/account',r=>r.fulfill({json:{email:'test@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}}));
- await page.route('**/api/club-settings',r=>r.fulfill({json:{name:'测试俱乐部'}}));
+ await page.route('**/api/account*',r=>r.fulfill({json:ownerAccount('test@example.invalid')}));
+ await page.route('**/api/club-settings*',r=>r.fulfill({json:{name:'测试俱乐部'}}));
  await page.route('**/api/members*',r=>{
   const params=new URL(r.request().url()).searchParams;
   const rejoined=params.get('date')==='2026-10-29',prior=params.get('version')==='old';
@@ -40,7 +41,7 @@ for(const width of [1440,390])test(`departed section shares date selection with 
  const row=page.getByRole('row').filter({has:page.getByRole('link',{name:'离会玩家',exact:true})});
  await expect(row.getByRole('cell',{name:'2026-10-28',exact:true})).toBeVisible();
  await expect(row.locator('img')).toHaveAttribute('src','/pathway/sun.webp');
- await expect(row.getByRole('link')).toHaveAttribute('href','/players?id=left&date=2026-10-30');
+ await expect(row.getByRole('link')).toHaveAttribute('href',`/players?id=left&date=2026-10-30&club=${id}`);
  await page.getByLabel('查看日期').selectOption('2026-10-30');
  await page.getByLabel('保存版本').selectOption('old');
  await expect(page.getByText('旧版本 · 第 1 版')).toBeVisible();

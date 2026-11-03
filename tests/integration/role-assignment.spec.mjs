@@ -8,15 +8,19 @@ const claims=token=>JSON.parse(Buffer.from(token.split('.')[1],'base64url'));
 const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
 const allPermissions=['absences.resolve','aliases.manage','audit.actor_email.read','audit.read','club.rename','imports.create','imports.delete','members.read'];
 
-test('P4 assignments are atomic, tenant explicit, replay safe and protected by live trusted MFA',async({request})=>{
+test('role changes are single-role, atomic, tenant explicit, replay safe and protected by live trusted MFA',async({request})=>{
  test.setTimeout(90000);
  const club=randomUUID(),other=randomUUID();
- sql(`insert into public.club_clubs(id,name,admin_limit) values('${club}','P4 isolated club',2),('${other}','P4 other club',5);
- insert into public.club_memberships(club_id,user_id,role) values('${club}','${users.foreign.id}','owner'),('${club}','${users.foreign.id}','admin'),('${other}','${users.foreign.id}','owner');`);
+ sql(`insert into public.club_clubs(id,name,admin_limit) values('${club}','P4 isolated club',1),('${other}','P4 other club',5);
+ insert into public.club_memberships(club_id,user_id,role) values('${club}','${users.foreign.id}','owner'),('${other}','${users.foreign.id}','owner');`);
  const base={club_id:club,user_id:users.admin.id,role:'admin',action:'grant',expected_version:0,request_id:randomUUID()};
- const write=(token,body)=>request.post(`${baseURL}/api/admin/assign-role`,{headers:{Cookie:`__Host-club_access=${token}`,Origin:baseURL},data:body});
+ const post=(path,token,body)=>request.post(`${baseURL}/api/admin/${path}`,{headers:{Cookie:`__Host-club_access=${token}`,Origin:baseURL},data:body});
+ const write=(token,body)=>post('assign-role',token,body);
  const rpcBody=b=>({p_club:b.club_id,p_user:b.user_id,p_role:b.role,p_action:b.action,p_expected:b.expected_version,p_request:b.request_id});
- const deny=async token=>{expect((await write(token,base)).status()).toBe(403);expect((await rest('rpc/platform_assign_role',token,rpcBody(base))).status).toBe(403);expect((await rest('rpc/platform_role_context',token,{p_user:users.admin.id})).status).toBe(403);};
+ const deny=async token=>{expect((await write(token,base)).status()).toBe(403);expect((await rest('rpc/platform_assign_role',token,rpcBody(base))).status).toBe(403);expect((await rest('rpc/platform_role_context',token,{p_user:users.admin.id})).status).toBe(403);
+  expect((await rest('rpc/platform_transfer_owner',token,{p_club:club,p_user:users.admin.id,p_previous_owner:'leave',p_expected:0,p_request:randomUUID()})).status).toBe(403);
+  expect((await rest('rpc/platform_remove_from_club',token,{p_club:club,p_user:users.foreign.id,p_expected:0,p_request:randomUUID()})).status).toBe(403);
+  expect((await rest('rpc/platform_set_admin_limit',token,{p_club:club,p_limit:9})).status).toBe(403);};
  for(const role of ['admin','foreign','outsider','owner'])await deny((await auth(role)).access_token);
  const aal1=(await auth('owner')).access_token;
  const forged=aal1.split('.');forged[1]=b64({...claims(aal1),aal:'aal2'});expect((await write(forged.join('.'),base)).status()).toBe(401);
@@ -34,6 +38,8 @@ test('P4 assignments are atomic, tenant explicit, replay safe and protected by l
   const logCount=auditCount();expect((await write(token,winner)).status()).toBe(200);expect(auditCount()).toBe(logCount);
   expect((await write(token,{...winner,user_id:loser.user_id})).status()).toBe(409);expect(auditCount()).toBe(logCount);
   expect((await write(token,{...loser,expected_version:await version(),request_id:randomUUID()})).status()).toBe(409);expect(auditCount()).toBe(logCount);
+  // The limit of 1 was the cap check above; later steps need room for the previous owner to stay as admin.
+  sql(`update public.club_clubs set admin_limit=2 where id='${club}';`);
   const loserToken=(await auth(loser.user_id===users.admin.id?'admin':'outsider')).access_token;
   const winnerToken=(await auth(winner.user_id===users.admin.id?'admin':'outsider')).access_token;
   expect(await (await rest('rpc/club_my_permissions',winnerToken,{p_club:club})).json()).toContain('members.read');
@@ -44,13 +50,36 @@ test('P4 assignments are atomic, tenant explicit, replay safe and protected by l
   expect(await (await rest('rpc/club_my_permissions',loserToken,{p_club:club})).json()).toEqual([]);
   expect((await write(token,{...winner,expected_version:await version(),request_id:randomUUID()})).status()).toBe(200);
   const before=auditCount();expect((await write(token,{...base,user_id:users.foreign.id,role:'owner',action:'revoke',expected_version:await version(),request_id:randomUUID()})).status()).toBe(409);expect(auditCount()).toBe(before);
-  const transfer={...base,user_id:users.outsider.id,role:'owner',action:'transfer',expected_version:await version(),request_id:randomUUID()};expect((await write(token,transfer)).status()).toBe(200);
+  // The implicit legacy transfer is not offered by this Worker; the previous owner's outcome must be chosen.
+  expect((await write(token,{...base,user_id:users.outsider.id,role:'owner',action:'transfer',expected_version:await version(),request_id:randomUUID()})).status()).toBe(400);
+  const transfer={club_id:club,user_id:users.outsider.id,previous_owner:'admin',expected_version:await version(),request_id:randomUUID()};
+  expect((await post('transfer-owner',token,{...transfer,previous_owner:undefined})).status()).toBe(400);
+  expect((await post('transfer-owner',token,transfer)).status()).toBe(200);
+  expect(sql(`select string_agg(role,',') from public.club_memberships where club_id='${club}' and user_id='${users.outsider.id}' and status='active';`)).toBe('owner');
   const foreign=(await auth('foreign')).access_token;
   const remaining=await (await rest('rpc/club_my_permissions',foreign,{p_club:club})).json();expect(remaining).toContain('members.read');expect(remaining).not.toContain('club.rename');
   expect(await (await rest('rpc/club_my_permissions',foreign,{p_club:other})).json()).toContain('club.rename');
   expect(sql(`select count(*) from public.club_memberships where club_id='${club}' and role='owner' and status='active';`)).toBe('1');
-  const finalVersion=await version();const transfers=await Promise.all([users.admin.id,users.foreign.id].map(id=>write(token,{...transfer,user_id:id,expected_version:finalVersion,request_id:randomUUID()})));expect(transfers.map(r=>r.status()).sort()).toEqual([200,409]);
+  const finalVersion=await version();const transfers=await Promise.all([users.admin.id,users.foreign.id].map(id=>post('transfer-owner',token,{...transfer,previous_owner:'leave',user_id:id,expected_version:finalVersion,request_id:randomUUID()})));expect(transfers.map(r=>r.status()).sort()).toEqual([200,409]);
   expect(sql(`select count(*) from public.club_memberships where club_id='${club}' and role='owner' and status='active';`)).toBe('1');
+  // Every user holds at most one active role in this club after all of the above.
+  expect(sql(`select count(*) from (select user_id from public.club_memberships where club_id='${club}' and status='active' group by user_id having count(*)>1) d;`)).toBe('0');
+  // Remove from this club: refused for the owner, immediate for anyone else, other clubs untouched.
+  const owner=sql(`select user_id from public.club_memberships where club_id='${club}' and role='owner' and status='active';`);
+  expect((await post('remove-from-club',token,{club_id:club,user_id:owner,expected_version:await version(),request_id:randomUUID()})).status()).toBe(409);
+  const staysForeign=owner!==users.foreign.id;
+  if(staysForeign){
+   expect((await post('remove-from-club',token,{club_id:club,user_id:users.foreign.id,expected_version:await version(),request_id:randomUUID()})).status()).toBe(200);
+   expect(await (await rest('rpc/club_my_permissions',foreign,{p_club:club})).json()).toEqual([]);
+   expect(await (await rest('rpc/club_my_permissions',foreign,{p_club:other})).json()).toContain('club.rename');
+  }
+  // Admin limit: Super Admin only, never below the current count, audited.
+  const activeAdmins=Number(sql(`select count(*) from public.club_memberships where club_id='${club}' and role='admin' and status='active';`));
+  if(activeAdmins>1)expect((await post('admin-limit',token,{club_id:club,admin_limit:activeAdmins-1})).status()).toBe(409);
+  expect((await post('admin-limit',token,{club_id:club,admin_limit:3})).status()).toBe(200);
+  expect(sql(`select admin_limit from public.club_clubs where id='${club}';`)).toBe('3');
+  expect(sql(`select count(*) from public.platform_audit_events where action='club_clubs.admin_limit' and actor_id='${users.owner.id}' and details#>>'{new,club_id}'='${club}' and details#>>'{new,admin_limit}'='3';`)).toBe('1');
+  expect((await post('admin-limit',(await auth('foreign')).access_token,{club_id:club,admin_limit:9})).status()).toBe(403);
   const event=JSON.parse(sql(`select row_to_json(e) from (select actor_id,details from public.platform_audit_events where details->'new'->>'club_id'='${club}' order by created_at desc,id desc limit 1)e;`));expect(event.actor_id).toBe(users.owner.id);expect(event.details.new.club_id).toBe(club);expect(JSON.stringify(event)).not.toMatch(/access_token|totp|password/);
   expect((await write(token,{...base,role:'super_admin'})).status()).toBe(400);
   // First-invite order: a dashboard invitee cannot be appointed until the invite link confirms the email,

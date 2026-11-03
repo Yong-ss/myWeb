@@ -1,26 +1,30 @@
 import {test,expect} from '@playwright/test';
+import {ownerAccount} from './fixtures.mjs';
 for(const width of [1440,390])test(`header does not remount or move settings during slow verification ${width}`,async({page})=>{
  await page.setViewportSize({width,height:844});let hold=true,gate;
  await page.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname;
   if(path==='/api/account'&&hold){gate=route;return;}
-  return route.fulfill({json:path==='/api/account'?{email:'stable@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}:path==='/api/club-settings'?{name:'测试俱乐部',can_edit:true}:{snapshot:null,snapshots:[],members:[],points:[],next:null}});
+  return route.fulfill({json:path==='/api/account'?ownerAccount('stable@example.invalid'):path==='/api/club-settings'?{name:'测试俱乐部',can_edit:true}:{snapshot:null,snapshots:[],members:[],points:[],next:null}});
  });
  await page.goto('/account');const settings=page.locator('.club-header-settings');
  const before=await settings.boundingBox();await expect.poll(()=>Boolean(gate)).toBe(true);
- await gate.fulfill({json:{email:'stable@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}});await expect(page.locator('.club-header-account')).toContainText('stable@example.invalid');
+ await gate.fulfill({json:ownerAccount('stable@example.invalid')});await expect(page.locator('.club-header-account')).toContainText('stable@example.invalid');
+ // An old link without a club: the page then names its club in the URL and re-reads the account for that club.
+ const first=gate;await expect(page).toHaveURL(/\/account\?club=/);await expect.poll(()=>gate!==first).toBe(true);
+ await gate.fulfill({json:ownerAccount('stable@example.invalid')});
  expect(await settings.boundingBox()).toEqual(before);
  await page.locator('.club-top').evaluate(el=>el.dataset.persistTest='same-header');
- gate=null;await settings.click();await expect(page).toHaveURL(/\/settings$/);
+ gate=null;await settings.click();await expect(page).toHaveURL(/\/settings\?club=/);
  await expect(page.locator('.club-top')).toHaveAttribute('data-persist-test','same-header');
  await expect(page.locator('.club-header-account')).toContainText('stable@example.invalid');expect(await settings.boundingBox()).toEqual(before);
- await expect.poll(()=>Boolean(gate)).toBe(true);hold=false;await gate.fulfill({json:{email:'stable@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}});
+ await expect.poll(()=>Boolean(gate)).toBe(true);hold=false;await gate.fulfill({json:ownerAccount('stable@example.invalid')});
 });
 for(const width of [1440,390])test(`private pages share a sticky account and settings header ${width}`,async({page})=>{
  await page.setViewportSize({width,height:844});
  await page.route('**/api/**',route=>{
   const u=new URL(route.request().url());
-  return route.fulfill({json:u.pathname==='/api/account'?{email:'header@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false}:u.pathname==='/api/club-settings'?{name:'测试俱乐部',can_edit:true}:u.searchParams.has('player')?{player:{id:'00000000-0000-4000-8000-000000000001',display_name:'测试玩家'},timeline:[],next:null}:{snapshot:null,snapshots:[],members:[],points:[],next:null}});
+  return route.fulfill({json:u.pathname==='/api/account'?ownerAccount('header@example.invalid'):u.pathname==='/api/club-settings'?{name:'测试俱乐部',can_edit:true}:u.searchParams.has('player')?{player:{id:'00000000-0000-4000-8000-000000000001',display_name:'测试玩家'},timeline:[],next:null}:{snapshot:null,snapshots:[],members:[],points:[],next:null}});
  });
  let height;
  for(const path of ['/account','/members','/players?id=00000000-0000-4000-8000-000000000001','/import','/settings']){

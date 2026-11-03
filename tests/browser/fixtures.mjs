@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 export const id = '00000000-0000-4000-8000-000000000001';
+export const ownerPermissions = ['absences.resolve','aliases.manage','audit.read','club.admins.manage','club.admins.permissions','club.alliance.request','club.rename','imports.create','imports.delete','members.read'];
+// The real /api/account contract for an owner of club `id` (club_id is the club it answered for, clubs the account's clubs).
+export const ownerAccount = (email, extra = {}) => ({email,club_id:id,roles:['owner'],permissions:ownerPermissions,super_admin:false,mfa_verified:false,mfa_session:false,platform_permissions:[],clubs:[{id,name:'测试俱乐部',roles:['owner']}],...extra});
 export const member = {name:'冷丶月',position:null,level:71,pathway:null,extraordinary_score:120,prosperity:null,weekly_activity:0,group:null,join_days:null};
 // Deliberately incorrect AI metadata must not replace the operator's choices.
 export const source = JSON.stringify({schema_version:1,snapshot_date:'2026-01-01',is_complete_roster:true,members:[member]});
@@ -17,7 +20,7 @@ export async function mockApp(page) {
       state.signedIn=true; return respond(200,{ok:true});
     }
     if (!state.signedIn) return respond(401,{error:'请先登录'});
-    if (url.pathname === '/api/account') return respond(200,{email:'fixture@example.invalid',roles:['owner'],permissions:['absences.resolve','aliases.manage','audit.read','club.rename','imports.create','imports.delete','members.read'],super_admin:false,mfa_verified:false,club_id:id,clubs:[{id,name:'测试俱乐部',roles:['owner']}]});
+    if (url.pathname === '/api/account') return respond(200,ownerAccount('fixture@example.invalid'));
     if (url.pathname === '/api/logout') { state.signedIn=false; return respond(200,{ok:true}); }
     if (url.pathname === '/api/import-context') return respond(200,{players:[{id,display_name:'冷月',match_name:'冷月'}],snapshot:{id,revision:2,is_complete_roster:false},members:[{...member,name:'冷月',player_id:id}]});
     if (url.pathname === '/api/imports') {
@@ -30,6 +33,9 @@ export async function mockApp(page) {
   });
   return state;
 }
+// For specs that mock every /api/ call alike: answer /api/account (with or without ?club=) with the real contract.
+// Registered after the spec's catch-all route, so it takes precedence.
+export const mockAccount = (page, account = ownerAccount('fixture@example.invalid')) => page.route('**/api/account*', route => route.fulfill({json:account,headers:{'Cache-Control':'no-store'}}));
 export async function open(page,path) { await page.goto(path); await page.waitForLoadState('networkidle'); }
 export async function login(page) {
   await open(page,'/login');

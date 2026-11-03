@@ -12,7 +12,7 @@ function totp(secret){
 const authApi=(path,token,body,method='POST')=>localFetch(`/auth/v1/${path}`,{method,headers:{apikey:state().anonKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
 const claims=token=>JSON.parse(Buffer.from(token.split('.')[1],'base64url'));
 const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
-const allPermissions=['absences.resolve','aliases.manage','audit.actor_email.read','audit.read','club.rename','imports.create','imports.delete','members.read'];
+const allPermissions=['absences.resolve','aliases.manage','audit.actor_email.read','audit.read','club.admins.manage','club.admins.permissions','club.alliance.request','club.rename','imports.create','imports.delete','members.read'];
 
 // users.owner is the migration's Super Admin; the foreign club has its own owner and an audited action.
 test.beforeAll(()=>{sql(`insert into public.club_audit_events(club_id,actor_id,action) values('${foreignClubId}','${users.foreign.id}','authz_foreign');`);});
@@ -89,8 +89,9 @@ test('aal2 comes only from a verified Auth session: forged claims fail, real TOT
  }
 });
 
-test('multi-role union, Worker/database parity and immediate revocation through the real Worker',async({request})=>{
+test('single active role, Worker/database parity and immediate role change through the real Worker',async({request})=>{
  const roleSql=`insert into public.auth_roles(key,scope_kind,club_id,name) values('it_namer','club','${clubId}','集成改名') on conflict do nothing;
+  insert into public.auth_role_permissions select 'it_namer',permission_key from public.auth_role_permissions where role_key='admin' on conflict do nothing;
   insert into public.auth_role_permissions values('it_namer','club.rename') on conflict do nothing;`;
  sql(roleSql);
  const admin=(await auth('admin')).access_token,cookie={Cookie:`__Host-club_access=${admin}`};
@@ -101,18 +102,22 @@ test('multi-role union, Worker/database parity and immediate revocation through 
  try{
   let a=await parity();expect(a.roles).toEqual(['admin']);expect(a.permissions).not.toContain('club.rename');
   expect((await rename('管理员越权',await current())).status()).toBe(403);
-  sql(`insert into public.club_memberships(club_id,user_id,role) values('${clubId}','${users.admin.id}','it_namer');`);
-  a=await parity();expect(a.roles).toEqual(['admin','it_namer']);expect(a.permissions).toContain('club.rename');expect(a.permissions).toContain('imports.create');
-  const before=await current();expect((await rename('多角色改名',before)).ok()).toBe(true);expect((await rename(before,'多角色改名')).ok()).toBe(true);
-  // Revoking the extra role removes only its permission, on the very next request, without a new login.
-  sql(`update public.club_memberships set status='revoked' where club_id='${clubId}' and user_id='${users.admin.id}' and role='it_namer';`);
+  // Stage A: a second active role in the same club is refused by the database itself.
+  expect(()=>sql(`insert into public.club_memberships(club_id,user_id,role) values('${clubId}','${users.admin.id}','it_namer');`)).toThrow(/club_one_active_role/);
+  sql(`update public.club_memberships set status='revoked' where club_id='${clubId}' and user_id='${users.admin.id}' and role='admin';
+   insert into public.club_memberships(club_id,user_id,role) values('${clubId}','${users.admin.id}','it_namer');`);
+  a=await parity();expect(a.roles).toEqual(['it_namer']);expect(a.permissions).toContain('club.rename');expect(a.permissions).toContain('imports.create');
+  const before=await current();expect((await rename('换职位改名',before)).ok()).toBe(true);expect((await rename(before,'换职位改名')).ok()).toBe(true);
+  // Switching back removes the rename permission on the very next request, without a new login.
+  sql(`update public.club_memberships set status='revoked' where club_id='${clubId}' and user_id='${users.admin.id}' and role='it_namer';
+   update public.club_memberships set status='active' where club_id='${clubId}' and user_id='${users.admin.id}' and role='admin';`);
   a=await parity();expect(a.roles).toEqual(['admin']);expect((await rename('撤销后改名',before)).status()).toBe(403);
   expect((await request.get(`${baseURL}/api/members`,{headers:cookie})).ok()).toBe(true);
   // A direct RPC with the same token is refused by the database too.
   expect((await rest('rpc/club_rename',admin,{p_club_id:clubId,p_name:'直接调用',p_expected:before})).status).toBe(403);
   // Clients cannot grant themselves a role, through REST or by naming a foreign club's role.
   expect((await rest('club_memberships',admin,{club_id:clubId,user_id:users.admin.id,role:'owner'})).status).toBe(403);
- }finally{sql(`delete from public.club_memberships where role='it_namer';`);}
+ }finally{sql(`delete from public.club_memberships where role='it_namer';update public.club_memberships set status='active' where club_id='${clubId}' and user_id='${users.admin.id}' and role='admin';`);}
 });
 
 test('the Super Admin binds and verifies real TOTP in account security; powers appear only after aal2',async({page,context})=>{
@@ -207,7 +212,7 @@ test('platform panel: only an aal2 Super Admin session from a confirmed device r
   expect(account.platform_permissions).toContain('platform.read');
   const overview=await (await viaWorker(aal2,'overview')).json();
   expect(overview.totals).toMatchObject({clubs:Number(sql('select count(*) from public.club_clubs;')),users:Number(sql('select count(*) from auth.users;'))});
-  expect(overview.alliances).toBeNull();
+  expect(overview.alliances).toBe(0); // stage F: the real number of active alliances (none in this fixture)
   if(process.env.P31_PERFORMANCE==='1'){
    sql(`insert into public.club_clubs(id,name) select md5('p31-club-'||c)::uuid,'P31 performance '||c from generate_series(1,10)c;
     insert into public.club_players(id,club_id,display_name) select md5('p31-player-'||c||'-'||p)::uuid,md5('p31-club-'||c)::uuid,'Player '||p from generate_series(1,10)c cross join generate_series(1,80)p;
@@ -241,7 +246,7 @@ test('platform panel: only an aal2 Super Admin session from a confirmed device r
   }
   const users=(await (await viaWorker(aal2,'users?q=admin@club.test')).json()).users;
   expect(users).toHaveLength(1);
-  expect(Object.keys(users[0]).sort()).toEqual(['created_at','effective','email','email_confirmed','id','last_sign_in_at','memberships','super_admin']);
+  expect(Object.keys(users[0]).sort()).toEqual(['alliance','created_at','effective','email','email_confirmed','id','last_sign_in_at','memberships','platform_admin','super_admin']);
   // What the panel shows as effective permissions is what the database grants that user.
   expect(users[0].effective[0].permissions).toEqual(await (await rest('rpc/club_my_permissions',(await auth('admin')).access_token,{p_club:clubId})).json());
   const roles=await (await viaWorker(aal2,'roles')).json();

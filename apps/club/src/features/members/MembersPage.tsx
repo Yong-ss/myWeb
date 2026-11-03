@@ -21,6 +21,7 @@ import type { Member } from "../../domain/member";
 import {compareMemberValues} from "./member-sort";
 import {ResolveAbsence} from "./ResolveAbsence";
 import {DeleteImport} from "./DeleteImport";
+import {useClubCan,useClubHref} from "../../lib/useClub";
 type Snapshot = { id: string; snapshot_date: string; revision: number; is_complete_roster: boolean; is_current: boolean };
 type Row = Omit<Member, "group"> & { player_id: string; group_name: string | null; presence?: Presence; data_date?:string } & AbsenceDetails;
 type Result = { snapshots: Snapshot[]; snapshot: Snapshot | null; members: Row[]; next: string | null; snapshot_count?:number };
@@ -31,6 +32,7 @@ const columns = [["name", "昵称"], ["level", "等级"], ["pathway", "途径"],
 const headerControl = "club-table-sort -mx-2 inline-flex h-11 items-center gap-1.5 rounded-sm border-transparent bg-transparent px-2 py-1 font-[inherit] text-xs leading-5 text-gold hover:border-transparent hover:bg-transparent hover:text-ring active:bg-transparent";
 export function MembersPage() { return <Suspense fallback={<TableSkeleton columns={11} label="正在读取名单…" />}><MemberList /></Suspense>; }
 function MemberList() {
+  const href=useClubHref(),can=useClubCan();
   const departedSection=useRef<HTMLDivElement>(null);
   function revealDeparted() {
     const section=departedSection.current;
@@ -112,12 +114,12 @@ function MemberList() {
     return <Table containerClassName="members-table-wrap max-h-[min(72dvh,48rem)] animate-[club-fade-in_180ms_var(--club-ease-feedback)] overflow-y-auto overscroll-y-contain" className="[&_td]:px-2.5 [&_th]:px-2.5 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-2 [&_thead_th]:shadow-[inset_0_-1px_var(--club-divider)]"><TableCaption>{search||pathway||group ? `找到 ${rows.length} 人` : departed?"离会成员最后记录 · 数据日期为实际观察日期":"当天保存的数据 · — 表示未识别"}</TableCaption>
         <TableHeader><TableRow>{sortHeading("presence","状态",departed)}{columns.map(([value,title])=>value==="pathway"||value==="group_name"?filterHeading(value,title,departed):sortHeading(value,title,departed,value==="name"?cn(sticky,"z-3! bg-secondary"):undefined))}{sortHeading("data_date","数据日期",departed)}</TableRow></TableHeader>
         <TableBody>{rows.map(row => { const left=row.presence==="left"; return <TableRow key={row.player_id}>
-          <TableCell className={left?"text-destructive":undefined}>{row.presence==="unconfirmed"?<><Badge variant="warning">待确认</Badge>{result?.snapshot?.is_current&&<ResolveAbsence playerId={row.player_id} name={String(row.name??"未识别昵称")} snapshotId={result.snapshot.id} onSaved={()=>setRetry(n=>n+1)}/>}</>:presenceText(row.presence??"present",row.absence_decision)}{row.absence_reason&&<span className="block max-w-48 whitespace-normal text-xs text-muted-foreground">{row.absence_reason}</span>}</TableCell>
-          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&row.absence_decision!=="temporary"&&"text-destructive line-through")} href={`/players?id=${row.player_id}&date=${result!.snapshot!.snapshot_date}`}>{row[value]??"未识别昵称"}</Link>:value==="pathway"?<PathwayLabel pathway={row[value]} />:row[value]??"—"}</TableCell>)}
+          <TableCell className={left?"text-destructive":undefined}>{row.presence==="unconfirmed"?<><Badge variant="warning">待确认</Badge>{result?.snapshot?.is_current&&can("absences.resolve")&&<ResolveAbsence playerId={row.player_id} name={String(row.name??"未识别昵称")} snapshotId={result.snapshot.id} onSaved={()=>setRetry(n=>n+1)}/>}</>:presenceText(row.presence??"present",row.absence_decision)}{row.absence_reason&&<span className="block max-w-48 whitespace-normal text-xs text-muted-foreground">{row.absence_reason}</span>}</TableCell>
+          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&row.absence_decision!=="temporary"&&"text-destructive line-through")} href={href(`/players?id=${row.player_id}&date=${result!.snapshot!.snapshot_date}`)}>{row[value]??"未识别昵称"}</Link>:value==="pathway"?<PathwayLabel pathway={row[value]} />:row[value]??"—"}</TableCell>)}
           <TableCell className="text-muted-foreground">{row.data_date??(left?"—":result!.snapshot!.snapshot_date)}</TableCell></TableRow>; })}
           {!rows.length&&<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{departed?departedTotal?"没有符合条件的离会成员，请调整搜索或筛选。":"当前记录暂无不在会成员。":"没有符合条件的玩家，请调整搜索或筛选。"}</TableCell></TableRow>}</TableBody></Table>;
   }
-  return <main className="club-workspace club-members flex max-w-400 flex-col gap-6"><PageHeader eyebrow="THE ARCHIVES / 每日记录" title="成员名单" actions={<ButtonLink href="/import">导入数据</ButtonLink>} />
+  return <main className="club-workspace club-members flex max-w-400 flex-col gap-6"><PageHeader eyebrow="THE ARCHIVES / 每日记录" title="成员名单" actions={can("imports.create")?<ButtonLink href={href("/import")}>导入数据</ButtonLink>:undefined} />
     <div className="members-toolbar -mt-6 flex flex-wrap items-end gap-4">
       <Field className="min-w-40 max-md:min-w-0 max-md:flex-[1_1_140px]"><FieldLabel htmlFor="members-date">查看日期</FieldLabel><NativeSelect id="members-date" value={date} onChange={e => { setDate(e.target.value); setVersion(""); }}><NativeSelectOption value="">最新一天</NativeSelectOption>{dates.map(s => <NativeSelectOption key={s.id} value={s.snapshot_date}>{s.snapshot_date}</NativeSelectOption>)}</NativeSelect></Field>
       <Button variant="secondary" disabled={!next} loading={moreBusy} loadingText="读取中…" onClick={moreDates}>更早日期</Button>
@@ -127,7 +129,7 @@ function MemberList() {
       <strong className="font-heading text-lg font-medium text-gold tabular-nums">{waiting?"—":result?.snapshot?.snapshot_date??"—"} · {waiting?"—":result?.snapshot_count??result?.members.length??"—"} 人</strong>
       <Badge variant={waiting||!result?.snapshot?"outline":result.snapshot.is_complete_roster?"success":"warning"}>{waiting?"正在读取…":!result?.snapshot?"暂无记录":result.snapshot.is_complete_roster ? "已确认完整" : "未确认完整"}</Badge>
       {result?.snapshot&&!waiting&&!result.snapshot.is_current && <Badge variant="info">旧版本 · 第 {result.snapshot.revision} 版</Badge>}
-      {result?.snapshot?.is_current&&!waiting&&!error&&<span className="ml-auto"><DeleteImport date={result.snapshot.snapshot_date} snapshotId={result.snapshot.id} onDeleted={()=>{setResult(null);setDates([]);setDate("");setVersion("");setLoadedSelection(null);setRetry(n=>n+1);}}/></span>}
+      {result?.snapshot?.is_current&&!waiting&&!error&&can("imports.delete")&&<span className="ml-auto"><DeleteImport date={result.snapshot.snapshot_date} snapshotId={result.snapshot.id} onDeleted={()=>{setResult(null);setDates([]);setDate("");setVersion("");setLoadedSelection(null);setRetry(n=>n+1);}}/></span>}
     </div>
     <p className="m-0 -mt-2 text-sm text-muted-foreground">点昵称查看个人历史；未在本次识别的玩家显示最近记录，不当作当天数据。</p>
     <Field className="max-w-80"><FieldLabel htmlFor="members-search">搜索玩家</FieldLabel><Input id="members-search" disabled={waiting||!result?.snapshot} type="search" placeholder="输入昵称" value={search} onChange={e => setSearch(e.target.value)} /></Field>
@@ -138,6 +140,6 @@ function MemberList() {
         <CollapsibleTrigger className="px-4 text-gold">不在会成员 <span className="ml-auto text-xs tabular-nums text-muted-foreground">{departed.length} 人{filtered&&departed.length!==departedTotal?` / 共 ${departedTotal} 人`:""}</span></CollapsibleTrigger>
         <CollapsibleContent className="px-3 pb-3" onExpandUpdate={revealDeparted}>{renderTable(departed,true)}</CollapsibleContent>
       </Collapsible></div></>
-    : <LoadingState status="empty" title="还没有保存记录" detail="导入第一份数据后，就能在这里查看。" action={<ButtonLink href="/import">导入数据</ButtonLink>} />)}
+    : <LoadingState status="empty" title="还没有保存记录" detail="导入第一份数据后，就能在这里查看。" action={can("imports.create")?<ButtonLink href={href("/import")}>导入数据</ButtonLink>:undefined} />)}
   </main>;
 }

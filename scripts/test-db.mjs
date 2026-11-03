@@ -8,7 +8,15 @@ if (!/^\d{1,5}$/.test(port) || Number(port) < 1 || Number(port) > 65535) throw E
 const read = path => readFileSync(path,'utf8');
 const migrations = readdirSync('supabase/migrations').filter(f => /^\d+_.+\.sql$/.test(f)).sort();
 const suites = readdirSync('supabase/tests').filter(f => f.endsWith('.sql')).sort();
-const sql = ['begin;',read('tests/db/bootstrap.sql'),...migrations.map(f => read(`supabase/migrations/${f}`)),...suites.flatMap(f => ['savepoint suite;',read(`supabase/tests/${f}`),'rollback to savepoint suite;']), 'rollback;'].join('\n');
+const all = migrations.map(f => read(`supabase/migrations/${f}`));
+// Upgrade checks (supabase/tests/upgrade/<migration>.sql): data inserted before that migration, then one
+// "-- @migrate" line, then assertions run after every migration. Each runs in its own transaction.
+const upgrades = readdirSync('supabase/tests/upgrade').filter(f => f.endsWith('.sql')).sort().map(f => {
+  const at = migrations.indexOf(f), parts = read(`supabase/tests/upgrade/${f}`).split(/\r?\n-- @migrate\r?\n/);
+  if (at < 0 || parts.length !== 2) throw Error(`Upgrade check ${f} needs a matching migration and one "-- @migrate" line`);
+  return ['begin;',read('tests/db/bootstrap.sql'),...all.slice(0, at),parts[0],...all.slice(at),parts[1],'rollback;'];
+});
+const sql = [...upgrades.flat(),'begin;',read('tests/db/bootstrap.sql'),...all,...suites.flatMap(f => ['savepoint suite;',read(`supabase/tests/${f}`),'rollback to savepoint suite;']), 'rollback;'].join('\n');
 // PGHOSTADDR/PGSERVICE/PGOPTIONS must not redirect an otherwise local command.
 const databaseEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith('PG')));
 const result = spawnSync(process.env.PSQL_BIN ?? 'psql', ['--no-psqlrc','--host=127.0.0.1',`--port=${port}`,'--username=postgres','--dbname=squirrelapi_test','--quiet','--set=ON_ERROR_STOP=1'], { input:sql, encoding:'utf8', timeout:120000, env:{ ...databaseEnv, PGPASSWORD:'test-only-local', PGCONNECT_TIMEOUT:'5', PGSSLMODE:'disable' } });
@@ -16,4 +24,4 @@ if (result.error || result.status !== 0) {
   console.error('Isolated SQL tests failed. Start a disposable PostgreSQL database named squirrelapi_test on 127.0.0.1:55432; production URLs are never accepted.');
   console.error(result.error?.message ?? ''); console.error(result.stdout); console.error(result.stderr); process.exit(1);
 }
-console.log(`SQL: ${suites.length} suites passed on isolated PostgreSQL; migrations and fixtures rolled back.`);
+console.log(`SQL: ${upgrades.length} upgrade checks and ${suites.length} suites passed on isolated PostgreSQL; migrations and fixtures rolled back.`);

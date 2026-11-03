@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {rest,sql,localFetch,state,totp,baseURL,password} from './local.mjs';
+import {rest,sql,localFetch,state,totp,baseURL,password,clubId} from './local.mjs';
 // A Super Admin with no club membership at all: platform identity alone must give a working login and a clear MFA path,
 // never platform data before trusted MFA, and club business access only through the database's Super Admin rule.
 const authApi=(path,token,body,method='POST')=>localFetch(`/auth/v1/${path}`,{method,headers:{apikey:state().anonKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
@@ -32,11 +32,13 @@ test('a Super Admin without any membership signs in to the platform, is guided t
   const aal1=cookie.value,asCookie=t=>({Cookie:`__Host-club_access=${t}`});
   for(const path of ['overview','users','roles','activity'])expect((await page.request.get(`${baseURL}/api/admin/${path}`,{headers:asCookie(aal1)})).status()).toBe(403);
   expect((await rest('rpc/platform_role_context',aal1,{p_user:created.id})).status).toBe(403);
-  // Club pages stay on their URL (no redirect loop) and the business APIs and RLS refuse.
-  await page.goto('/members');await expect(page).toHaveURL(/\/members$/);await expect(page.getByText('此账户没有权限执行这个操作').first()).toBeVisible();
+  // A club page's URL stays put (no redirect loop) and explains the missing MFA; the business APIs and RLS refuse.
+  await page.goto(`/members?club=${clubId}`);await expect(page).toHaveURL(`/members?club=${clubId}`);await expect(page.getByText('超级管理员需要先完成两步验证').first()).toBeVisible();
   for(const path of ['members','activity','club-settings','import-context?date=2026-10-01'])expect((await page.request.get(`${baseURL}/api/${path}`,{headers:asCookie(aal1)})).status()).toBe(403);
   expect(await (await rest('club_players?select=id',aal1)).json()).toEqual([]);
-  await page.reload();await expect(page).toHaveURL(/\/members$/);
+  await page.reload();await expect(page).toHaveURL(`/members?club=${clubId}`);
+  // An old link naming no club: with no club to open, it goes to the platform workspace instead.
+  await page.goto('/members');await expect(page).toHaveURL(/\/admin$/);
   // Trusted MFA: the same account gains platform access, through the real Auth aal2 session only.
   const factor=await (await authApi('factors',aal1,{factor_type:'totp',friendly_name:'platform-only'})).json();
   let aal2;
@@ -45,7 +47,7 @@ test('a Super Admin without any membership signs in to the platform, is guided t
   sql(`select club_private.trust_super_admin_factor('${factor.id}');`);
   expect((await page.request.get(`${baseURL}/api/admin/overview`,{headers:asCookie(aal2)})).status()).toBe(200);
   await context.addCookies([{name:'__Host-club_access',value:aal2,url:baseURL,httpOnly:true,secure:true,sameSite:'Strict'}]);
-  await page.goto('/admin');await expect(page.getByRole('tab',{name:'用户与角色'})).toBeVisible();
+  await page.goto('/admin');await expect(page.getByRole('tab',{name:'用户与职位'})).toBeVisible();
   expect((await (await page.request.get(`${baseURL}/api/account`)).json()).clubs).toEqual([]);
   await expect(page.locator('.club-header-account')).toContainText('超级管理员');await expect(page.locator('.club-header-account')).not.toContainText('待两步验证');
  }finally{
@@ -72,8 +74,8 @@ test('an aal2 session survives reopen, refresh and parallel refreshes; logout an
   // Reopened browser with the persisted cookies: still the active Super Admin, and /login forwards instead of re-logging in.
   let context=await open(jar(session.access_token,session.refresh_token));
   expect((await account(context)).body).toMatchObject({mfa_verified:true});
-  const page=await context.newPage();await page.goto('/login');await expect(page).toHaveURL(/\/admin$/);await expect(page.getByRole('tab',{name:'用户与角色'})).toBeVisible();
-  await page.reload();await expect(page.getByRole('tab',{name:'用户与角色'})).toBeVisible();
+  const page=await context.newPage();await page.goto('/login');await expect(page).toHaveURL(/\/admin$/);await expect(page.getByRole('tab',{name:'用户与职位'})).toBeVisible();
+  await page.reload();await expect(page.getByRole('tab',{name:'用户与职位'})).toBeVisible();
   await context.close();
   // Access token gone (expired): only the refresh cookie remains. Parallel page requests all refresh and stay aal2.
   context=await open(jar(null,session.refresh_token));

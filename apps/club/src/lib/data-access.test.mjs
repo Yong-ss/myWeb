@@ -37,3 +37,15 @@ test('concurrent permission denials both surface as denials',async()=>{
  const results=await Promise.all([client.read('/api/members'),client.read('/api/club-settings')]);
  assert.deepEqual(results.map(r=>r.status),[403,403]);
 });
+// Stage D: two tabs (or one tab switching) on clubs A and B share one browser. A cached A page must never be served
+// for B, and reusing B's cache must be vouched for by B's own account check, not A's.
+test('cache entries and their account checks belong to one club',async()=>{
+ const A='00000000-0000-4000-8000-0000000000a1',B='00000000-0000-4000-8000-0000000000b2',seen=[];
+ const client=createDataAccess(async path=>{seen.push(path);const club=new URLSearchParams(path.split('?')[1]).get('club');
+  return Response.json({club},{headers:{'X-Club-Scope':`u:${club}`}});},()=>0);
+ assert.equal((await (await client.read(`/api/members?club=${A}`)).json()).club,A);
+ assert.equal((await (await client.read(`/api/members?club=${B}`)).json()).club,B);
+ seen.length=0;
+ assert.equal((await (await client.read(`/api/members?club=${B}`)).json()).club,B);
+ assert.deepEqual(seen,[`/api/account?club=${B}`]);
+});

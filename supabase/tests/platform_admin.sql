@@ -48,9 +48,15 @@ reset role;
 do $$ declare f text; begin
   for f in select p.oid::regprocedure::text from pg_proc p where p.pronamespace='public'::regnamespace and p.proname like 'platform\_%' loop
     if has_function_privilege('anon',f,'EXECUTE') or has_function_privilege('service_role',f,'EXECUTE') then raise exception 'API key can call %', f; end if;
-    if (select prosrc from pg_proc where oid=f::regprocedure) !~ (case when f ~ '(^|\.)platform_(role_context|assign_role)\(' then 'if not club_private\.can_platform\(''platform\.roles\.assign''\) then raise exception' else 'if not club_private\.can_platform\(''platform\.read''\) then raise exception' end) then raise exception '% lacks the platform gate', f; end if;
+    if (select prosrc from pg_proc where oid=f::regprocedure) !~ (case when f ~ '(^|\.)platform_(role_context|assign_role|transfer_owner|remove_from_club)\(' then 'if not club_private\.can_platform\(''platform\.roles\.assign''\) then raise exception'
+      when f ~ '(^|\.)platform_set_admin_limit\(' then 'if not club_private\.can_platform\(''platform\.clubs\.admin_limit''\) then raise exception'
+      when f ~ '(^|\.)platform_set_(role|personal)_permission\(' then 'if not club_private\.can_platform\(''platform\.permissions\.manage''\) then raise exception'
+      when f ~ '(^|\.)platform_set_platform_admin\(' then 'if not club_private\.can_platform\(''platform\.platform_admins\.assign''\) then raise exception'
+      when f ~ '(^|\.)platform_(save_alliance|set_club_alliance)\(' then 'if not club_private\.can_platform\(''platform\.alliances\.manage''\) then raise exception'
+      when f ~ '(^|\.)platform_set_alliance_leader\(' then 'if not club_private\.can_platform\(''platform\.alliance_leaders\.assign''\) then raise exception'
+      when f ~ '(^|\.)platform_remove_from_all_clubs\(' then 'if not club_private\.can_platform\(''platform\.users\.remove_all_clubs''\) then raise exception' else 'if not club_private\.can_platform\(''platform\.read''\) then raise exception' end) then raise exception '% lacks the platform gate', f; end if;
   end loop;
-  if (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname like 'platform\_%') <> 6 then raise exception 'Platform reader set changed; add it to these checks'; end if;
+  if (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname like 'platform\_%') <> 19 then raise exception 'Platform reader set changed; add it to these checks'; end if;
   if has_function_privilege('authenticated','club_private.can_platform(text)','EXECUTE') then raise exception 'can_platform callable by clients'; end if;
 end $$;
 
@@ -62,20 +68,20 @@ begin
   perform set_config('request.jwt.claim.sub','d0ddb226-a10a-471c-be4b-d5e5153bd313',true);
   perform set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000c001"}',true);
   -- Like can() for clubs: the active Super Admin holds every permission registered for the platform scope.
-  if public.club_my_access('ce0c7103-1cdf-4b08-8619-f71d4915f598')->'platform_permissions' <> '["audit.actor_email.read","audit.read","members.read","platform.read","platform.roles.assign"]'
+  if public.club_my_access('ce0c7103-1cdf-4b08-8619-f71d4915f598')->'platform_permissions' <> '["audit.actor_email.read","audit.read","members.read","platform.alliance_leaders.assign","platform.alliances.manage","platform.clubs.admin_limit","platform.permissions.manage","platform.platform_admins.assign","platform.read","platform.roles.assign","platform.users.remove_all_clubs"]'
     then raise exception 'Active Super Admin platform permissions wrong'; end if;
   -- platform.read is platform-scoped: it never becomes a club permission, so no club role can ever hold it.
   if 'platform.read' = any(public.club_my_permissions('ce0c7103-1cdf-4b08-8619-f71d4915f598')) then raise exception 'Platform permission leaked into club scope'; end if;
   o := public.platform_overview();
   if (o#>>'{totals,clubs}')::int <> 2 or (o#>>'{totals,users}')::int <> 64 or (o#>>'{totals,confirmed_users}')::int <> 63
-    or (o#>>'{totals,members}')::int <> 3 or o->'alliances' <> 'null'::jsonb then raise exception 'Overview totals wrong: %', o->'totals'; end if;
-  if (select value from jsonb_array_elements(o->'clubs') where value->>'name'='Platform X') - 'id' - 'created_at' <> '{"name":"Platform X","members":2,"players":1,"latest_snapshot":null,"is_complete_roster":null,"player_counts":null}' then raise exception 'Club row wrong: %', o->'clubs'; end if;
+    or (o#>>'{totals,members}')::int <> 3 or o->'alliances' <> '0'::jsonb then raise exception 'Overview totals wrong: %', o->'totals'; end if;
+  if (select value from jsonb_array_elements(o->'clubs') where value->>'name'='Platform X') - 'id' - 'created_at' <> '{"name":"Platform X","members":2,"admins":1,"admin_limit":5,"players":1,"latest_snapshot":null,"is_complete_roster":null,"player_counts":null}' then raise exception 'Club row wrong: %', o->'clubs'; end if;
   -- Pages of 50 cover every user exactly once, in email order.
   page := public.platform_users();
   loop
     n := jsonb_array_length(page->'users'); seen := seen + n;
     for u in select value from jsonb_array_elements(page->'users') loop
-      if (select array_agg(k order by k) from jsonb_object_keys(u) k) <> array['created_at','effective','email','email_confirmed','id','last_sign_in_at','memberships','super_admin'] then raise exception 'Unexpected user fields: %', u; end if;
+      if (select array_agg(k order by k) from jsonb_object_keys(u) k) <> array['alliance','created_at','effective','email','email_confirmed','id','last_sign_in_at','memberships','platform_admin','super_admin'] then raise exception 'Unexpected user fields: %', u; end if;
     end loop;
     exit when page->'next' = 'null'::jsonb;
     if n <> 50 then raise exception 'Short page before the end'; end if;
@@ -90,8 +96,8 @@ begin
   if not (public.platform_users('owner@club.test')->'users'->0->>'super_admin')::boolean then raise exception 'Super Admin not flagged'; end if;
   begin perform public.platform_users(repeat('a',101)); raise exception 'Long query accepted'; exception when sqlstate '22023' then null; end;
   r := public.platform_roles();
-  -- Clients cannot read the registry, so compare with what the migrations register: 9 permissions, the 2 system roles.
-  if jsonb_array_length(r->'permissions') <> 10 or (select array_agg(value->>'key' order by value->>'key') from jsonb_array_elements(r->'roles')) <> array['admin','owner'] then raise exception 'Registry incomplete: %', r; end if;
+  -- Clients cannot read the registry, so compare with what the migrations register: 20 permissions, the 4 system roles.
+  if jsonb_array_length(r->'permissions') <> 20 or (select array_agg(value->>'key' order by value->>'key') from jsonb_array_elements(r->'roles')) <> array['admin','alliance_leader','owner','platform_admin'] then raise exception 'Registry incomplete: %', r; end if;
   if (select value->'permissions' from jsonb_array_elements(r->'roles') where value->>'key'='admin') ? 'club.rename' then raise exception 'Role matrix wrong'; end if;
   if (select (value->>'assigned')::int from jsonb_array_elements(r->'roles') where value->>'key'='owner') <> 2 then raise exception 'Owner assignment count wrong'; end if;
   perform set_config('request.jwt.claims','{}',true);
@@ -143,10 +149,9 @@ begin
   if exists(select 1 from pg_trigger where tgfoid='club_private.platform_audit_row()'::regprocedure and tgnargs=0) then raise exception 'Audit trigger without a column list'; end if;
   if exists(select 1 from pg_trigger t, unnest(string_to_array(rtrim(encode(t.tgargs,'escape'),'\000'),'\000')) c
     where t.tgfoid='club_private.platform_audit_row()'::regprocedure and c ~* '(password|secret|token|code|key_hash|recovery)') then raise exception 'Secret-like column in an audit column list'; end if;
-  -- Only the platform reader reads the log; no other function exposes it.
+  -- Only the platform reader reads the log; any other function may only append to it.
   if exists(select 1 from pg_proc where prosrc ~ 'platform_audit_events' and proname not in ('platform_activity','platform_audit_row')
-    and not (pronamespace='public'::regnamespace and proname='platform_assign_role'
-      and regexp_replace(prosrc,'insert into public\.platform_audit_events','', 'g') !~ 'platform_audit_events')) then raise exception 'Another function reads the platform log'; end if;
+    and regexp_replace(prosrc,'insert into public\.platform_audit_events','', 'g') ~ 'platform_audit_events') then raise exception 'Another function reads the platform log'; end if;
 end $$;
 set local role authenticated;
 do $$ declare a jsonb; e jsonb; begin

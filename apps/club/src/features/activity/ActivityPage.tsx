@@ -11,7 +11,7 @@ import {LoadingState,TableSkeleton} from '../../components/feedback';
 type Event={id:string;actor_id:string|null;actor_label:string|null;actor_kind:'member'|'super_admin';actor_role:string|null;action:string;details:Record<string,unknown>;created_at:string};
 const roleName=(e:Event)=>e.actor_kind==='super_admin'?'超级管理员':e.actor_role==='owner'?'公会长':e.actor_role==='admin'?'管理员':'历史记录';
 type Cursor={before:string;id:string};
-const actions:Record<string,string>={club_initialized:'建立俱乐部',import_committed:'导入数据',import_date_deleted:'删除当天数据',alias_confirmed:'记住 AI 错名',alias_revoked:'解除错名关联',club_renamed:'修改俱乐部名称',player_renamed:'更正玩家昵称',absence_resolved:'处理待确认成员',absence_reviewed:'核对缺席成员'};
+const actions:Record<string,string>={club_initialized:'建立俱乐部',import_committed:'导入数据',import_date_deleted:'删除当天数据',alias_confirmed:'记住 AI 错名',alias_revoked:'解除错名关联',club_renamed:'修改俱乐部名称',player_renamed:'更正玩家昵称',absence_resolved:'处理待确认成员',absence_reviewed:'核对缺席成员',admin_appointed:'任命管理员',admin_revoked:'撤销管理员职位',admin_removed:'移出管理员',admin_default_changed:'修改管理员默认权限',admin_permission_changed:'修改管理员个人权限'};
 function description(e:Event){const d=e.details;switch(e.action){
  case 'absence_resolved':return d.decision==='temporary'?`暂离 · ${d.reason??''}`:'已确认退会';
  case 'absence_reviewed':return `${d.date} · 核对 ${Array.isArray(d.decisions)?d.decisions.length:0} 人`;
@@ -19,6 +19,7 @@ function description(e:Event){const d=e.details;switch(e.action){
  case 'import_date_deleted':return `${d.date} · 移除 ${d.versions} 个版本`;
  case 'player_renamed':case 'club_renamed':return `${d.old_name} → ${d.new_name}`;
  case 'alias_confirmed':case 'alias_revoked':return '玩家关联已更新';
+ case 'admin_default_changed':case 'admin_permission_changed':{const v=(x:unknown)=>x===true?'允许':x===false?'不允许':'跟随默认';return `${d.description} · ${v(d.old)} → ${v(d.new)}`;}
  default:return '俱乐部管理操作';
 }}
 const time=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',dateStyle:'short',timeStyle:'medium',hour12:false});

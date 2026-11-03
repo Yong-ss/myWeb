@@ -1,13 +1,16 @@
 import {test,expect} from '@playwright/test';
-import {mockApp,source} from './fixtures.mjs';
+import {mockApp,mockAccount,source} from './fixtures.mjs';
 test('settings read errors offer a working retry without submitting a name',async({page})=>{
  let failed=true,writes=0;
  await page.route('**/api/**',route=>{
   if(route.request().method()!=='GET')writes++;
   return route.fulfill(failed?{status:503,json:{error:'模拟设置读取失败'}}:{json:{name:'恢复后的俱乐部',can_edit:true}});
  });
- await page.goto('/settings');await expect(page.getByRole('button',{name:'重试',exact:true})).toBeVisible();
- failed=false;await page.getByRole('button',{name:'重试',exact:true}).click();
+ await mockAccount(page);
+ // The name card's own retry (the owner's alliance card, stage F, fails and offers its own retry too).
+ const nameCard=page.locator('[data-slot="card"]',{hasText:'俱乐部名称'}),retry=nameCard.getByRole('button',{name:'重试',exact:true});
+ await page.goto('/settings');await expect(retry).toBeVisible();
+ failed=false;await retry.click();
  await expect(page.getByLabel('名称',{exact:true})).toHaveValue('恢复后的俱乐部');
  await expect(page.getByRole('button',{name:'保存名称',exact:true})).toBeEnabled();expect(writes).toBe(0);
 });
@@ -56,6 +59,7 @@ for(const width of [1440,320])test(`table loading, error, retry and empty ${widt
   if(new URL(route.request().url()).pathname==='/api/members'){held=route;return;}
   return route.fulfill({json:{name:'测试俱乐部'}});
  });
+ await mockAccount(page);
  await page.goto('/members');await expect(page.getByRole('status',{name:'正在读取名单…'})).toBeVisible();
  await expect(page.getByLabel('搜索玩家')).toBeVisible();
  const controls=await page.getByLabel('搜索玩家').evaluate(el=>{const r=el.getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height};});

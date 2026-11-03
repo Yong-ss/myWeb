@@ -50,7 +50,7 @@ async function preview(page,date,{isNew=false,upload=false,score=member.extraord
   return raw;
 }
 async function submit(page) {
-  const pending=page.waitForRequest(r=>r.url()===baseURL+'/api/imports'&&r.method()==='POST');
+  const pending=page.waitForRequest(r=>new URL(r.url()).pathname==='/api/imports'&&r.method()==='POST');
   await page.getByRole('button',{name:'确认导入',exact:true}).click();
   const payload=(await pending).postDataJSON();
   await expect(page.getByRole('status')).toContainText('第 1 版');
@@ -152,7 +152,7 @@ test('real network outage recovers with the same submission id and one stored sn
   const baseline=await workerPost(context,{snapshot_date:'2026-10-03',is_complete_roster:false,mode:'replace',members:[{...member,player_id:playerId,extraordinary_score:1,identity_confirmed:true}],raw_text:'{}',request_id:randomUUID(),expected_snapshot_id:null,confirmed:true});
   expect(baseline.status()).toBe(200);
   await preview(page,'2026-10-04',{score:1000});
-  const requests=[];page.on('request',r=>{if(r.url()===baseURL+'/api/imports'&&r.method()==='POST')requests.push(r.postDataJSON());});
+  const requests=[];page.on('request',r=>{if(new URL(r.url()).pathname==='/api/imports'&&r.method()==='POST')requests.push(r.postDataJSON());});
   await context.setOffline(true);
   await page.getByRole('button',{name:'确认导入',exact:true}).click();
   await expect(page.getByRole('main').getByRole('alert')).toHaveText(/连接失败|Failed to fetch|NetworkError/);

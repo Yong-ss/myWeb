@@ -7,8 +7,10 @@ import {PathwayIcon} from "../../components/PathwayLabel";
 import {enter,useMotion} from "../../components/ui/motion";
 import {getPathway} from "../../lib/pathways";
 import {pathwayDistribution,pathwayMembersHref,type PathwayRow} from "./pathway-distribution";
+import {useClubHref} from "../../lib/useClub";
 
 export function PathwayDonut({members,loading=false}:{members:readonly PathwayRow[];loading?:boolean}) {
+  const href=useClubHref();
   const {total,groups}=pathwayDistribution(members);
   const [hovered,setHovered]=useState<string|null>(null),[focused,setFocused]=useState<string|null>(null);
   const key=(name:string|null)=>JSON.stringify(name);
@@ -28,7 +30,7 @@ export function PathwayDonut({members,loading=false}:{members:readonly PathwayRo
           {!loading&&groups.map(group=>{
             const length=group.count/total*100,start=offset;offset+=length;
             const id=key(group.name),emphasized=active===id,label=group.name??'未识别途径';
-            return <a key={id} href={pathwayMembersHref(group.name)} aria-label={`${label}，${group.count} 人，${group.percent.toFixed(1)}%，查看在会成员`}
+            return <a key={id} href={href(pathwayMembersHref(group.name))} aria-label={`${label}，${group.count} 人，${group.percent.toFixed(1)}%，查看在会成员`}
               onMouseEnter={()=>setHovered(id)} onFocus={()=>setFocused(id)} onBlur={()=>setFocused(null)} className="club-pathway-segment">
               <motion.circle cx="120" cy="120" r="88" pathLength="100" fill="none" stroke={getPathway(group.name)?.accent??'var(--club-text-secondary)'}
                 strokeDasharray={`${length} ${100-length}`} strokeDashoffset={-start} transform="rotate(-90 120 120)"
@@ -47,7 +49,7 @@ export function PathwayDonut({members,loading=false}:{members:readonly PathwayRo
       {loading?<p className="text-sm text-muted-foreground">正在读取途径分布…</p>:!total?<p className="text-sm text-muted-foreground">暂无明确在会成员，暂不生成途径分布。</p>:
       <ul className="m-0 grid min-w-0 list-none gap-1 p-0" aria-label="途径分布明细">{groups.map(group=>{
         const id=key(group.name),label=group.name??'未识别途径';
-        return <li key={id}><Link href={pathwayMembersHref(group.name)} onMouseEnter={()=>setHovered(id)} onMouseLeave={()=>setHovered(null)} onFocus={()=>setFocused(id)} onBlur={()=>setFocused(null)}
+        return <li key={id}><Link href={href(pathwayMembersHref(group.name))} onMouseEnter={()=>setHovered(id)} onMouseLeave={()=>setHovered(null)} onFocus={()=>setFocused(id)} onBlur={()=>setFocused(null)}
           className="grid min-h-11 grid-cols-[20px_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-sm border border-transparent px-3 py-2 text-sm text-foreground no-underline transition-colors duration-150 ease-club-feedback hover:bg-hover focus-visible:bg-hover data-[active=true]:border-border data-[active=true]:bg-hover" data-active={active===id}>
           <PathwayIcon pathway={group.name}/><span className="[overflow-wrap:anywhere]">{label}</span><span className="tabular-nums">{group.count} 人</span><span className="min-w-14 text-right text-xs text-muted-foreground tabular-nums">{group.percent.toFixed(1)}%</span>
         </Link></li>;

@@ -10,10 +10,12 @@ import {clubApi} from "../../lib/data-access";
 import {useEffect,useState} from "react";
 import {Card} from "../../components/ui/card";
 import {Badge} from "../../components/ui/badge";
+import {useClubHref} from "../../lib/useClub";
 type Row={data_date?:string;pathway?:string|null;player_id:string;name:string|null;presence?:string;extraordinary_score:number|null;prosperity:number|null};
 type Snapshot={id?:string;revision?:number;is_current?:boolean;snapshot_date:string;is_complete_roster:boolean};
 type Data={snapshot:Snapshot|null;snapshots:Snapshot[];members:Row[];snapshot_count?:number;next?:string|null};
 export function Overview({view}:{view?:"growth"|"pathways"}){
+ const href=useClubHref();
   const compare=view!=="pathways";
   const [data,setData]=useState<Data|null>(null),[previous,setPrevious]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(true),[retry,setRetry]=useState(0);
   const [comparing,setComparing]=useState(false),[comparisonError,setComparisonError]=useState("");
@@ -49,7 +51,7 @@ export function Overview({view}:{view?:"growth"|"pathways"}){
       </div>
     </Card>
     {data?.snapshot&&<section aria-label="最近值得关注" className="grid gap-2"><h2 className="m-0 text-sm font-medium text-muted-foreground">最近值得关注</h2>
-      {insights.length?<ul className="m-0 grid list-none gap-2 p-0">{insights.map(i=><li key={i.text} className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-sm border px-4 py-3 text-sm ${i.tone==='warning'?'border-warning/40 bg-warning-bg text-warning':'border-divider'}`}><span>{i.text}</span>{i.href&&<Link className="text-gold" href={i.href}>{i.action} →</Link>}</li>)}</ul>
+      {insights.length?<ul className="m-0 grid list-none gap-2 p-0">{insights.map(i=><li key={i.text} className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-sm border px-4 py-3 text-sm ${i.tone==='warning'?'border-warning/40 bg-warning-bg text-warning':'border-divider'}`}><span>{i.text}</span>{i.href&&<Link className="text-gold" href={href(i.href)}>{i.action} →</Link>}</li>)}</ul>
       :<p className="m-0 rounded-sm border border-divider px-4 py-3 text-sm text-muted-foreground">名单完整，最近没有需要特别处理的变化。</p>}
     </section>}
   </section>;

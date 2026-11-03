@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
+import {mockAccount} from './fixtures.mjs';
 
 const id='00000000-0000-4000-8000-000000000001';
 const data={snapshots:[{id,snapshot_date:'2026-10-28',revision:1,is_current:true,is_complete_roster:true}],snapshot:{id,snapshot_date:'2026-10-28',revision:1,is_current:true,is_complete_roster:true},next:'2026-10-01',members:Array.from({length:12},(_,i)=>({player_id:`synthetic-${i}`,name:`档案成员${String(i+1).padStart(2,'0')}`,position:'正式会员',level:70+i,pathway:'观众',extraordinary_score:14000+i*97,prosperity:1600+i*10,weekly_activity:i===0?0:120,group_name:'第一组',join_days:35+i}))};
 async function mock(page,handler) {
   await page.route('**/api/**',route=>new URL(route.request().url()).pathname==='/api/members'?handler(route):route.fulfill({json:{name:'测试俱乐部',can_edit:true}}));
   await page.route('**/*.supabase.co/**',route=>route.abort());
+  await mockAccount(page);
 }
 for(const [width,height] of [[1440,900],[768,1024],[390,844],[320,800]]) {
   test(`members pilot keyboard, layout and navigation ${width}`,async({page},info)=>{
@@ -23,7 +25,7 @@ for(const [width,height] of [[1440,900],[768,1024],[390,844],[320,800]]) {
       const menu=page.getByRole('button',{name:'菜单'}); await menu.click();
       const dialog=page.getByRole('dialog',{name:'俱乐部导航'}); await expect(dialog).toBeVisible();
       await expect(dialog.getByRole('button',{name:'关闭菜单'})).toBeFocused();
-      await page.keyboard.press('Shift+Tab'); await expect(dialog.getByRole('link',{name:'操作日志',exact:true})).toBeFocused();
+      await page.keyboard.press('Shift+Tab'); await expect(dialog.getByRole('link',{name:'管理员管理',exact:true})).toBeFocused();
       await expect(dialog).toHaveCSS('opacity','1');
       await page.screenshot({path:info.outputPath('navigation.png')});
       await page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible(); await expect(menu).toBeFocused();

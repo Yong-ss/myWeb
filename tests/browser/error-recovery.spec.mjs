@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {ownerAccount} from './fixtures.mjs';
 
 const id='00000000-0000-4000-8000-000000000001';
 const snapshot={id,snapshot_date:'2026-10-28',revision:1,is_current:true,is_complete_roster:true};
@@ -14,7 +15,7 @@ test('a page crash keeps navigation usable, hides details, and Retry fetches fre
   if(!url.pathname.startsWith('/api/'))return route.continue();
   // The scope header makes responses cacheable, so a retry that reused the cache would crash again.
   const headers={'Cache-Control':'no-store','X-Club-Scope':`owner:${id}`};
-  if(url.pathname==='/api/account')return route.fulfill({json:{email:'fixture@example.invalid',roles:['owner'],super_admin:false,mfa_verified:false,club_id:id},headers});
+  if(url.pathname==='/api/account')return route.fulfill({json:ownerAccount('fixture@example.invalid'),headers});
   if(url.pathname==='/api/club-settings')return route.fulfill({json:{name:'测试俱乐部',can_edit:true},headers});
   if(url.pathname==='/api/members'&&url.searchParams.has('trend'))return route.fulfill({json:{points:[],next:null},headers});
   if(url.pathname==='/api/members')return route.fulfill({json:memberReads++===0?broken:good,headers});

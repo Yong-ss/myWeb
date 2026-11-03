@@ -1,4 +1,5 @@
 import {isPrivateRoute} from "./navigation.ts";
+import {accountPathFor,clubApiPath} from "./club-context.ts";
 /** Private, bounded in-memory cache. Never persist cookies or business data. */
 export function createDataAccess(network:typeof fetch=fetch,now=()=>Date.now(),updated:(path:string)=>void=()=>{}) {
   const entries=new Map<string,{scope:string;response:Response;at:number}>();
@@ -18,8 +19,8 @@ export function createDataAccess(network:typeof fetch=fetch,now=()=>Date.now(),u
     }
     const epoch=generation,cached=entries.get(path);
     if(cached&&now()-cached.at<30000){
-      // No authorization TTL: verify current user and active membership on EVERY reuse.
-      const gate=await once('/api/account');
+      // No authorization TTL: verify current user and active membership on EVERY reuse, for the same club.
+      const gate=await once(accountPathFor(path));
       if(!gate.ok){clear();return gate;}
       if(epoch===generation&&gate.headers.get('X-Club-Scope')===cached.scope){
         if(now()-cached.at>5000)void once(path).then(response=>{
@@ -48,6 +49,10 @@ const client=createDataAccess((input,init)=>fetch(input,init),()=>Date.now(),()=
   if(typeof window!=='undefined')window.dispatchEvent(new Event('club-data-updated'));
 });
 export async function clubFetch(path:string,init?:RequestInit){
+  // The page's own club (its URL), so each tab and each cache entry belongs to exactly one club. It is read when the
+  // call starts: a later call in the same action (e.g. a second write after an await) would follow a club switch made
+  // meanwhile, so an action must send each write directly from the user's click, never queued behind other requests.
+  if(typeof window!=='undefined')path=clubApiPath(path,window.location.search);
   if(init?.method&&init.method!=='GET'){
     invalidateClubData();try{return await client.read(path,init);}finally{invalidateClubData();}
   }

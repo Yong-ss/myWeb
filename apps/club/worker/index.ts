@@ -5,21 +5,25 @@ import {handleSettings} from "./settings.ts";
 import { handleMembers } from "./members.ts";
 import {handleMfa} from "./mfa.ts";
 import {handleAdmin} from "./admin.ts";
+import {handleTeam} from "./team.ts";
+import {handleAlliance} from "./alliance.ts";
 import {instrument} from "./timing.ts";
 import {reply, readBody, type Rest, type Access} from "./http.ts";
 import {isPermission, type Permission} from "../src/domain/permissions.ts";
+import {uuid} from "../src/domain/member.ts";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   SUPABASE_URL: string;
   SUPABASE_PUBLISHABLE_KEY: string;
+  /** The club used when a request names none (pages opened before multi-club context, and sign-in). */
   CLUB_ID: string;
 }
 
 type Handler = (request: Request, club: string, rest: Rest, access: Access) => Promise<Response>;
 // Single source of truth: allowed paths, methods and the permission each business method requires.
 // A business route without a declared permission for a method is denied (default deny).
-const routes: Record<string, { methods: string[]; handler?: Handler; permission?: Partial<Record<string, Permission>>; mfa?: true; platform?: true }> = {
+const routes: Record<string, { methods: string[]; handler?: Handler; permission?: Partial<Record<string, Permission>>; mfa?: true; platform?: true; alliance?: true }> = {
   "/api/login": { methods: ["POST"] },
   "/api/logout": { methods: ["POST"] },
   // Email-link flows: work before Club membership is checked, and only ever act on the link owner's own account.
@@ -36,9 +40,35 @@ const routes: Record<string, { methods: string[]; handler?: Handler; permission?
   "/api/club-settings": { methods: ["GET", "POST"], handler: handleSettings, permission: { GET: "members.read", POST: "club.rename" } },
   "/api/activity": { methods: ["GET"], handler: handleActivity, permission: { GET: "audit.read" } },
   "/api/delete-import": { methods: ["POST"], handler: handleActivity, permission: { POST: "imports.delete" } },
+  // Owner management of this club's admins (stage C); non-delegable, so only the owner (or an active Super Admin) holds them.
+  "/api/team": { methods: ["GET"], handler: handleTeam, permission: { GET: "club.admins.manage" } },
+  "/api/team/candidate": { methods: ["GET"], handler: handleTeam, permission: { GET: "club.admins.manage" } },
+  "/api/team/role": { methods: ["POST"], handler: handleTeam, permission: { POST: "club.admins.manage" } },
+  "/api/team/permissions": { methods: ["GET"], handler: handleTeam, permission: { GET: "club.admins.permissions" } },
+  "/api/team/default": { methods: ["POST"], handler: handleTeam, permission: { POST: "club.admins.permissions" } },
+  "/api/team/personal": { methods: ["POST"], handler: handleTeam, permission: { POST: "club.admins.permissions" } },
+  // Stage F. The owner's join request (owner only, non-delegable).
+  "/api/club-alliance": { methods: ["GET", "POST"], handler: handleAlliance, permission: { GET: "club.alliance.request", POST: "club.alliance.request" } },
+  // The alliance workspace: account-wide like platform routes; needs the alliance leader identity, and the database
+  // answers only for the caller's own alliance (club_my_alliance, can_alliance).
+  "/api/alliance": { methods: ["GET"], handler: handleAlliance, permission: { GET: "members.read" }, alliance: true },
+  "/api/alliance/decide": { methods: ["POST"], handler: handleAlliance, permission: { POST: "alliance.joins.decide" }, alliance: true },
   // Platform routes check platform-scope permissions only (see Access.platformPermissions).
   "/api/admin/role-context": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.roles.assign" }, platform: true },
   "/api/admin/assign-role": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.roles.assign" }, platform: true },
+  "/api/admin/transfer-owner": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.roles.assign" }, platform: true },
+  "/api/admin/remove-from-club": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.roles.assign" }, platform: true },
+  "/api/admin/admin-limit": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.clubs.admin_limit" }, platform: true },
+  "/api/admin/platform-admin": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.platform_admins.assign" }, platform: true },
+  "/api/admin/remove-from-all-clubs": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.users.remove_all_clubs" }, platform: true },
+  "/api/admin/alliances": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
+  "/api/admin/alliance": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.alliances.manage" }, platform: true },
+  "/api/admin/club-alliance": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.alliances.manage" }, platform: true },
+  "/api/admin/alliance-leader": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.alliance_leaders.assign" }, platform: true },
+  "/api/admin/permission-settings": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
+  "/api/admin/permission-explain": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
+  "/api/admin/role-permission": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.permissions.manage" }, platform: true },
+  "/api/admin/personal-permission": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.permissions.manage" }, platform: true },
   "/api/admin/overview": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
   "/api/admin/users": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
   "/api/admin/roles": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
@@ -82,6 +112,13 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     return reply({ error: "请求来源无效" }, 403);
   }
   if (!env.CLUB_ID || !env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) return reply({ error: "俱乐部尚未配置，请稍后再试" }, 503);
+  // The club comes from each request (?club=), never from a stored preference; it is only a parameter, and
+  // club_my_access/can() decide access to it. Platform and MFA routes are account-wide and keep CLUB_ID (a platform
+  // route's own `club` parameter names its target).
+  const accountWide = route.platform || route.mfa || route.alliance;
+  const requested = url.searchParams.get("club");
+  if (!accountWide && requested !== null && !uuid.test(requested)) return reply({ error: "网址中的俱乐部无效" }, 400);
+  const clubId = accountWide ? env.CLUB_ID : requested?.toLowerCase() ?? env.CLUB_ID;
 
   const callAuth = (path: string, body?: unknown, token?: string, method?: string) => fetcher(`${env.SUPABASE_URL}/auth/v1/${path}`, {
     method: method ?? (body === undefined ? "GET" : "POST"),
@@ -90,26 +127,27 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     signal: AbortSignal.timeout(10000),
   });
   // Every decision comes from the database (club_my_access -> can()); nothing here infers access from role names.
-  const access = async (user: AuthUser, token: string): Promise<Access | undefined> => {
+  const access = async (user: AuthUser, token: string, club: string): Promise<Access | undefined> => {
     if (!user.email_confirmed_at) return undefined;
     const response = await fetcher(`${env.SUPABASE_URL}/rest/v1/rpc/club_my_access`, {
       method: "POST",
       headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_club: env.CLUB_ID }),
+      body: JSON.stringify({ p_club: club }),
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) throw new Error("Membership service unavailable");
-    const data = await response.json() as { permissions?: unknown; roles?: unknown; super_admin?: unknown; super_admin_active?: unknown; session_aal2?: unknown; platform_permissions?: unknown };
+    const data = await response.json() as { permissions?: unknown; roles?: unknown; super_admin?: unknown; super_admin_active?: unknown; session_aal2?: unknown; platform_admin?: unknown; alliance_leader?: unknown; platform_permissions?: unknown };
     const result: Access = {
       permissions: Array.isArray(data.permissions) ? data.permissions.filter(isPermission) : [],
       roles: Array.isArray(data.roles) ? data.roles.filter((r): r is string => typeof r === "string") : [],
-      superAdmin: data.super_admin === true, superAdminActive: data.super_admin_active === true, sessionAal2: data.session_aal2 === true,
+      superAdmin: data.super_admin === true, superAdminActive: data.super_admin_active === true, sessionAal2: data.session_aal2 === true, platformAdmin: data.platform_admin === true, allianceLeader: data.alliance_leader === true,
       platformPermissions: Array.isArray(data.platform_permissions) ? data.platform_permissions.filter(isPermission) : [],
     };
-    // A listed Super Admin may sign in to complete MFA even without club permissions; powers still need aal2.
-    return result.permissions.length || result.superAdmin ? result : undefined;
+    // A listed Super Admin or platform admin may sign in to complete MFA even without club permissions (powers still need
+    // aal2); an alliance leader may sign in to reach the alliance workspace.
+    return result.permissions.length || result.superAdmin || result.platformAdmin || result.allianceLeader ? result : undefined;
   };
-  // Account-wide context (club_my_context): the clubs the caller may enter, independent of CLUB_ID. Only sign-in and
+  // Account-wide context (club_my_context): the clubs the caller may enter, independent of the requested club. Only sign-in and
   // /api/account use it; every club request is still authorized by club_my_access for that club.
   type ClubSummary = { id: string; name: string; roles: string[] };
   const context = async (token: string): Promise<ClubSummary[]> => {
@@ -124,7 +162,7 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     return Array.isArray(data.clubs) ? data.clubs.filter((c): c is ClubSummary => typeof c?.id === "string" && typeof c?.name === "string" && Array.isArray(c?.roles))
       .map(c => ({ id: c.id, name: c.name, roles: c.roles.filter(r => typeof r === "string") })) : [];
   };
-  const noClubAccess: Access = { permissions: [], roles: [], superAdmin: false, superAdminActive: false, sessionAal2: false, platformPermissions: [] };
+  const noClubAccess: Access = { permissions: [], roles: [], superAdmin: false, superAdminActive: false, sessionAal2: false, platformAdmin: false, allianceLeader: false, platformPermissions: [] };
   try {
     if (url.pathname === "/api/login") {
       const text = await readBody(request, 4096, { missing: "请输入邮箱和密码" });
@@ -135,8 +173,8 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
       const result = await callAuth("token?grant_type=password", { email: input.email.trim(), password: input.password });
       if (!result.ok) return reply({ error: result.status === 429 ? "尝试过于频繁，请稍后再试" : "邮箱、密码不正确，或账户尚未确认" }, result.status === 429 ? 429 : 401);
       const session: Session = await result.json();
-      // Signing in needs some authorization: this club, the Super Admin identity, or a role in another club.
-      if (!await access(session.user, session.access_token) && !(await context(session.access_token)).length) {
+      // Signing in needs some authorization: the default club, a platform identity, or a role in another club.
+      if (!await access(session.user, session.access_token, env.CLUB_ID) && !(await context(session.access_token)).length) {
         await callAuth("logout?scope=local", {}, session.access_token);
         return setSession(reply({ error: "此账户没有访问权限" }, 403), request);
       }
@@ -210,17 +248,17 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     if (!user) return setSession(reply({ error: "请先登录" }, 401), request);
     const token = renewed?.access_token ?? stored["__Host-club_access"];
     const accountPath = url.pathname === "/api/account";
-    const [found, listed] = await Promise.all([access(user, token), accountPath ? context(token) : undefined]);
-    // Without access to this club, only /api/account answers, and only for someone with a role in another club.
+    const [found, listed] = await Promise.all([access(user, token, clubId), accountPath ? context(token) : undefined]);
+    // Without access to the requested club, only /api/account answers, and only for someone with a role in another club.
     // Such a person keeps their session on other routes (403 only); with no authorization anywhere it ends.
     const clubs = listed ?? (found ? undefined : await context(token));
     const granted = found ?? (accountPath && clubs?.length ? noClubAccess : undefined);
     if (!granted) { const denied = reply({ error: "此账户没有俱乐部访问权限" }, 403); return clubs?.length ? (renewed ? setSession(denied, request, renewed) : denied) : setSession(denied, request); }
     // Cached reads are keyed to the exact access they were fetched with, so any permission change clears them.
-    const scope = `${user.id}:${env.CLUB_ID}:${granted.superAdminActive ? "aal2" : "aal1"}:${granted.permissions.join(",")}:${granted.platformPermissions.join(",")}`;
+    const scope = `${user.id}:${clubId}:${granted.superAdminActive ? "aal2" : "aal1"}:${granted.permissions.join(",")}:${granted.platformPermissions.join(",")}`;
     const finish = (response: Response, session = renewed) => { response.headers.set("X-Club-Scope", scope); return session ? setSession(response, request, session) : response; };
     if (route.mfa) {
-      if (!granted.superAdmin) return finish(reply({ error: "此账户不需要两步验证设置" }, 403));
+      if (!granted.superAdmin && !granted.platformAdmin) return finish(reply({ error: "此账户不需要两步验证设置" }, 403));
       const result = await handleMfa(request, (path, body, method) => callAuth(path, body, token, method), granted, async () => {
         const r = await fetcher(`${env.SUPABASE_URL}/rest/v1/rpc/club_my_trusted_factors`, { method: "POST", headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: "{}", signal: AbortSignal.timeout(10000) });
         if (!r.ok) throw new Error("Trusted factors unavailable");
@@ -230,9 +268,11 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
     }
     if (route.handler) {
       const required = route.permission?.[request.method];
-      if (!required || !(route.platform ? granted.platformPermissions : granted.permissions).includes(required))
-        return finish(reply({ error: route.platform ? "需要已完成两步验证、并使用已确认设备登录的超级管理员" : "此账户没有权限执行这个操作" }, 403));
-      const response = await route.handler(request, env.CLUB_ID, (path: string, body?: unknown) => fetcher(`${env.SUPABASE_URL}/rest/v1/${path}`, {
+      // Alliance routes: the leader identity; which alliance and clubs is decided by the database for the caller only.
+      const allowed = route.alliance ? granted.allianceLeader : (route.platform ? granted.platformPermissions : granted.permissions).includes(required!);
+      if (!required || !allowed)
+        return finish(reply({ error: route.platform ? "需要平台管理权限，并在本次登录完成两步验证" : route.alliance ? "此账户不是联盟会长" : "此账户没有权限执行这个操作" }, 403));
+      const response = await route.handler(request, clubId, (path: string, body?: unknown) => fetcher(`${env.SUPABASE_URL}/rest/v1/${path}`, {
         method: body === undefined ? "GET" : "POST",
         headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -240,7 +280,7 @@ async function serve(request: Request, env: Env, fetcher: typeof fetch): Promise
       }), granted);
       return finish(response);
     }
-    return finish(reply({ email: user.email, club_id: env.CLUB_ID, roles: granted.roles, permissions: granted.permissions, super_admin: granted.superAdmin, mfa_verified: granted.superAdminActive, mfa_session: granted.sessionAal2, platform_permissions: granted.platformPermissions, clubs }));
+    return finish(reply({ email: user.email, club_id: clubId, roles: granted.roles, permissions: granted.permissions, super_admin: granted.superAdmin, mfa_verified: granted.superAdminActive, mfa_session: granted.sessionAal2, platform_admin: granted.platformAdmin, alliance_leader: granted.allianceLeader, platform_permissions: granted.platformPermissions, clubs }));
   } catch (error) {
     // Only path and error type/message: never cookies, tokens or request bodies.
     console.error(JSON.stringify({ event: "club_api_error", path: url.pathname, error: error instanceof Error ? `${error.name}: ${error.message}` : "unknown" }));
