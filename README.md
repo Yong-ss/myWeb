@@ -21,6 +21,18 @@ Club 是一个游戏俱乐部的成员管理与数据分析系统。管理员把
 - Worker 只使用 publishable key 加用户自己的 token，登录状态保存在 HttpOnly Cookie 中，并检查请求来源。
 - 写操作支持幂等重试，用版本号检测并发冲突。
 
+### 截图
+
+> Club 需要登录才能访问，以下截图使用虚构演示数据，不含真实玩家信息。
+
+| 俱乐部总览与评分趋势 | 导入：核对成员身份 |
+| :---: | :---: |
+| ![俱乐部总览](docs/screenshots/club-overview.png) | ![导入核对](docs/screenshots/club-import.png) |
+| **成员名单** | **个人档案与历史** |
+| ![成员名单](docs/screenshots/club-members.png) | ![个人档案](docs/screenshots/club-player.png) |
+| **途径分布** | **操作日志** |
+| ![途径分布](docs/screenshots/club-pathways.png) | ![操作日志](docs/screenshots/club-activity.png) |
+
 ## 技术栈
 
 - **前端**：Next.js + TypeScript（静态导出），Club 使用 Tailwind v4 + shadcn/ui + Radix + Motion
