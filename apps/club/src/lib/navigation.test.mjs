@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {privateLinks,platformLinks,hubLinks,publicLinks,isPrivateRoute,activeHref,workspaceOf,workspaceSettings,landingPath,visibleLinks,switchPath} from './navigation.ts';
 
 test('sidebar entries, labels and order stay exactly as approved',()=>{
- assert.deepEqual(privateLinks.map(l=>[l.href,l.icon,l.label]),[['/account','◇','俱乐部总览'],['/analytics','◈','数据分析'],['/members','♧','成员名单'],['/import','⊕','导入数据'],['/activity','≡','操作日志'],['/team','♔','管理员管理']]);
+ assert.deepEqual(privateLinks.map(l=>[l.href,l.icon,l.label]),[['/account','◇','俱乐部总览'],['/analytics','◈','数据分析'],['/members','♧','成员名单'],['/events','⚔','四方联赛'],['/import','⊕','导入数据'],['/activity','≡','操作日志'],['/team','♔','管理员管理']]);
  assert.deepEqual(publicLinks.map(l=>[l.href,l.icon,l.label]),[['/','◇','首页'],['/login','✧','登录']]);
 });
 test('every signed-in page uses the private shell; public and unknown pages never do',()=>{
@@ -13,6 +13,8 @@ test('every signed-in page uses the private shell; public and unknown pages neve
 });
 test('a player history page highlights 成员名单; other pages highlight themselves',()=>{
  assert.equal(activeHref('/players'),'/members');
+ // Four-Way League import and event detail pages highlight 四方联赛 (and use the private shell).
+ for(const path of ['/events/import','/event']){assert.equal(activeHref(path),'/events');assert.equal(isPrivateRoute(path),true);}
  for(const path of ['/account','/members','/import','/activity','/','/login'])assert.equal(activeHref(path),path);
  // Settings has no sidebar entry, so nothing in the sidebar is marked current.
  for(const path of ['/settings'])assert.ok(![...privateLinks,...publicLinks].some(l=>l.href===activeHref(path)),path);

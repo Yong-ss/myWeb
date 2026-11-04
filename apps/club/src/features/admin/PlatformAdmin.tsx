@@ -23,7 +23,7 @@ export function PlatformAdmin({user,onSaved}:{user:{id:string;email:string|null;
   <AlertDialogContent>
    <AlertDialogTitle>{granted?`撤销 ${who} 的平台管理员职位？`:`任命 ${who} 为平台管理员？`}</AlertDialogTitle>
    <AlertDialogDescription>{granted?"撤销后立即生效：对方不能再查看平台资料或修改任何俱乐部的职位。对方在各俱乐部的职位不受影响。"
-    :"平台管理员可以查看全部俱乐部和用户，并在所有俱乐部任命、撤销、转让公会长和管理员（遵守人数上限，不能修改自己的职位）。不能修改任何权限设置、管理员人数上限或平台管理员名单。每次登录都需要先完成两步验证。"}</AlertDialogDescription>
+    :"平台管理员可以查看全部俱乐部和用户，并在所有俱乐部任命、撤销、转让公会长和管理员（遵守人数上限，不能修改自己的职位）。可以按俱乐部设置公会长和管理员的四方联赛三项权限（不能改自己的），不能修改其他权限设置、管理员人数上限或平台管理员名单。每次登录都需要先完成两步验证。"}</AlertDialogDescription>
    <FieldError>{error}</FieldError>
    <AlertDialogFooter><AlertDialogCancel asChild><Button variant="secondary" disabled={busy}>取消</Button></AlertDialogCancel><Button variant={granted?"destructive":"primary"} loading={busy} loadingText="正在保存…" onClick={save}>{granted?"确认撤销":"确认任命"}</Button></AlertDialogFooter>
   </AlertDialogContent>

@@ -9,6 +9,7 @@ import {PersonalPermissions} from "./PersonalPermissions";
 import {PlatformAdmin} from "./PlatformAdmin";
 import {AlliancePanel} from "./AlliancePanel";
 import {RemoveAllClubs} from "./RemoveAllClubs";
+import {EventPermissions} from "./EventPermissions";
 import {permissionName} from "../../domain/permissions";
 import {DialogTrigger} from "../../components/ui/dialog";
 import {PageHeader} from "../../components/layout/PageHeader";
@@ -144,15 +145,17 @@ export function AdminPage(){
  const canAppoint=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.platform_admins.assign")===true;
  const canRemoveAll=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.users.remove_all_clubs")===true;
  const canSetLimit=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.clubs.admin_limit")===true;
+ const canEvents=account?.platform_permissions?.includes("platform.events.permissions")===true;
  const canEditPermissions=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.permissions.manage")===true;
  return <main className="club-workspace club-admin flex flex-col gap-6"><PageHeader eyebrow="PLATFORM / 平台管理中心" title="平台管理中心"/>
   {error?<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/>:!account?<LoadingState status="loading" label="正在确认权限…"/>:!allowed?<Gate account={account}/>:
    <Tabs defaultValue="overview" className="flex flex-col gap-6">
-    <TabsList aria-label="平台管理"><TabsTrigger value="overview">总览</TabsTrigger><TabsTrigger value="users">用户与职位</TabsTrigger><TabsTrigger value="roles">角色与权限</TabsTrigger><TabsTrigger value="alliances">联盟</TabsTrigger><TabsTrigger value="activity">平台日志</TabsTrigger></TabsList>
+    <TabsList aria-label="平台管理"><TabsTrigger value="overview">总览</TabsTrigger><TabsTrigger value="users">用户与职位</TabsTrigger><TabsTrigger value="roles">角色与权限</TabsTrigger><TabsTrigger value="alliances">联盟</TabsTrigger>{canEvents&&<TabsTrigger value="events">四方联赛权限</TabsTrigger>}<TabsTrigger value="activity">平台日志</TabsTrigger></TabsList>
     <TabsContent value="overview"><OverviewPanel canSetLimit={canSetLimit} canEnter={account.mfa_verified===true}/></TabsContent>
     <TabsContent value="users"><UsersPanel canManage={canManage} canEditPermissions={canEditPermissions} canAppoint={canAppoint} canRemoveAll={canRemoveAll} self={account.mfa_verified?undefined:account.email}/></TabsContent>
     <TabsContent value="roles"><PermissionSettings canEdit={canEditPermissions}/></TabsContent>
     <TabsContent value="alliances"><AlliancePanel canManage={account.platform_permissions?.includes("platform.alliances.manage")===true} canAssign={account.platform_permissions?.includes("platform.alliance_leaders.assign")===true}/></TabsContent>
+    {canEvents&&<TabsContent value="events"><EventPermissions/></TabsContent>}
     <TabsContent value="activity"><ActivityPanel seesAll={account.mfa_verified===true}/></TabsContent>
    </Tabs>}
  </main>;

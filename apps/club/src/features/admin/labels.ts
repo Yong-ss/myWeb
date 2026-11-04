@@ -7,7 +7,7 @@ export type PlatformEvent = { id: string; created_at: string; action: string; vi
 const tables: Record<string, string> = {
   club_memberships: "俱乐部角色", auth_roles: "角色", auth_role_permissions: "角色权限", auth_permissions: "权限登记",
   platform_super_admins: "超级管理员名单", platform_super_admin_factors: "超级管理员验证器",
-  auth_role_cap_blocks: "职位上限限制", club_role_permissions: "俱乐部默认权限", club_permission_overrides: "个人权限",
+  auth_role_cap_blocks: "职位上限限制", club_role_permissions: "俱乐部默认权限", club_platform_role_permissions: "平台四方联赛职位权限", club_permission_overrides: "个人权限",
   platform_role_assignments: "平台职位",
   club_alliances: "联盟", club_alliance_members: "联盟俱乐部", alliance_leaders: "联盟会长", club_alliance_requests: "加入联盟申请",
 };

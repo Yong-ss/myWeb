@@ -12,6 +12,9 @@ const privateRoutes: { path: string; nav?: { icon: string; label: string; anyOf?
   { path: "/analytics", nav: { icon: "◈", label: "数据分析" } },
   { path: "/members", nav: { icon: "♧", label: "成员名单" } },
   { path: "/players", activeNav: "/members" }, // a player's history highlights 成员名单
+  { path: "/events", nav: { icon: "⚔", label: "四方联赛", anyOf: ["events.read"] } },
+  { path: "/events/import", activeNav: "/events" },
+  { path: "/event", activeNav: "/events" },
   { path: "/import", nav: { icon: "⊕", label: "导入数据", anyOf: ["imports.create"] } },
   { path: "/activity", nav: { icon: "≡", label: "操作日志", anyOf: ["audit.read"] } },
   { path: "/team", nav: { icon: "♔", label: "管理员管理", anyOf: ["club.admins.manage", "club.admins.permissions"] } },

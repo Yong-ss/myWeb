@@ -44,7 +44,7 @@ test('platform admin: appointed by the Super Admin, own TOTP only, club roles wi
   // Own verified TOTP, never confirmed in SQL Editor: platform powers appear, exactly the two granted ones.
   const active=await aal2(aal1,'Platform admin phone',false);factors.push(active.factor);
   const account=await (await get('account',active.token)).json();
-  expect(account.platform_permissions).toEqual(['platform.alliance_leaders.assign','platform.alliances.manage','platform.read','platform.roles.assign']); // stage F adds the two alliance powersexpect(account.permissions).toEqual([]);
+  expect(account.platform_permissions).toEqual(['platform.alliance_leaders.assign','platform.alliances.manage','platform.events.permissions','platform.read','platform.roles.assign']); // stage F adds the two alliance powersexpect(account.permissions).toEqual([]);
   for(const path of ['admin/overview','admin/roles',`admin/permission-settings`])expect((await get(path,active.token)).status(),path).toBe(200);
 
   // Never sees who the Super Admin is: no flag, no device or list events, no actor email.

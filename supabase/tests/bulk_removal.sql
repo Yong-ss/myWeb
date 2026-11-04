@@ -98,7 +98,7 @@ do $$ begin
  -- Immediately: no club powers left there; the alliance read (Z) and platform powers are unchanged.
  perform set_config('request.jwt.claim.sub',md5('g-user-1')::text,true);perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
  if public.club_my_permissions(pg_temp.c('x'))<>'{}' or public.club_my_permissions(pg_temp.c('y'))<>'{}' then raise exception 'Removed roles still grant access'; end if;
- if public.club_my_permissions(pg_temp.c('z'))<>array['audit.read','members.read'] then raise exception 'Alliance read lost by the removal'; end if;
+ if public.club_my_permissions(pg_temp.c('z'))<>array['audit.read','events.read','members.read'] then raise exception 'Alliance read lost by the removal'; end if;
 end $$;
 
 -- 5. The explanation for a leader with no club role shows the alliance read, and a forced deny in it.
@@ -114,7 +114,7 @@ do $$ declare e jsonb; p jsonb; begin
  if (p->>'allowed')::boolean or (p->>'forced')::boolean is distinct from false then raise exception 'Forced deny not explained: %',p; end if;
  -- The explanation equals can() for that account.
  perform set_config('request.jwt.claim.sub',md5('g-user-1')::text,true);perform set_config('request.jwt.claims','{"aal":"aal1"}',true);
- if public.club_my_permissions(pg_temp.c('z'))<>array['audit.read'] then raise exception 'can() and explanation disagree'; end if;
+ if public.club_my_permissions(pg_temp.c('z'))<>array['audit.read','events.read'] then raise exception 'can() and explanation disagree'; end if;
  -- The user list names the alliance and its clubs, so the Super Admin can find this account.
  perform pg_temp.as_sa();
  if (select u->'alliance'->>'name' from jsonb_array_elements(public.platform_users('g-1@')->'users') u)<>'G alliance' then raise exception 'Leader not findable'; end if;

@@ -54,9 +54,10 @@ do $$ declare f text; begin
       when f ~ '(^|\.)platform_set_platform_admin\(' then 'if not club_private\.can_platform\(''platform\.platform_admins\.assign''\) then raise exception'
       when f ~ '(^|\.)platform_(save_alliance|set_club_alliance)\(' then 'if not club_private\.can_platform\(''platform\.alliances\.manage''\) then raise exception'
       when f ~ '(^|\.)platform_set_alliance_leader\(' then 'if not club_private\.can_platform\(''platform\.alliance_leaders\.assign''\) then raise exception'
+      when f ~ '(^|\.)platform_(set_event_permission|event_permissions)\(' then 'if not club_private\.can_platform\(''platform\.events\.permissions''\) then raise exception'
       when f ~ '(^|\.)platform_remove_from_all_clubs\(' then 'if not club_private\.can_platform\(''platform\.users\.remove_all_clubs''\) then raise exception' else 'if not club_private\.can_platform\(''platform\.read''\) then raise exception' end) then raise exception '% lacks the platform gate', f; end if;
   end loop;
-  if (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname like 'platform\_%') <> 19 then raise exception 'Platform reader set changed; add it to these checks'; end if;
+  if (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname like 'platform\_%') <> 21 then raise exception 'Platform reader set changed; add it to these checks'; end if;
   if has_function_privilege('authenticated','club_private.can_platform(text)','EXECUTE') then raise exception 'can_platform callable by clients'; end if;
 end $$;
 
@@ -68,7 +69,7 @@ begin
   perform set_config('request.jwt.claim.sub','d0ddb226-a10a-471c-be4b-d5e5153bd313',true);
   perform set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000c001"}',true);
   -- Like can() for clubs: the active Super Admin holds every permission registered for the platform scope.
-  if public.club_my_access('ce0c7103-1cdf-4b08-8619-f71d4915f598')->'platform_permissions' <> '["audit.actor_email.read","audit.read","members.read","platform.alliance_leaders.assign","platform.alliances.manage","platform.clubs.admin_limit","platform.permissions.manage","platform.platform_admins.assign","platform.read","platform.roles.assign","platform.users.remove_all_clubs"]'
+  if public.club_my_access('ce0c7103-1cdf-4b08-8619-f71d4915f598')->'platform_permissions' <> '["audit.actor_email.read","audit.read","members.read","platform.alliance_leaders.assign","platform.alliances.manage","platform.clubs.admin_limit","platform.events.permissions","platform.permissions.manage","platform.platform_admins.assign","platform.read","platform.roles.assign","platform.users.remove_all_clubs"]'
     then raise exception 'Active Super Admin platform permissions wrong'; end if;
   -- platform.read is platform-scoped: it never becomes a club permission, so no club role can ever hold it.
   if 'platform.read' = any(public.club_my_permissions('ce0c7103-1cdf-4b08-8619-f71d4915f598')) then raise exception 'Platform permission leaked into club scope'; end if;
@@ -96,8 +97,8 @@ begin
   if not (public.platform_users('owner@club.test')->'users'->0->>'super_admin')::boolean then raise exception 'Super Admin not flagged'; end if;
   begin perform public.platform_users(repeat('a',101)); raise exception 'Long query accepted'; exception when sqlstate '22023' then null; end;
   r := public.platform_roles();
-  -- Clients cannot read the registry, so compare with what the migrations register: 20 permissions, the 4 system roles.
-  if jsonb_array_length(r->'permissions') <> 20 or (select array_agg(value->>'key' order by value->>'key') from jsonb_array_elements(r->'roles')) <> array['admin','alliance_leader','owner','platform_admin'] then raise exception 'Registry incomplete: %', r; end if;
+  -- Clients cannot read the registry, so compare with what the migrations register: 24 permissions, the 4 system roles.
+  if jsonb_array_length(r->'permissions') <> 24 or (select array_agg(value->>'key' order by value->>'key') from jsonb_array_elements(r->'roles')) <> array['admin','alliance_leader','owner','platform_admin'] then raise exception 'Registry incomplete: %', r; end if;
   if (select value->'permissions' from jsonb_array_elements(r->'roles') where value->>'key'='admin') ? 'club.rename' then raise exception 'Role matrix wrong'; end if;
   if (select (value->>'assigned')::int from jsonb_array_elements(r->'roles') where value->>'key'='owner') <> 2 then raise exception 'Owner assignment count wrong'; end if;
   perform set_config('request.jwt.claims','{}',true);

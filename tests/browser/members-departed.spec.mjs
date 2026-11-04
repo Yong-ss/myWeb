@@ -41,7 +41,7 @@ for(const width of [1440,390])test(`departed section shares date selection with 
  const row=page.getByRole('row').filter({has:page.getByRole('link',{name:'离会玩家',exact:true})});
  await expect(row.getByRole('cell',{name:'2026-10-28',exact:true})).toBeVisible();
  await expect(row.locator('img')).toHaveAttribute('src','/pathway/sun.webp');
- await expect(row.getByRole('link')).toHaveAttribute('href',`/players?id=left&date=2026-10-30&club=${id}`);
+ await expect(row.getByRole('link')).toHaveAttribute('href',`/players?id=left&club=${id}`);
  await page.getByLabel('查看日期').selectOption('2026-10-30');
  await page.getByLabel('保存版本').selectOption('old');
  await expect(page.getByText('旧版本 · 第 1 版')).toBeVisible();

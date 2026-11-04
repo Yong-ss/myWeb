@@ -1,5 +1,15 @@
 # SquirrelAPI — Decision Log
 
+## Four-Way League V1: engineering choices — 2026-11-04
+
+The business rules are those confirmed in `docs/CLUB_EVENTS_DISCUSSION.md`. Choices made during implementation where the document left room:
+- Platform-admin settings are tri-state (allow / deny / follow); personal beats club role; both sit below the Super Admin cap and forced setting and above the owner's settings. "Follow" removes the row, so the next lower layer applies at once.
+- A new player created in an event import must not have the exact name (or a confirmed alias) of an existing player of the club; the operator picks the existing player instead.
+- An absence needs positive evidence (see ARCHITECTURE.md); an event after the latest roster is "uncertain" until a later roster exists. Temporary leave, unresolved rosters, departures and dates before the first record never count.
+- Identical repeated rows in one table (the pinned own row) are merged automatically and the count is shown; the same name with different values is kept for manual review.
+- The raw AI JSON is visible only to direct club readers in the event detail; there is no separate export.
+
+
 ## Permissions V1: owner grants to admins, plan A — 2026-11-03 (final)
 
 - Owner-confirmed plan A. When an owner widens admins (`club_set_admin_default` / `club_set_admin_permission`: explicit allow, or "follow" that ends in allow), the caller must be this club's active owner and hold the permission through the owner role itself (`club_private.caller_owner_holds`). An alliance-leader read or any other identity never counts. The active Super Admin keeps the previous behaviour on these writers and on every platform writer.

@@ -72,7 +72,7 @@ test('the Super Admin appoints and revokes platform admins with a confirmation',
  await page.getByRole('alertdialog').getByRole('button',{name:'确认撤销'}).click();
  await expect.poll(()=>writes.length).toBe(1);expect(writes[0]).toEqual({user_id:uid,action:'revoke'});
  await page.getByRole('button',{name:'任命 boss@example.invalid 为平台管理员'}).click();
- await expect(page.getByRole('alertdialog')).toContainText('不能修改任何权限设置');
+ await expect(page.getByRole('alertdialog')).toContainText('不能修改其他权限设置');
  await page.getByRole('alertdialog').getByRole('button',{name:'确认任命'}).click();
  await expect.poll(()=>writes.length).toBe(2);expect(writes[1]).toEqual({user_id:A,action:'grant'});
 });

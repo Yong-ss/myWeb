@@ -89,6 +89,18 @@ export async function handleAdmin(request:Request,_club:string,rest:Rest,access:
     (!personal&&(!['platform_default','cap','club_default'].includes(input.layer)||!['owner','admin'].includes(input.role))))return reply({error:'权限设置参数无效'},400);
   if(personal){path='rpc/platform_set_personal_permission';body={p_club:input.club_id,p_user:input.user_id,p_permission:input.permission,p_value:input.value};}
   else{path='rpc/platform_set_role_permission';body={p_layer:input.layer,p_role:input.role,p_permission:input.permission,p_value:input.value,p_club:input.club_id??null};}
+ }else if(url.pathname==='/api/admin/event-permissions'){
+  const club=p.get('club');if(!club||!uuid.test(club))return reply({error:'目标俱乐部无效'},400);
+  path='rpc/platform_event_permissions';body={p_club:club};
+ }else if(url.pathname==='/api/admin/event-permission'){
+  // Exactly one of role (club role level) or user_id (personal); value null = follow the lower layers.
+  const raw=await readBody(request,1024,{missing:'请选择要修改的权限'});if(raw instanceof Response)return raw;
+  let input;try{input=JSON.parse(raw);}catch{return reply({error:'请求内容无效'},400);}
+  const keys=input&&typeof input==='object'&&!Array.isArray(input)?Object.keys(input).sort().join():'';
+  if(keys!=='club_id,permission,role,user_id,value'||typeof input.club_id!=='string'||!uuid.test(input.club_id)||!['events.read','events.import','events.edit'].includes(input.permission)
+   ||!(typeof input.value==='boolean'||input.value===null)||(input.role===null)===(input.user_id===null)||(input.role!==null&&!['owner','admin'].includes(input.role))
+   ||(input.user_id!==null&&(typeof input.user_id!=='string'||!uuid.test(input.user_id))))return reply({error:'权限设置参数无效'},400);
+  path='rpc/platform_set_event_permission';body={p_club:input.club_id,p_role:input.role,p_user:input.user_id,p_permission:input.permission,p_value:input.value};
  }else if(url.pathname==='/api/admin/permission-settings'){
   const club=p.get('club');if(club!==null&&!uuid.test(club))return reply({error:'目标俱乐部无效'},400);
   path='rpc/platform_permission_settings';body={p_club:club};

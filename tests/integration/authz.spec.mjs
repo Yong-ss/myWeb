@@ -12,7 +12,7 @@ function totp(secret){
 const authApi=(path,token,body,method='POST')=>localFetch(`/auth/v1/${path}`,{method,headers:{apikey:state().anonKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
 const claims=token=>JSON.parse(Buffer.from(token.split('.')[1],'base64url'));
 const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
-const allPermissions=['absences.resolve','aliases.manage','audit.actor_email.read','audit.read','club.admins.manage','club.admins.permissions','club.alliance.request','club.rename','imports.create','imports.delete','members.read'];
+const allPermissions=['absences.resolve','aliases.manage','audit.actor_email.read','audit.read','club.admins.manage','club.admins.permissions','club.alliance.request','club.rename','events.edit','events.import','events.read','imports.create','imports.delete','members.read'];
 
 // users.owner is the migration's Super Admin; the foreign club has its own owner and an audited action.
 test.beforeAll(()=>{sql(`insert into public.club_audit_events(club_id,actor_id,action) values('${foreignClubId}','${users.foreign.id}','authz_foreign');`);});

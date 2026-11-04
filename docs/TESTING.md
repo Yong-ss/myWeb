@@ -19,7 +19,7 @@
 
 **Club 权限 V1 的 7 个迁移例外：不用 `supabase db push`**（它逐个文件提交，中途失败会留下半个迁移），改按 `docs/CLUB_PERMISSIONS_PLAN.md` 7.3 用 `psql --single-transaction` 执行 7 个原始文件加 `scripts/club-v1-structure-check.mjs` 生成的检查，成功后才运行 `supabase migration repair --status applied <7 个版本号>`。执行前的只读预检查是 `scripts/club-v1-precheck.sql`（只读事务，结束时回滚，每行 `ok` 都应为 true）。
 
-迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本（默认 `origin/main`）的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上；Club 权限 V1 的 7 个待部署迁移按「只有 A」「A～C」「A～E」「全部」四种数据库状态分别运行（模拟迁移中途停止），`pnpm test:compat origin/main all` 可只跑一种。旧测试中只因迁移有意改变的期望值（超管完整权限列表、`platform_users` 字段、`platform_overview.alliances`）和 P4 违反单职位规则的测试数据按状态精确替换，每处替换必须恰好匹配一次，否则直接失败；超管真实 TOTP、P2、平台面板和 P4 的原子性、并发、重放、撤销断言照常运行。只有一条测试整条排除（多职位合并，本身就违反单职位规则），原因写在 `scripts/test-compat.mjs`。已应用的迁移若被改动则直接失败。
+迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本（默认 `origin/main`）的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上；当前待部署的是四方联赛迁移 `20261104140000_club_events.sql`（单个文件，一种状态 `all`）。旧测试中只因迁移有意改变的期望值（超管完整权限列表、联盟会长多了 `events.read`、平台管理员多了 `platform.events.permissions`）精确替换，每处替换必须恰好匹配一次，否则直接失败；没有整条排除的旧测试。（Club 权限 V1 的 7 个迁移曾按 A／A～C／A～E／全部四种状态检查，见 Git 历史。）已应用的迁移若被改动则直接失败。
 
 ## 备份与恢复（Supabase 免费版没有自动备份，2026-11-03 本地实测）
 
@@ -90,6 +90,13 @@ psql --single-transaction -v ON_ERROR_STOP=1 `
 - 恢复库上 V1 结构检查通过；RLS 行为抽查与源库一致（anon 被拒、管理员看不到别的俱乐部、公会长能看到自己的俱乐部）。
 - 失败处理：① 只用官方命令（不加 `club-restore-pre.sql`）并把结构检查放在同一事务中 → 检查报告 API 角色有表权限，整体回滚，新库没有任何 Club 表；② 截断的 `data.sql` → 出错后整体回滚，Club 表和 auth 账户都是 0。
 - 无法用本地 PostgreSQL 证明：真实 GoTrue 的 auth 表结构与版本（本地是官方镜像的旧结构加最小补丁）、托管环境的角色权限、Auth/API 配置、pooler 连接、托管项目的恢复耗时。第一次在正式环境操作时，建议先恢复到一个新的免费临时项目，用 Worker 本地预览登录一次，再删除该项目。（2026-11-03 owner 决定 Club V1 不用这种方式，改用上文的本机方案 A；真实 GoTrue 表结构已由 GoTrue 镜像覆盖，托管环境的配置和 pooler 仍未验证。）
+
+## 四方联赛 V1 验证范围 — 2026-11-04
+
+- `supabase/tests/club_events.sql`：默认权限与旧权限不变；查看是导入／修改的前提（设置保留、恢复后重新生效）；平台管理员职位级／个人级、个人例外优先、超管强制和上限更高、撤销回退、不能对自己或自己所在职位操作、非赛事权限的平台行被数据库拒绝；创建的未来日期、半套数据、null、同场重复玩家、他俱乐部玩家、同名新建、无别名权限时整体回滚；幂等重放与同编号不同内容；同日唯一；联盟会长只读且看不到原始 JSON；修改的版本冲突、改绑冲突、补录、移除最后一人、作废释放日期、恢复冲突；出勤（在会、待确认、退会、入会前、漏识别、暂离、最后名单之后）及作废后不计；客户端不能直接读表、历史不可改删。已有 SQL 套件随新权限更新了期望的权限列表和计数。
+- `apps/club/src/features/events/contract.test.mjs`、`apps/club/worker/events.test.mjs`：Prompt 与本文档一致、万／亿换算、V1 结构、固定行去重、身份匹配与按身份配对、缺值不当 0、业务日期；路由权限、俱乐部只来自网址、输入白名单、错误码映射、平台设置参数。
+- `tests/browser/events.spec.mjs`：导入核对（错名、新人、缺值阻止保存、确认前不发送、重试沿用提交编号、同日拒绝）、详情（双视图、排序只改变显示、移除需确认、只读者无编辑和原始 JSON）、个人档案出勤明细和旧 `date` 链接不再截断。
+- `tests/integration/events.spec.mjs`：真实页面导入后读回；查看／导入／修改分离即时生效；联盟会长只读；跨俱乐部拒绝；版本与重放；改绑冲突；不能移空；作废、日期复用与恢复冲突；出勤与缺席；审计条数。
 
 ## 错误日志
 

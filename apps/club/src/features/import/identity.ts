@@ -1,24 +1,11 @@
 import type { Member, Player } from "../../domain/member.ts";
+import { distance, exactName, similarName } from "../../domain/names.ts";
+export { exactName, similarName };
 
 export type Alias = { id: string; player_id: string; alias_name: string };
 export type Observation = Member & { player_id: string; snapshot_date: string };
 export type IdentityContext = { aliases?: Alias[]; observations?: Observation[]; baseline?: { snapshot_date: string; count: number } | null };
 export type Match = { identity: string; tier: "A" | "B" | "C" | "D"; reasons: string[]; candidates: { id: string; label: string; reasons: string[] }[] };
-export const exactName = (name: unknown) => typeof name === "string" ? name.trim() : "";
-export const similarName = (name: unknown) => exactName(name).normalize("NFKC").replace(/[\s\p{P}\p{S}丶]/gu, "");
-
-function distance(a: string, b: string) {
-  const left = Array.from(a), right = Array.from(b);
-  if (Math.abs(left.length - right.length) > 2) return 3;
-  let prior = right.map((_, i) => i + 1); prior.unshift(0);
-  for (let i = 0; i < left.length; i++) {
-    const next = [i + 1];
-    for (let j = 0; j < right.length; j++) next.push(Math.min(next[j] + 1, prior[j + 1] + 1, prior[j] + Number(left[i] !== right[j])));
-    if (Math.min(...next) > 2) return 3;
-    prior = next;
-  }
-  return prior[right.length];
-}
 
 export function anomalies(row: Member, prior: Observation | undefined, date: string) {
   if (!prior) return [];
