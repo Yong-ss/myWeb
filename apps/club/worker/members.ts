@@ -29,11 +29,12 @@ export async function handleMembers(request: Request, clubId: string, rest: Rest
   const visible = snapshots.slice(0, 100);
   const snapshot = version ? visible.find(s => s.id === version) : visible[0];
   if (!snapshot) return version ? reply({ error: "找不到这个版本" }, 404) : reply({ snapshots: visible, snapshot: null, members: [], next: null });
-  const roster=await rest('rpc/club_roster_presence',{p_club:clubId,p_snapshot:snapshot.id});
+  // Confirmed names are read alongside the roster, so the list adds no waiting step.
+  const [roster,identities]=await Promise.all([rest('rpc/club_roster_presence',{p_club:clubId,p_snapshot:snapshot.id}),rest(`club_players?${new URLSearchParams({select:"id,display_name",club_id:`eq.${clubId}`,limit:"1000"})}`)]);
   if(roster.ok){
     const data=await roster.json() as {members:unknown[];snapshot_count:number}|null;
     if(!data||!Array.isArray(data.members)||data.members.length>=1000||!Number.isInteger(data.snapshot_count)||data.snapshot_count>200)return reply({error:'名单资料无效或超出上限'},502);
-    return reply({snapshots:visible,snapshot,...data,next:!date&&snapshots.length>100?visible.at(-1)!.snapshot_date:null});
+    return reply({snapshots:visible,snapshot,...data,members:await officialNames(data.members as {player_id:string;name?:unknown}[],identities),next:!date&&snapshots.length>100?visible.at(-1)!.snapshot_date:null});
   }
   const failure=await roster.json().catch(()=>null) as {code?:string;message?:string}|null;
   if(roster.status!==404||failure?.code!=='PGRST202')return reply({error:failure?.code==='54000'?failure.message:'暂时无法判断成员状态，请重试'},failure?.code==='54000'?413:502);
@@ -52,5 +53,14 @@ export async function handleMembers(request: Request, clubId: string, rest: Rest
   const lastComplete = snapshot.is_complete_roster ? snapshot.snapshot_date : (await completeResponse.json() as {snapshot_date:string}[])[0]?.snapshot_date;
   const present = new Set(members.map(r=>r.player_id));
   const absent = people.flatMap(p=>{const old=p.last[0]; if(present.has(p.id)||!old)return [];const {snapshot:seen,...row}=old;return [{...row,presence:absenceStatus(seen.snapshot_date,lastComplete),data_date:seen.snapshot_date}];});
-  return reply({ snapshots: visible, snapshot, snapshot_count:members.length, members:[...members.map(r=>({...r,presence:"present",data_date:snapshot.snapshot_date})),...absent], next: !date && snapshots.length > 100 ? visible.at(-1)!.snapshot_date : null });
+  return reply({ snapshots: visible, snapshot, snapshot_count:members.length, members:await officialNames([...members.map(r=>({...r,presence:"present",data_date:snapshot.snapshot_date})),...absent],identities), next: !date && snapshots.length > 100 ? visible.at(-1)!.snapshot_date : null });
+}
+
+// The roster keeps the nickname as read on that day; the list shows the player's confirmed name (as the profile does)
+// and keeps the day's reading as read_name. Without the identity list, the day's reading is shown unchanged.
+async function officialNames<T extends {player_id:string;name?:unknown}>(rows:T[],response:Response){
+  const people=response.ok?await response.json().catch(()=>null) as {id:string;display_name:string}[]|null:null;
+  if(!Array.isArray(people))return rows;
+  const names=new Map(people.map(p=>[p.id,p.display_name]));
+  return rows.map(r=>{const official=names.get(r.player_id);return official&&official!==r.name?{...r,name:official,read_name:r.name??null}:r;});
 }

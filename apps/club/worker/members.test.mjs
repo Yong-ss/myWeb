@@ -31,3 +31,10 @@ test('date history paginates and oversized rosters fail instead of truncating',a
   assert.equal((await page.json()).next,'2026-10-27');
   const response=await handleMembers(request(''),club,async path=>path.startsWith('rpc/')?Response.json({code:'54000',message:'名单超过查询上限'},{status:400}):Response.json([snapshot])); assert.equal(response.status,413);
 });
+test('the list shows the confirmed player name, not a misread nickname from that day',async()=>{
+  // A roster image read "狐终" for the player confirmed as "狐蔠": the list must match the profile, keeping the reading.
+  const p='00000000-0000-4000-8000-0000000000aa';
+  const response=await handleMembers(request(''),club,async path=>path.startsWith('club_snapshots?')?Response.json([snapshot])
+    :path.startsWith('rpc/')?Response.json({members:[{player_id:p,name:'狐终'}],snapshot_count:1}):Response.json([{id:p,display_name:'狐蔠'}]));
+  assert.deepEqual((await response.json()).members[0],{player_id:p,name:'狐蔠',read_name:'狐终'});
+});

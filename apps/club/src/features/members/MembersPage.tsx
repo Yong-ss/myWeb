@@ -23,7 +23,7 @@ import {ResolveAbsence} from "./ResolveAbsence";
 import {DeleteImport} from "./DeleteImport";
 import {useClubCan,useClubHref} from "../../lib/useClub";
 type Snapshot = { id: string; snapshot_date: string; revision: number; is_complete_roster: boolean; is_current: boolean };
-type Row = Omit<Member, "group"> & { player_id: string; group_name: string | null; presence?: Presence; data_date?:string } & AbsenceDetails;
+type Row = Omit<Member, "group"> & { player_id: string; group_name: string | null; presence?: Presence; data_date?:string; read_name?:string|null } & AbsenceDetails;
 type Result = { snapshots: Snapshot[]; snapshot: Snapshot | null; members: Row[]; next: string | null; snapshot_count?:number };
 type TableView = {sort:keyof Row;descending:boolean;pathway:string;group:string};
 const initialView:TableView={sort:"name",descending:false,pathway:"",group:""};
@@ -115,7 +115,7 @@ function MemberList() {
         <TableHeader><TableRow>{sortHeading("presence","状态",departed)}{columns.map(([value,title])=>value==="pathway"||value==="group_name"?filterHeading(value,title,departed):sortHeading(value,title,departed,value==="name"?cn(sticky,"z-3! bg-secondary"):undefined))}{sortHeading("data_date","数据日期",departed)}</TableRow></TableHeader>
         <TableBody>{rows.map(row => { const left=row.presence==="left"; return <TableRow key={row.player_id}>
           <TableCell className={left?"text-destructive":undefined}>{row.presence==="unconfirmed"?<><Badge variant="warning">待确认</Badge>{result?.snapshot?.is_current&&can("absences.resolve")&&<ResolveAbsence playerId={row.player_id} name={String(row.name??"未识别昵称")} snapshotId={result.snapshot.id} onSaved={()=>setRetry(n=>n+1)}/>}</>:presenceText(row.presence??"present",row.absence_decision)}{row.absence_reason&&<span className="block max-w-48 whitespace-normal text-xs text-muted-foreground">{row.absence_reason}</span>}</TableCell>
-          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&row.absence_decision!=="temporary"&&"text-destructive line-through")} href={href(`/players?id=${row.player_id}`)}>{row[value]??"未识别昵称"}</Link>:value==="pathway"?<PathwayLabel pathway={row[value]} />:row[value]??"—"}</TableCell>)}
+          {columns.map(([value]) => <TableCell key={value} className={value==="name"?cn(sticky,"font-medium"):undefined}>{value==="name"?<Link title={row.name==null?undefined:row.read_name?`${row.name}（当天名单读作：${row.read_name}）`:String(row.name)} className={cn("block max-w-40 truncate text-gold",left&&row.absence_decision!=="temporary"&&"text-destructive line-through")} href={href(`/players?id=${row.player_id}`)}>{row[value]??"未识别昵称"}</Link>:value==="pathway"?<PathwayLabel pathway={row[value]} />:row[value]??"—"}</TableCell>)}
           <TableCell className="text-muted-foreground">{row.data_date??(left?"—":result!.snapshot!.snapshot_date)}</TableCell></TableRow>; })}
           {!rows.length&&<TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">{departed?departedTotal?"没有符合条件的离会成员，请调整搜索或筛选。":"当前记录暂无不在会成员。":"没有符合条件的玩家，请调整搜索或筛选。"}</TableCell></TableRow>}</TableBody></Table>;
   }
