@@ -52,13 +52,14 @@ test('alliances: platform admin appoints, leader reads only its alliance read-on
   // The agreed read scope, through the Worker as the pages call it: members (roster of a day), the daily import records
   // (dates and versions), a player's history, analytics (score trend) and the club log.
   const roster=await (await get(`members?club=${clubId}&date=${D}`,leader)).json();
-  expect(roster.members.map(m=>m.name)).toContain('联盟可见成员');expect(roster.snapshots.some(x=>x.snapshot_date===D&&x.revision===1)).toBe(true);
+  expect(roster.members.map(m=>m.read_name)).toContain('联盟可见成员'); // shown under the confirmed name, the day's reading kept
+  expect(roster.snapshots.some(x=>x.snapshot_date===D&&x.revision===1)).toBe(true);
   expect((await (await get(`members?club=${clubId}&date=${D}&version=${S}`,leader)).json()).snapshot.id).toBe(S);
   const history=await (await get(`members?club=${clubId}&player=${playerId}&paged=1`,leader)).json();expect(history.timeline.some(t=>t.date===D)).toBe(true);
   expect((await (await get(`members?club=${clubId}&trend=1&before=2020-03-02`,leader)).json()).points.some(x=>x.date===D&&x.score===321)).toBe(true);
   const log=await (await get(`activity?club=${clubId}`,leader)).json();expect(log.events.some(e=>e.action==='import_date_deleted')).toBe(true);
   // ...and on the real pages, read-only.
-  await page.goto(`/members?club=${clubId}&date=${D}`);await expect(page.getByRole('link',{name:'联盟可见成员'})).toBeVisible();
+  await page.goto(`/members?club=${clubId}&date=${D}`);await expect(page.getByRole('link',{name:'集成测试玩家'})).toHaveAttribute('title',/联盟可见成员/);
   await expect(page.getByRole('link',{name:'导入数据'})).toHaveCount(0);await expect(page.getByRole('button',{name:'删除当天数据'})).toHaveCount(0);
   await page.goto(`/players?id=${playerId}&club=${clubId}`);await expect(page.getByRole('cell',{name:D})).toBeVisible();
   await page.goto(`/account?club=${clubId}`);await expect(page.getByRole('heading',{name:'俱乐部总览'})).toBeVisible();await expect(page.getByText('此账户没有权限')).toHaveCount(0);
