@@ -2,25 +2,25 @@ import {clubHref,preferredClub} from "./club-context.ts";
 // Single source of truth for Club routes: which pages use the private shell, and the sidebar entries.
 // Presentation only. The Worker and database enforce every permission; hiding a link is never access control.
 // `anyOf`: show the entry only to accounts holding one of these permissions in this club (display only).
-export type NavLink = { href: string; icon: string; label: string; anyOf?: string[] };
+export type NavLink = { href: string; icon: string; label: string; group?: string; anyOf?: string[] };
 // Workspaces share one shell: the platform (Super Admin), one club (named by the page URL, see club-context.ts),
 // and the account hub listing every club the account has a role in.
 export type Workspace = "platform" | "club" | "hub" | "alliance";
 
-const privateRoutes: { path: string; nav?: { icon: string; label: string; anyOf?: string[] }; activeNav?: string; workspace?: Workspace }[] = [
-  { path: "/account", nav: { icon: "◇", label: "俱乐部总览" } },
-  { path: "/analytics", nav: { icon: "◈", label: "数据分析" } },
-  { path: "/members", nav: { icon: "♧", label: "成员名单" } },
+const privateRoutes: { path: string; nav?: Omit<NavLink, "href">; activeNav?: string; workspace?: Workspace }[] = [
+  { path: "/account", nav: { icon: "◇", label: "俱乐部总览", group: "日常数据" } },
+  { path: "/analytics", nav: { icon: "◈", label: "数据分析", group: "日常数据" } },
+  { path: "/members", nav: { icon: "♧", label: "成员名单", group: "日常数据" } },
   { path: "/players", activeNav: "/members" }, // a player's history highlights 成员名单
-  { path: "/events", nav: { icon: "⚔", label: "四方联赛", anyOf: ["events.read"] } },
+  { path: "/events", nav: { icon: "⚔", label: "四方联赛", group: "活动", anyOf: ["events.read"] } },
   { path: "/events/import", activeNav: "/events" },
   { path: "/event", activeNav: "/events" },
-  { path: "/highland", nav: { icon: "△", label: "高原竞逐", anyOf: ["highland.read"] } },
+  { path: "/highland", nav: { icon: "△", label: "高原竞逐", group: "活动", anyOf: ["highland.read"] } },
   { path: "/highland/import", activeNav: "/highland" },
   { path: "/highland/event", activeNav: "/highland" },
-  { path: "/import", nav: { icon: "⊕", label: "导入数据", anyOf: ["imports.create"] } },
-  { path: "/activity", nav: { icon: "≡", label: "操作日志", anyOf: ["audit.read"] } },
-  { path: "/team", nav: { icon: "♔", label: "管理员管理", anyOf: ["club.admins.manage", "club.admins.permissions"] } },
+  { path: "/import", activeNav: "/members" },
+  { path: "/activity", nav: { icon: "≡", label: "操作日志", group: "管理", anyOf: ["audit.read"] } },
+  { path: "/team", nav: { icon: "♔", label: "管理员管理", group: "管理", anyOf: ["club.admins.manage", "club.admins.permissions"] } },
   { path: "/settings" }, // linked from the header, not the sidebar
   { path: "/admin", nav: { icon: "✠", label: "平台管理中心" }, workspace: "platform" },
   { path: "/admin/security", nav: { icon: "⚿", label: "账户安全" }, workspace: "platform" },

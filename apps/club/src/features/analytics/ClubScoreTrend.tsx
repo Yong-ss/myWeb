@@ -65,10 +65,16 @@ export function ClubScoreTrend(){
 
  return <div className="grid min-w-0 gap-4">
   {error&&<p role="alert">{error} <Button size="compact" onClick={()=>setRetry(n=>n+1)}>重试评分历史</Button></p>}
-  {busy&&!points.length?<p role="status">正在读取评分历史…</p>:<ScoreTrend title="俱乐部总评分趋势" points={points} unit={unit} onUnit={period=>update({period})} selected={selected}
+  {busy&&!points.length?<p role="status">正在读取评分历史…</p>:<ScoreTrend title="俱乐部总评分趋势" showSummary={false} points={points} unit={unit} onUnit={period=>update({period})} selected={selected}
     onInspect={(p,prior)=>setInspection({date:p.date,ref:prior?.date??''})}
     onSelect={(p,prior)=>{returnFocus.current=document.activeElement as HTMLElement;setMode('previous');setFilter('all');update({date:p.date,ref:prior?.date??''});}}
-    info={()=>detailError?<span className="text-muted-foreground">{detailError}</span>:growth?<div className="grid gap-1 text-xs"><span>变化较大：{[...growth.rows].sort((a,b)=>Math.abs(b.difference)-Math.abs(a.difference)).slice(0,3).map(r=>`${r.name??'未识别'} ${r.difference>0?'+':''}${r.difference}`).join('、')||'暂时没有可对比的评分'}</span><span>这次名单多了 {ending.length} 人；已确认退会 {starting.filter(r=>detail?.b.members.some(b=>b.player_id===r.player_id&&b.presence==='left'&&b.absence_decision==='left')).length} 人。</span></div>:<span className="text-xs text-muted-foreground">{ref?'正在查看变化…':'没有更早的记录'}</span>}/>
+    info={()=>detailError?<span className="text-xs text-muted-foreground">{detailError}</span>:growth?<div className="grid gap-3 border-t border-border pt-3">
+      <div className="grid gap-2"><p className="m-0 text-xs text-muted-foreground">评分变化较大的成员</p>
+        <ul className="m-0 grid list-none gap-2 p-0">{[...growth.rows].sort((a,b)=>Math.abs(b.difference)-Math.abs(a.difference)).slice(0,3).map(r=><li key={r.player_id} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4"><span className="min-w-0 [overflow-wrap:anywhere]">{r.name??'未识别'}</span><span className={`whitespace-nowrap tabular-nums ${r.difference>0?'text-success':r.difference<0?'text-destructive':'text-muted-foreground'}`}>{r.difference>0?'+':''}{r.difference.toLocaleString('zh-CN')}</span></li>)}</ul>
+        {!growth.rows.length&&<span className="text-xs text-muted-foreground">暂时没有可对比的评分</span>}
+      </div>
+      <dl className="m-0 grid grid-cols-2 gap-4 border-t border-border pt-3 text-xs"><div className="grid gap-1"><dt className="text-muted-foreground">名单新增</dt><dd className="m-0"><strong className="text-base font-medium tabular-nums">{ending.length}</strong> 人</dd></div><div className="grid gap-1"><dt className="text-muted-foreground">已确认退会</dt><dd className="m-0"><strong className="text-base font-medium tabular-nums">{starting.filter(r=>detail?.b.members.some(b=>b.player_id===r.player_id&&b.presence==='left'&&b.absence_decision==='left')).length}</strong> 人</dd></div></dl>
+    </div>:<span className="text-xs text-muted-foreground">{ref?'正在查看变化…':'没有更早的记录'}</span>}/>
   }
   <p className="m-0 text-xs text-muted-foreground">{points.length?`已加载 ${[...points].sort((a,b)=>a.date.localeCompare(b.date))[0].date} 至 ${[...points].sort((a,b)=>a.date.localeCompare(b.date)).at(-1)!.date} · 空心点表示资料不完整；部分资料仅显示已知评分。`:'尚无保存的评分历史。'}</p>
   {next&&<Button variant="secondary" loading={busy} onClick={older}>更早评分记录</Button>}

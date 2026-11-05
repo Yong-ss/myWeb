@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {mkdirSync} from 'node:fs';
-import {ownerAccount} from './fixtures.mjs';
+import {ownerAccount,ownerPermissions} from './fixtures.mjs';
 
 const id='00000000-0000-4000-8000-000000000001';
 const snapshot={id,snapshot_date:'2026-10-28',revision:1,is_current:true,is_complete_roster:true};
@@ -13,7 +13,7 @@ for(const width of [1440,390])test(`whole Club visual review ${width}`,async({pa
     const url=new URL(route.request().url());
     if(url.origin!=='http://127.0.0.1:8791')return route.abort();
     if(!url.pathname.startsWith('/api/'))return route.continue();
-    const json=url.pathname==='/api/account'?ownerAccount('archive@example.invalid',{club_id:id,clubs:[{id,name:'灰雾档案馆 · 测试',roles:['owner']}],super_admin:true,mfa_verified:true,mfa_session:true,platform_permissions:['platform.read']}):
+    const json=url.pathname==='/api/account'?ownerAccount('archive@example.invalid',{permissions:[...ownerPermissions,'events.read','highland.read'],club_id:id,clubs:[{id,name:'灰雾档案馆 · 测试',roles:['owner']}],super_admin:true,mfa_verified:true,mfa_session:true,platform_permissions:['platform.read']}):
       url.pathname==='/api/admin/overview'?{totals:{clubs:1,users:1,confirmed_users:1,members:1,active_roles:1},alliances:null,clubs:[{id,name:'灰雾档案馆 · 测试',members:1,players:86,latest_snapshot:snapshot.snapshot_date,is_complete_roster:true,player_counts:{present:64,temporary:3,confirmed_left:8,unconfirmed:7,other_left:4}}]}:
       url.pathname==='/api/club-settings'?{name:'灰雾档案馆 · 测试',can_edit:true}:
       url.pathname==='/api/activity'?{events:[{id,actor_id:null,actor_label:'超级管理员',actor_kind:'super_admin',actor_role:null,created_at:'2026-10-28T12:00:00Z',action:'import_date_deleted',details:{date:'2026-10-27',versions:2}}],next:null}:
@@ -25,6 +25,17 @@ for(const width of [1440,390])test(`whole Club visual review ${width}`,async({pa
   for(const [name,path] of [['home','/'],['login','/login'],['dashboard','/account'],['members','/members'],['player',`/players?id=${id}`],['import','/import'],['activity','/activity'],['settings','/settings'],['404','/404.html'],['admin','/admin']]){
     await page.goto(path);await page.waitForLoadState('networkidle');
     await expect(page.getByRole('main')).toBeVisible();
+    if(name==='members'){
+      await expect(page.getByRole('main').getByRole('link',{name:'导入数据',exact:true})).toBeVisible();
+      if(width===390)await page.getByRole('button',{name:'菜单'}).click();
+      const nav=page.getByRole('navigation',{name:'俱乐部导航'}).filter({visible:true});
+      await expect(nav.getByRole('link',{name:'导入数据',exact:true})).toHaveCount(0);
+      for(const group of ['日常数据','活动','管理'])await expect(nav.getByText(group,{exact:true})).toBeVisible();
+      await expect(nav.getByRole('link',{name:'四方联赛',exact:true})).toBeVisible();
+      await expect(nav.getByRole('link',{name:'高原竞逐',exact:true})).toBeVisible();
+      await page.screenshot({path:`.test-artifacts/club-review/navigation-${width}.png`,fullPage:true});
+      if(width===390)await page.getByRole('button',{name:'关闭菜单'}).click();
+    }
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${name} must fit the viewport`).toBe(true);
     await page.screenshot({path:`.test-artifacts/club-review/${name}-${width}.png`,fullPage:true});
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {privateLinks,platformLinks,hubLinks,publicLinks,isPrivateRoute,activeHref,workspaceOf,workspaceSettings,landingPath,visibleLinks,switchPath} from './navigation.ts';
 
 test('sidebar entries, labels and order stay exactly as approved',()=>{
- assert.deepEqual(privateLinks.map(l=>[l.href,l.icon,l.label]),[['/account','◇','俱乐部总览'],['/analytics','◈','数据分析'],['/members','♧','成员名单'],['/events','⚔','四方联赛'],['/highland','△','高原竞逐'],['/import','⊕','导入数据'],['/activity','≡','操作日志'],['/team','♔','管理员管理']]);
+ assert.deepEqual(privateLinks.map(l=>[l.href,l.icon,l.label]),[['/account','◇','俱乐部总览'],['/analytics','◈','数据分析'],['/members','♧','成员名单'],['/events','⚔','四方联赛'],['/highland','△','高原竞逐'],['/activity','≡','操作日志'],['/team','♔','管理员管理']]);
  assert.deepEqual(publicLinks.map(l=>[l.href,l.icon,l.label]),[['/','◇','首页'],['/login','✧','登录']]);
 });
 test('every signed-in page uses the private shell; public and unknown pages never do',()=>{
@@ -13,11 +13,13 @@ test('every signed-in page uses the private shell; public and unknown pages neve
 });
 test('a player history page highlights 成员名单; other pages highlight themselves',()=>{
  assert.equal(activeHref('/players'),'/members');
+ assert.equal(activeHref('/import'),'/members');
+ assert.deepEqual(privateLinks.filter(l=>l.group==='活动').map(l=>l.href),['/events','/highland']);
  // Four-Way League import and event detail pages highlight 四方联赛 (and use the private shell).
  for(const path of ['/events/import','/event']){assert.equal(activeHref(path),'/events');assert.equal(isPrivateRoute(path),true);}
  // Highland Race pages highlight 高原竞逐, never 四方联赛.
  for(const path of ['/highland/import','/highland/event']){assert.equal(activeHref(path),'/highland');assert.equal(isPrivateRoute(path),true);}
- for(const path of ['/account','/members','/import','/activity','/','/login'])assert.equal(activeHref(path),path);
+ for(const path of ['/account','/members','/activity','/','/login'])assert.equal(activeHref(path),path);
  // Settings has no sidebar entry, so nothing in the sidebar is marked current.
  for(const path of ['/settings'])assert.ok(![...privateLinks,...publicLinks].some(l=>l.href===activeHref(path)),path);
 });
@@ -58,10 +60,11 @@ test('the admin management entry shows only to holders of an owner management po
  // audit.read only) sees no import entry and no admin management (display only; the Worker and database refuse anyway).
  assert.deepEqual(visibleLinks(privateLinks,['members.read','audit.read']).map(l=>l.href),['/account','/analytics','/members','/activity']);
  assert.deepEqual(visibleLinks(privateLinks,[]).map(l=>l.href),['/account','/analytics','/members']);
- assert.ok(visibleLinks(privateLinks,['imports.create']).some(l=>l.href==='/import'));
+ assert.ok(!visibleLinks(privateLinks,['imports.create']).some(l=>l.href==='/import'));
 });
 test('switching club keeps the section but drops parameters that only mean something in the old club',()=>{
- for(const path of ['/account','/members','/import','/activity','/team','/settings','/analytics'])assert.equal(switchPath(path),path);
+ for(const path of ['/account','/members','/activity','/team','/settings','/analytics'])assert.equal(switchPath(path),path);
+ assert.equal(switchPath('/import'),'/members');
  assert.equal(switchPath('/players'),'/members'); // a player belongs to one club
  for(const path of ['/admin','/clubs','/missing'])assert.equal(switchPath(path),'/account');
 });
