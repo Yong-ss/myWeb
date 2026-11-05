@@ -146,16 +146,18 @@ export function AdminPage(){
  const canRemoveAll=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.users.remove_all_clubs")===true;
  const canSetLimit=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.clubs.admin_limit")===true;
  const canEvents=account?.platform_permissions?.includes("platform.events.permissions")===true;
+ const canHighland=account?.platform_permissions?.includes("platform.highland.permissions")===true;
  const canEditPermissions=account?.mfa_verified===true&&account.platform_permissions?.includes("platform.permissions.manage")===true;
  return <main className="club-workspace club-admin flex flex-col gap-6"><PageHeader eyebrow="PLATFORM / 平台管理中心" title="平台管理中心"/>
   {error?<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/>:!account?<LoadingState status="loading" label="正在确认权限…"/>:!allowed?<Gate account={account}/>:
    <Tabs defaultValue="overview" className="flex flex-col gap-6">
-    <TabsList aria-label="平台管理"><TabsTrigger value="overview">总览</TabsTrigger><TabsTrigger value="users">用户与职位</TabsTrigger><TabsTrigger value="roles">角色与权限</TabsTrigger><TabsTrigger value="alliances">联盟</TabsTrigger>{canEvents&&<TabsTrigger value="events">四方联赛权限</TabsTrigger>}<TabsTrigger value="activity">平台日志</TabsTrigger></TabsList>
+    <TabsList aria-label="平台管理"><TabsTrigger value="overview">总览</TabsTrigger><TabsTrigger value="users">用户与职位</TabsTrigger><TabsTrigger value="roles">角色与权限</TabsTrigger><TabsTrigger value="alliances">联盟</TabsTrigger>{canEvents&&<TabsTrigger value="events">四方联赛权限</TabsTrigger>}{canHighland&&<TabsTrigger value="highland">高原竞逐权限</TabsTrigger>}<TabsTrigger value="activity">平台日志</TabsTrigger></TabsList>
     <TabsContent value="overview"><OverviewPanel canSetLimit={canSetLimit} canEnter={account.mfa_verified===true}/></TabsContent>
     <TabsContent value="users"><UsersPanel canManage={canManage} canEditPermissions={canEditPermissions} canAppoint={canAppoint} canRemoveAll={canRemoveAll} self={account.mfa_verified?undefined:account.email}/></TabsContent>
     <TabsContent value="roles"><PermissionSettings canEdit={canEditPermissions}/></TabsContent>
     <TabsContent value="alliances"><AlliancePanel canManage={account.platform_permissions?.includes("platform.alliances.manage")===true} canAssign={account.platform_permissions?.includes("platform.alliance_leaders.assign")===true}/></TabsContent>
     {canEvents&&<TabsContent value="events"><EventPermissions/></TabsContent>}
+    {canHighland&&<TabsContent value="highland"><EventPermissions kind="highland"/></TabsContent>}
     <TabsContent value="activity"><ActivityPanel seesAll={account.mfa_verified===true}/></TabsContent>
    </Tabs>}
  </main>;

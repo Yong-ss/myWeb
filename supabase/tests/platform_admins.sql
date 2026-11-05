@@ -50,7 +50,7 @@ end $$;
 
 -- 1. Registry: the role exists with exactly two permissions; Super-Admin-only powers can never reach any role.
 do $$ begin
- if (select array_agg(permission_key order by permission_key) from public.auth_role_permissions where role_key='platform_admin')<>array['platform.alliance_leaders.assign','platform.alliances.manage','platform.events.permissions','platform.read','platform.roles.assign']
+ if (select array_agg(permission_key order by permission_key) from public.auth_role_permissions where role_key='platform_admin')<>array['platform.alliance_leaders.assign','platform.alliances.manage','platform.events.permissions','platform.highland.permissions','platform.read','platform.roles.assign']
   then raise exception 'Platform admin permissions wrong'; end if;
  if (select array_agg(key order by key) from public.auth_permissions where super_admin_only)<>array['platform.clubs.admin_limit','platform.permissions.manage','platform.platform_admins.assign','platform.users.remove_all_clubs']
   then raise exception 'Super-Admin-only set wrong'; end if;
@@ -81,7 +81,7 @@ do $$ begin
  if (public.platform_set_platform_admin(pg_temp.u(1),'grant')->>'changed')::boolean then raise exception 'Repeat grant changed something'; end if;
  perform public.platform_set_platform_admin(pg_temp.u(2),'grant');
  -- Super Admin powers are unchanged, and include the new appointment power.
- if pg_temp.perms()<>'["audit.actor_email.read","audit.read","members.read","platform.alliance_leaders.assign","platform.alliances.manage","platform.clubs.admin_limit","platform.events.permissions","platform.permissions.manage","platform.platform_admins.assign","platform.read","platform.roles.assign","platform.users.remove_all_clubs"]' then raise exception 'Super Admin permissions changed: %',pg_temp.perms(); end if;
+ if pg_temp.perms()<>'["audit.actor_email.read","audit.read","members.read","platform.alliance_leaders.assign","platform.alliances.manage","platform.clubs.admin_limit","platform.events.permissions","platform.highland.permissions","platform.permissions.manage","platform.platform_admins.assign","platform.read","platform.roles.assign","platform.users.remove_all_clubs"]' then raise exception 'Super Admin permissions changed: %',pg_temp.perms(); end if;
 end $$;
 reset role;
 do $$ begin
@@ -104,7 +104,7 @@ do $$ declare r jsonb; begin
  if pg_temp.perms()<>'[]' then raise exception 'Unverified factor granted powers'; end if;
  perform pg_temp.as_pa();
  r:=public.club_my_access(md5('pa-club')::uuid);
- if r->'platform_permissions'<>'["platform.alliance_leaders.assign","platform.alliances.manage","platform.events.permissions","platform.read","platform.roles.assign"]' or not (r->>'platform_admin_active')::boolean or (r->>'super_admin_active')::boolean then raise exception 'Active platform admin wrong: %',r; end if;
+ if r->'platform_permissions'<>'["platform.alliance_leaders.assign","platform.alliances.manage","platform.events.permissions","platform.highland.permissions","platform.read","platform.roles.assign"]' or not (r->>'platform_admin_active')::boolean or (r->>'super_admin_active')::boolean then raise exception 'Active platform admin wrong: %',r; end if;
  if r->'permissions'<>'[]' then raise exception 'Platform admin gained club permissions'; end if;
  perform public.platform_overview();perform public.platform_roles();perform public.platform_permission_settings(null);
 end $$;
@@ -164,9 +164,9 @@ do $$ declare page jsonb; e jsonb; begin
  page:=public.platform_users();
  if exists(select 1 from jsonb_array_elements(page->'users') u where u.value ? 'super_admin') then raise exception 'Super Admin flag shown to a platform admin'; end if;
  if not exists(select 1 from jsonb_array_elements(page->'users') u where u.value->>'id'=md5('pa-user-2')::uuid::text and (u.value->>'platform_admin')::boolean) then raise exception 'Platform admin flag missing'; end if;
- page:=public.platform_activity();
- if exists(select 1 from jsonb_array_elements(page->'events') e where e.value->>'action' like 'platform\_super\_admin%') then raise exception 'Super Admin device or list event shown'; end if;
- e:=(select value from jsonb_array_elements(page->'events') where value->>'action'='platform_role_assignments.insert' limit 1);
+ -- Every row here shares one created_at, so the events can be on any page: read them all (pg_temp.all_events).
+ if exists(select 1 from pg_temp.all_events() ev where ev->>'action' like 'platform\_super\_admin%') then raise exception 'Super Admin device or list event shown'; end if;
+ e:=(select value from pg_temp.all_events() value where value->>'action'='platform_role_assignments.insert' limit 1);
  if e->'actor'<>'null'::jsonb or e->>'actor_kind'<>'super_admin' then raise exception 'Super Admin actor exposed: %',e; end if;
  if public.platform_permission_explain(md5('pa-club')::uuid,'d0ddb226-a10a-471c-be4b-d5e5153bd313') ? 'super_admin' then raise exception 'Explain exposes the Super Admin'; end if;
  -- Changing a Super Admin account's club role answers exactly like any other account (nothing to tell them apart).
@@ -175,8 +175,8 @@ do $$ declare page jsonb; e jsonb; begin
  -- The active Super Admin still sees everything.
  perform pg_temp.as_sa();
  if not exists(select 1 from jsonb_array_elements(public.platform_users()->'users') u where (u.value->>'super_admin')::boolean) then raise exception 'Super Admin lost the flag'; end if;
- if not exists(select 1 from jsonb_array_elements(public.platform_activity()->'events') e where e.value->>'action' like 'platform\_super\_admin%') then raise exception 'Super Admin lost device events'; end if;
- if (select value->>'actor' from jsonb_array_elements(public.platform_activity()->'events') where value->>'action'='platform_role_assignments.insert' limit 1) is null then raise exception 'Super Admin lost actor emails'; end if;
+ if not exists(select 1 from pg_temp.all_events() ev where ev->>'action' like 'platform\_super\_admin%') then raise exception 'Super Admin lost device events'; end if;
+ if (select value->>'actor' from pg_temp.all_events() value where value->>'action'='platform_role_assignments.insert' limit 1) is null then raise exception 'Super Admin lost actor emails'; end if;
 end $$;
 
 -- 6a. The Super Admin changing their own club role must not be matchable either: no field of any event they made, and

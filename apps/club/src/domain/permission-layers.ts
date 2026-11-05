@@ -5,14 +5,13 @@ export type Explained = { key: string; description: string; sensitive: boolean; 
   platform_default: boolean; cap_blocked: boolean; club_default: boolean | null; forced: boolean | null; owner_set: boolean | null;
   /** Stage G: the alliance this account leads grants this read here (before a Super Admin forced deny). */
   alliance?: boolean;
-  /** Four-Way League: the platform admin's personal and club-role settings (event permissions only). */
+  /** Event permissions (Four-Way League, Highland Race): the platform admin's personal and club-role settings. */
   platform_set?: boolean | null; platform_role?: boolean | null };
 
 const layerReasons: Record<string, string> = {
   no_role: "此账户在该俱乐部没有职位", unregistered: "未登记的权限", non_delegable: "系统安全规则：只有公会长可以拥有",
   forced_allow: "超级管理员单独允许", forced_deny: "超级管理员单独禁止", owner_allow: "公会长单独允许", owner_deny: "公会长单独禁止",
   platform_allow: "平台管理员单独允许", platform_deny: "平台管理员单独禁止", platform_role_allow: "平台管理员按职位允许", platform_role_deny: "平台管理员按职位禁止",
-  needs_read: "已设置允许，但缺少「查看四方联赛战绩」权限，暂不生效",
   club_allow: "本俱乐部默认允许", club_deny: "本俱乐部默认不允许", default_allow: "全平台默认允许", default_deny: "全平台默认不允许",
 };
 
@@ -56,5 +55,6 @@ export function layerReason(p: Explained) {
   if (p.alliance && p.forced === false) return "超级管理员单独禁止（联盟会长只读也不生效）";
   if (p.alliance && p.allowed && !["forced_allow", "owner_allow", "club_allow", "default_allow"].includes(p.layer)) return "联盟会长只读";
   if (p.layer === "cap") return p.forced === true || p.owner_set === true ? "已单独允许，但超出该职位的权限上限，未生效" : "超出该职位的权限上限";
+  if (p.layer === "needs_read") return `已设置允许，但缺少「${p.key.startsWith("highland.") ? "查看高原竞逐战绩" : "查看四方联赛战绩"}」权限，暂不生效`;
   return layerReasons[p.layer] ?? "未知原因（请查看高级详情）";
 }

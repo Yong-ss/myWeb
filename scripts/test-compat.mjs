@@ -2,20 +2,22 @@ import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-// Deployment-order check: the already deployed Worker (default origin/main) runs its own real integration suite
-// against the database with new migrations applied. This is the state between "migrate" and "deploy", after a failed
-// deploy or a Worker rollback, and (per state below) after a migration run stopped part-way.
+// Deployment-order check: the already deployed Worker runs its own real integration suite against the database with
+// new migrations applied. This is the state between "migrate" and "deploy", after a failed deploy or a Worker rollback.
 // Local disposable Supabase only (same runner as test:integration).
 // Usage: pnpm test:compat [ref] [state ...]   states: all (default)
+// ref must be the commit the production Club Worker was actually deployed from (check the last successful main run
+// that deployed Club, see docs/TESTING.md); origin/main is only the default and may contain undeployed commits.
 const [ref = 'origin/main', ...only] = process.argv.slice(2);
 // Pending migrations, in order. Each state applies a prefix of this list (one migration: one state).
-// History: Club permissions V1 (7 migrations, 2026-11-03) were checked here in states A, A-C, A-E and all.
-const pending = ['20261104140000_club_events.sql'];
-const deployedPermissions = ['absences.resolve', 'aliases.manage', 'audit.actor_email.read', 'audit.read', 'club.admins.manage', 'club.admins.permissions', 'club.alliance.request', 'club.rename', 'imports.create', 'imports.delete', 'members.read'];
-const withEvents = [...deployedPermissions, 'events.edit', 'events.import', 'events.read'].sort();
+// History: Club permissions V1 (7 migrations, 2026-11-03) were checked here in states A, A-C, A-E and all;
+// Four-Way League 20261104140000_club_events.sql (2026-11-04) in state all.
+const pending = ['20261105090000_club_highland.sql'];
+const deployedPermissions = ['absences.resolve', 'aliases.manage', 'audit.actor_email.read', 'audit.read', 'club.admins.manage', 'club.admins.permissions', 'club.alliance.request', 'club.rename', 'events.edit', 'events.import', 'events.read', 'imports.create', 'imports.delete', 'members.read'];
+const withHighland = [...deployedPermissions, 'highland.edit', 'highland.import', 'highland.read'].sort();
 // Expected values the migration deliberately changes. The deployed Worker drops permission keys it does not know
-// (isPermission), so its own answers (/api/account) are unchanged and it has no event routes; only answers read
-// straight from the database gain the event permissions: the Super Admin's full club list, and the Worker/database
+// (isPermission), so its own answers (/api/account) are unchanged and it has no highland routes; only answers read
+// straight from the database gain the highland permissions: the Super Admin's full club list, and the Worker/database
 // parity check, which compares the Worker answer with the database answer minus the keys that Worker never knew.
 const states = { all: { files: 1 } };
 // Old tests that cannot hold under the new rules at all; none for this migration.
@@ -25,9 +27,9 @@ const literal = list => `[${list.map(k => `'${k}'`).join(',')}]`;
 // silently running unpatched.
 const edits = () => ({
   'tests/integration/authz.spec.mjs': [
-    [`const allPermissions=${literal(deployedPermissions)};`, `const allPermissions=${literal(withEvents)};`],
+    [`const allPermissions=${literal(deployedPermissions)};`, `const allPermissions=${literal(withHighland)};`],
     ["expect(a.permissions).toEqual(await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json());",
-     "expect(a.permissions).toEqual((await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json()).filter(k=>!k.startsWith('events.')));"],
+     "expect(a.permissions).toEqual((await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json()).filter(k=>!k.startsWith('highland.')));"],
   ],
 });
 const run = only.length ? only : Object.keys(states);

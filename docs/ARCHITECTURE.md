@@ -1,5 +1,14 @@
 # SquirrelAPI — Architecture
 
+## Highland Race V1 (club events) — 2026-11-05 (local, not yet deployed)
+
+- Requirements: `docs/CLUB_HIGHLAND_RACE_DISCUSSION.md` (§11 describes this implementation). Migration `20261105090000_club_highland.sql` (additive; Four-Way League functions keep their signatures).
+- Permissions: `highland.read` (club + alliance, read-only), `highland.import`, `highland.edit`, same defaults as the Four-Way League, but separate rows: an `events.*` grant or deny never applies to `highland.*` and the reverse. `permission_layer()` (same signature) returns `needs_read` for highland import/edit without `highland.read`. The platform-admin layer accepts the three highland keys; platform admins set them with `platform.highland.permissions` through `platform_highland_permissions` / `platform_set_highland_permission` (the Four-Way League functions refuse highland keys and the reverse).
+- Data: `club_events` holds both types (`event_type` in `four_way_league`, `highland_race`; a trigger forbids changing it); optional `faction` (must be in `club_private.highland_factions()`) and `faction_rank` (1-4), both null for the Four-Way League (check constraint). `club_highland_event_players` (nine highland metrics incl. `merit`, no guardian damage) references `club_events(club_id, id, event_type)` with a constant `highland_race`, so it can only join a highland event; a trigger keeps `club_event_players`/`club_event_imports` on Four-Way League events. Versions, request ids and the club lock are shared (`club_event_versions`, `event_begin`); `faction` is a version action. No raw AI JSON is stored for highland.
+- Isolation: the Four-Way League readers/writer (`club_events_list`, `club_event_detail`, `club_event_version`, `club_event_update`, `club_player_events`) now filter `event_type='four_way_league'`; highland has `club_highland_list/detail/version/update/create/identities` and `club_player_highland`. Attendance shares one private function `club_private.event_attendance(club, player, type)` (the Four-Way League rule, one type at a time).
+- Import privacy: the faction-wide AI JSON is parsed and reviewed only in the browser (`features/events/highland.ts`); the request carries only confirmed participants of this club (existing player ids; never a new identity) and row counts (`source`), which the log keeps as `reported_source`.
+- Worker: `worker/highland.ts` (`/api/highland-events`, `/api/highland-event`, `/api/player-highland`, `/api/highland-identities`) and two platform routes in `admin.ts`. Front end: `features/events` (`HighlandPage`, `HighlandImportPage`, `HighlandDetailPage`, routes `/highland`, `/highland/import`, `/highland/event`), the shared attendance card in the player profile, a platform tab reusing `EventPermissions`.
+
 ## Four-Way League V1 (club events) — 2026-11-04
 
 - Requirements: `docs/CLUB_EVENTS_DISCUSSION.md`. Migration `20261104140000_club_events.sql` (additive; no existing signature changes).

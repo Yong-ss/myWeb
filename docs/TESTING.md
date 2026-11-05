@@ -19,7 +19,14 @@
 
 **Club 权限 V1 的 7 个迁移例外：不用 `supabase db push`**（它逐个文件提交，中途失败会留下半个迁移），改按 `docs/CLUB_PERMISSIONS_PLAN.md` 7.3 用 `psql --single-transaction` 执行 7 个原始文件加 `scripts/club-v1-structure-check.mjs` 生成的检查，成功后才运行 `supabase migration repair --status applied <7 个版本号>`。执行前的只读预检查是 `scripts/club-v1-precheck.sql`（只读事务，结束时回滚，每行 `ok` 都应为 true）。
 
-迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本（默认 `origin/main`）的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上；当前待部署的是四方联赛迁移 `20261104140000_club_events.sql`（单个文件，一种状态 `all`）。旧测试中只因迁移有意改变的期望值（超管完整权限列表、联盟会长多了 `events.read`、平台管理员多了 `platform.events.permissions`）精确替换，每处替换必须恰好匹配一次，否则直接失败；没有整条排除的旧测试。（Club 权限 V1 的 7 个迁移曾按 A／A～C／A～E／全部四种状态检查，见 Git 历史。）已应用的迁移若被改动则直接失败。
+迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上。基线必须是正式 Club Worker 实际部署的提交（查最近一次成功且执行了 Club 发布的 main 运行），作为参数传入：`pnpm test:compat <提交>`；默认的 `origin/main` 可能含未部署的提交，不能未经核实就当作线上版本。当前待部署的是高原竞逐迁移 `20261105090000_club_highland.sql`（单个文件，一种状态 `all`）；2026-11-05 核实的线上 Club 版本为 `c8f30c0`（运行 41855401309，Cloudflare 版本 6cc26d27），其后 main 只有文档提交。旧测试中只因迁移有意改变的期望值（超管完整权限列表多了 `highland.*`、Worker／数据库权限一致性检查去掉旧 Worker 不认识的 `highland.*`）精确替换，每处替换必须恰好匹配一次，否则直接失败；没有整条排除的旧测试。（Club 权限 V1 的 7 个迁移曾按 A／A～C／A～E／全部四种状态检查，见 Git 历史。）已应用的迁移若被改动则直接失败。
+
+## 高原竞逐 V1 本地验收（2026-11-05，未 Push、未迁移正式库）
+
+- `pnpm test:unit` 全部通过（含 `features/events/highland.test.mjs`：JSON 契约、全势力候选分类、双表配对、提示词与文档一致、势力列表与数据库一致、1000 行×300 人规模；`worker/highland.test.mjs`：独立权限、俱乐部来自网址、越界输入在数据库前拒绝）。
+- `pnpm test:db`：17 个 SQL 套件通过（新增 `supabase/tests/club_highland.sql`），竞争测试 5 项通过（新增同日两次高原导入：第二次 PT409，同日四方仍可保存）。本机无 psql，按上文用 WSL 包装脚本转调容器内 psql 运行，数据库为一次性 `postgres:17` 容器。
+- `pnpm test:e2e` 131 项通过（新增 `tests/browser/highland.spec.mjs` 9 项，含桌面／手机截图）；`pnpm test:integration` 38 项通过（新增 `tests/integration/highland.spec.mjs`：真实页面导入、外部玩家名不进入任何表和日志、四方／高原 API 双向隔离、权限独立、联盟只读、版本、出勤）。
+- `pnpm test:compat c8f30c0…`：已部署 Worker 的 37 项真实集成测试在加上高原迁移后通过。
 
 ## 备份与恢复（Supabase 免费版没有自动备份，2026-11-03 本地实测）
 

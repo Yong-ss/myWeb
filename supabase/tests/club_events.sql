@@ -60,7 +60,7 @@ do $$ begin
  if pg_temp.perms(1,'x')<>array['events.edit','events.import','events.read'] or pg_temp.perms(2,'x')<>array['events.edit','events.import','events.read'] then raise exception 'Default event permissions wrong'; end if;
  if pg_temp.perms(5,'x')<>array['events.read'] or pg_temp.perms(7,'x')<>'{}' or pg_temp.perms(6,'x')<>'{}' then raise exception 'Event read leaks: leader %, outsider %',pg_temp.perms(5,'x'),pg_temp.perms(7,'x'); end if;
  perform pg_temp.as_user(2);
- if array(select k from unnest(public.club_my_permissions(pg_temp.c('x'))) k where k not like 'events.%')<>array['absences.resolve','aliases.manage','audit.read','imports.create','imports.delete','members.read'] then raise exception 'Existing admin permissions changed'; end if;
+ if array(select k from unnest(public.club_my_permissions(pg_temp.c('x'))) k where k not like 'events.%' and k not like 'highland.%')<>array['absences.resolve','aliases.manage','audit.read','imports.create','imports.delete','members.read'] then raise exception 'Existing admin permissions changed'; end if;
 end $$;
 
 -- 2. Read is required: owner sets the admin read off; import/edit stay set but take no effect (and come back with read).

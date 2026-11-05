@@ -124,6 +124,21 @@ const cases = {
     check(q(`select count(*) from public.club_permission_overrides where club_id='${Y}' and user_id='${admin}' and set_by='owner'`) === '0', 'owner setting written');
     check(q(`select count(*) from public.club_audit_events where club_id='${Y}'`) === audits, 'audit row written');
   },
+  // Highland Race: two importers save the same club and date at once. The second waits on the club lock, then sees the
+  // first and is refused (one valid match per day), leaving nothing behind; a Four-Way League on that day still saves.
+  'same-day highland imports: the second is refused, a four-way one is not': async () => {
+    const player = rid(), owner = q(`select user_id from public.club_memberships where club_id='${X}' and role='owner' and status='active'`);
+    q(`insert into public.club_players(id,club_id,display_name,match_name) values ('${player}','${X}','Race player','Raceplayer');`);
+    const row = `jsonb_build_array(jsonb_build_object('player_id','${player}','kills',1,'assists',0,'dispersals',0,'awakens',0,'merit',0,'player_damage',0,'damage_taken',0,'healing',0,'purification',0))`;
+    const create = (date = '2026-10-04') => `${as(owner)} select public.club_highland_create('${X}','${date}',1,null,null,${row},'{"output_rows":1,"strategy_rows":1,"excluded_rows":0}','${rid()}');`;
+    failedWith(await race(create(), create()), 'PT409');
+    check(q(`select count(*) from public.club_events where club_id='${X}' and event_type='highland_race'`) === '1', 'two highland events on one day');
+    check(q(`select count(*) from public.club_highland_event_players where club_id='${X}'`) === '1', 'refused import left rows');
+    const fw = `${as(owner)} select public.club_event_create('${X}','2026-10-04',1,jsonb_build_array(jsonb_build_object('player_id','${player}','kills',1,'assists',0,'dispersals',0,'awakens',0,'player_damage',0,'damage_taken',0,'healing',0,'guardian_damage',0,'purification',0)),'{"schema_version":1,"event_type":"four_way_league","output":[1],"strategy":[1]}','${rid()}');`;
+    const out = await race(create('2026-10-05'), fw);
+    check(!/ERROR/.test(out), `four-way save refused: ${out.slice(0, 200)}`);
+    check(q(`select string_agg(event_type, ',' order by event_type) from public.club_events where club_id='${X}' and event_date='2026-10-04' and status='active'`) === 'four_way_league,highland_race', 'types collided');
+  },
 };
 
 let failed = 0;

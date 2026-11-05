@@ -1,5 +1,15 @@
 # SquirrelAPI — Decision Log
 
+## Highland Race V1: engineering choices — 2026-11-05
+
+The business rules are those confirmed in `docs/CLUB_HIGHLAND_RACE_DISCUSSION.md`. Choices made during implementation where the document left room:
+- Shared `club_events` and versions, separate metric table (`club_highland_event_players`); the type is enforced by the database (composite foreign key with a constant type, a trigger on the Four-Way League tables, an immutable `event_type`), not only by the functions.
+- Faction names: only 「血皇帝势力」 is confirmed (seen in the 2026-11-04 screenshots). The database list (`club_private.highland_factions()`) and the page list hold only that name; the other three are added by a later migration when the owner provides them. Rank 1-4 works independently.
+- Automatic proposal: only an exact name or confirmed alias of a player in the **latest valid roster**. The same name of a departed player, similar names, two players with one name, and a repeated name with different values wait for a person. Rows with no relation to any player are proposed for exclusion (one click per row is never required for them; they stay searchable and can be included). Two-character names one character apart are not flagged as similar (too common on a faction board) unless only symbols differ.
+- No new player identity from a highland import or edit: a faction board name without a match is not evidence of a new member. Departed players stay selectable (history link).
+- No raw JSON is stored for highland (the original contains other clubs' players). Stored instead: each participant's read names, all metrics, the full state per version, and the counts the browser reports (`reported_source`), labelled as reported, not verified.
+- The administrator confirms the final roster with an explicit checkbox in the save dialog (names listed, departed members marked).
+
 ## Four-Way League V1: engineering choices — 2026-11-04
 
 The business rules are those confirmed in `docs/CLUB_EVENTS_DISCUSSION.md`. Choices made during implementation where the document left room:

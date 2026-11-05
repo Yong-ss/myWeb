@@ -8,6 +8,7 @@ import {handleAdmin} from "./admin.ts";
 import {handleTeam} from "./team.ts";
 import {handleAlliance} from "./alliance.ts";
 import {handleEvents} from "./events.ts";
+import {handleHighland} from "./highland.ts";
 import {instrument} from "./timing.ts";
 import {reply, readBody, type Rest, type Access} from "./http.ts";
 import {isPermission, type Permission} from "../src/domain/permissions.ts";
@@ -47,6 +48,12 @@ const routes: Record<string, { methods: string[]; handler?: Handler; permission?
   "/api/player-events": { methods: ["GET"], handler: handleEvents, permission: { GET: "events.read" } },
   // Names for matching: the database answers only for events.import or events.edit (read alone is refused there).
   "/api/event-identities": { methods: ["GET"], handler: handleEvents, permission: { GET: "events.read" } },
+  // Highland Race: its own permissions (never events.*); import and edit also need highland.read (database, in can()).
+  "/api/highland-events": { methods: ["GET", "POST"], handler: handleHighland, permission: { GET: "highland.read", POST: "highland.import" } },
+  "/api/highland-event": { methods: ["GET", "POST"], handler: handleHighland, permission: { GET: "highland.read", POST: "highland.edit" } },
+  "/api/player-highland": { methods: ["GET"], handler: handleHighland, permission: { GET: "highland.read" } },
+  // Names for matching: the database answers only for highland.import or highland.edit.
+  "/api/highland-identities": { methods: ["GET"], handler: handleHighland, permission: { GET: "highland.read" } },
   // Owner management of this club's admins (stage C); non-delegable, so only the owner (or an active Super Admin) holds them.
   "/api/team": { methods: ["GET"], handler: handleTeam, permission: { GET: "club.admins.manage" } },
   "/api/team/candidate": { methods: ["GET"], handler: handleTeam, permission: { GET: "club.admins.manage" } },
@@ -75,6 +82,8 @@ const routes: Record<string, { methods: string[]; handler?: Handler; permission?
   // Four-Way League permission settings per club (platform admins too; event permissions only, see the migration).
   "/api/admin/event-permissions": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.events.permissions" }, platform: true },
   "/api/admin/event-permission": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.events.permissions" }, platform: true },
+  "/api/admin/highland-permissions": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.highland.permissions" }, platform: true },
+  "/api/admin/highland-permission": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.highland.permissions" }, platform: true },
   "/api/admin/permission-settings": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
   "/api/admin/permission-explain": { methods: ["GET"], handler: handleAdmin, permission: { GET: "platform.read" }, platform: true },
   "/api/admin/role-permission": { methods: ["POST"], handler: handleAdmin, permission: { POST: "platform.permissions.manage" }, platform: true },
