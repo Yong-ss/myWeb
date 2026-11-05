@@ -12,3 +12,4 @@ temp_work/
 .test-runtime/
 supabase/.temp/
 backups/
+.stitch/
