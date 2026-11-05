@@ -1,17 +1,18 @@
 import {test,expect} from '@playwright/test';
 import {ownerAccount} from './fixtures.mjs';
 for(const width of [1440,390])test(`header does not remount or move settings during slow verification ${width}`,async({page})=>{
- await page.setViewportSize({width,height:844});let hold=true,gate;
+ await page.setViewportSize({width,height:844});let hold=true,gate,held=0;
  await page.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname;
-  if(path==='/api/account'&&hold){gate=route;return;}
+  if(path==='/api/account'&&hold){gate=route;held++;return;}
   return route.fulfill({json:path==='/api/account'?ownerAccount('stable@example.invalid'):path==='/api/club-settings'?{name:'测试俱乐部',can_edit:true}:{snapshot:null,snapshots:[],members:[],points:[],next:null}});
  });
  await page.goto('/account');const settings=page.locator('.club-header-settings');
  const before=await settings.boundingBox();await expect.poll(()=>Boolean(gate)).toBe(true);
  await gate.fulfill({json:ownerAccount('stable@example.invalid')});await expect(page.locator('.club-header-account')).toContainText('stable@example.invalid');
  // An old link without a club: the page then names its club in the URL and re-reads the account for that club.
- const first=gate;await expect(page).toHaveURL(/\/account\?club=/);await expect.poll(()=>gate!==first).toBe(true);
+ // Counted, not compared: on a slow machine the re-read can already be held before this line runs.
+ await expect(page).toHaveURL(/\/account\?club=/);await expect.poll(()=>held).toBe(2);
  await gate.fulfill({json:ownerAccount('stable@example.invalid')});
  expect(await settings.boundingBox()).toEqual(before);
  await page.locator('.club-top').evaluate(el=>el.dataset.persistTest='same-header');
