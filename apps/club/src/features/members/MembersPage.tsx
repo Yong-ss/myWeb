@@ -13,7 +13,7 @@ import { NativeSelect, NativeSelectOption } from "../../components/ui/native-sel
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 import { Badge } from "../../components/ui/badge";
 import { Field, FieldLabel } from "../../components/ui/field";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow, TableSortButton } from "../../components/ui/table";
 import { LoadingState, TableSkeleton } from "../../components/feedback";
 import { Suspense, useEffect, useRef, useState } from "react";
 import type { Member } from "../../domain/member";
@@ -29,7 +29,6 @@ type TableView = {sort:keyof Row;descending:boolean;pathway:string;group:string}
 const initialView:TableView={sort:"name",descending:false,pathway:"",group:""};
 const columns = [["name", "昵称"], ["level", "等级"], ["pathway", "途径"], ["extraordinary_score", "非凡评分"], ["prosperity", "风尚度"], ["weekly_activity", "周活跃"], ["position", "职位"], ["group_name", "分组"], ["join_days", "入会天数"]] as const;
 // Header controls share one quiet look: no fill or border on hover, same 44px height so all labels line up.
-const headerControl = "club-table-sort -mx-2 inline-flex h-11 items-center gap-1.5 rounded-sm border-transparent bg-transparent px-2 py-1 font-[inherit] text-xs leading-5 text-gold hover:border-transparent hover:bg-transparent hover:text-ring active:bg-transparent";
 export function MembersPage() { return <Suspense fallback={<TableSkeleton columns={11} label="正在读取名单…" />}><MemberList /></Suspense>; }
 function MemberList() {
   const href=useClubHref(),can=useClubCan();
@@ -98,10 +97,10 @@ function MemberList() {
   function sortHeading(field:keyof Row,title:string,departed:boolean,className?:string) {
     const {sort,descending}=views[viewKey(departed)];
     const state=sort===field?(descending?"descending":"ascending"):"none";
-    return <TableHead key={field} aria-sort={state} className={cn("group/sort",className)}><button type="button" className={headerControl} onClick={()=>order(field,departed)}>{title}<svg className="size-3.5 shrink-0 text-[color-mix(in_srgb,var(--club-gold)_35%,var(--club-text-secondary))] transition-colors duration-150 group-hover/sort:text-gold group-aria-[sort=ascending]/sort:text-gold group-aria-[sort=descending]/sort:text-gold" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    return <TableHead key={field} aria-sort={state} className={cn("group/sort",className)}><TableSortButton className="gap-1.5 py-1 leading-5" onClick={()=>order(field,departed)}>{title}<svg className="size-3.5 shrink-0 text-[color-mix(in_srgb,var(--club-gold)_35%,var(--club-text-secondary))] transition-colors group-hover/sort:text-gold group-aria-[sort=ascending]/sort:text-gold group-aria-[sort=descending]/sort:text-gold" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <g className="club-sort-neutral origin-center opacity-100 transition-opacity duration-200 [transform-box:view-box] group-aria-[sort=ascending]/sort:opacity-0 group-aria-[sort=descending]/sort:opacity-0"><path d="m3 7 4-4 4 4M7 3v18m14-4-4 4-4-4M17 21V3"/></g>
       <g className="club-sort-direction origin-center opacity-0 transition-[opacity,transform] duration-200 ease-club-feedback [transform-box:view-box] group-aria-[sort=ascending]/sort:opacity-100 group-aria-[sort=descending]/sort:[transform:rotate(180deg)] group-aria-[sort=descending]/sort:opacity-100"><path d="M12 19V5m-7 7 7-7 7 7"/></g>
-    </svg></button></TableHead>;
+    </svg></TableSortButton></TableHead>;
   }
   const filterHeading=(field:"pathway"|"group_name",title:string,departed=false)=><TableHead key={field}><NativeSelect className="club-table-filter -mx-2 h-11 min-h-11 w-auto max-w-50 min-w-27.5 border-transparent bg-transparent px-2 py-1 text-xs leading-5 text-gold hover:border-transparent hover:text-ring focus:border-transparent md:text-xs" aria-label={departed?`离会成员${title}`:title} value={views[viewKey(departed)][field==="pathway"?"pathway":"group"]} onChange={e=>{const key=viewKey(departed),value=e.target.value;if(!departed&&field==="pathway")setMissingPathway(false);setViews(old=>({...old,[key]:{...old[key],[field==="pathway"?"pathway":"group"]:value}}));}}><NativeSelectOption value="">{title} · 全部</NativeSelectOption>{options(field,departed).map(option=><NativeSelectOption key={option} value={option}>{option}</NativeSelectOption>)}</NativeSelect></TableHead>;
   const sticky="sticky left-0 z-1 bg-card";

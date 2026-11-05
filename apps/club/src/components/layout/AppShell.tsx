@@ -21,9 +21,9 @@ function Navigation({ links, current, onNavigate, indicator, club }: { links: Na
     <Fragment key={href}>
     {group && group !== links[index - 1]?.group && <p className={cn("mx-6 pb-1 text-xs tracking-wide text-muted-foreground", index > 0 && "mt-3 border-t border-border pt-4")}>{group}</p>}
     <Link href={club ? clubHref(href, club) : href} aria-current={href === current ? "page" : undefined} onClick={onNavigate}
-      className={cn(group && "ml-3", "relative flex min-h-11 items-center gap-3 border-l-2 border-transparent px-6 py-3 text-sm tracking-wide text-muted-foreground no-underline transition-[background-color,color,border-color] duration-150 ease-club-feedback hover:bg-[color-mix(in_srgb,var(--club-gold)_5%,transparent)] hover:text-gold active:bg-pressed active:duration-0 aria-[current=page]:text-gold")}>
+      className={cn(group && "ml-3", "relative flex min-h-11 items-center gap-3 border-l-2 border-transparent px-6 py-3 text-sm tracking-wide text-muted-foreground no-underline transition-[background-color,color,border-color] ease-club-feedback hover:bg-[color-mix(in_srgb,var(--club-gold)_5%,transparent)] hover:text-gold active:bg-pressed active:duration-0 aria-[current=page]:text-gold")}>
       {/* The marker is one shared element per navigation, so it glides from the old page to the new one. */}
-      {href === current && <motion.span layoutId={indicator} aria-hidden="true" transition={move} className="absolute inset-y-0 -left-0.5 right-0 border-l-2 border-gold bg-[linear-gradient(90deg,color-mix(in_srgb,var(--club-gold)_13%,transparent),transparent)]" />}
+      {href === current && <motion.span layoutId={indicator} aria-hidden="true" transition={move} className="absolute inset-y-0 -left-0.5 right-0 border-l-2 border-gold bg-[image:var(--club-effect-nav-active)]" />}
       <span aria-hidden="true" className="relative w-4 text-center font-heading">{icon}</span><span className="relative">{label}</span>
     </Link></Fragment>)}</nav>;
 }

@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
-import {toast} from "sonner";
+import {toast} from "../../components/ui/sonner";
 import {clubApi} from "../../lib/data-access";
 import {Card,CardDescription,CardTitle} from "../../components/ui/card";
 import {Button} from "../../components/ui/button";

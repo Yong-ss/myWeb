@@ -32,7 +32,12 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 
 // Row hover paints the cells, so sticky cells (which carry their own background) highlight with the row.
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <td data-slot="table-cell" className={cn("border-b border-divider px-4 py-3 text-left whitespace-nowrap transition-colors duration-120 ease-club-feedback group-hover/row:bg-hover", className)} {...props} />
+  return <td data-slot="table-cell" className={cn("border-b border-divider px-4 py-3 text-left whitespace-nowrap transition-colors duration-(--club-motion-fast) ease-club-feedback group-hover/row:bg-hover", className)} {...props} />
 }
 
-export { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow }
+/** The clickable label inside a sortable TableHead. Put aria-sort on the TableHead; pass the direction mark as children. */
+function TableSortButton({ className, type = "button", ...props }: React.ComponentProps<"button">) {
+  return <button data-slot="table-sort" type={type} className={cn("club-table-sort -mx-2 inline-flex h-11 items-center gap-1 rounded-sm border-transparent bg-transparent px-2 font-[inherit] text-xs text-gold hover:text-ring", className)} {...props} />
+}
+
+export { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow, TableSortButton }

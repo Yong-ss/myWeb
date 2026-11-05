@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
-import {toast} from "sonner";
+import {toast} from "../../components/ui/sonner";
 import {clubApi} from "../../lib/data-access";
 import {useDataRefresh} from "../../lib/useDataRefresh";
 import {LoadingState,TableSkeleton} from "../../components/feedback";

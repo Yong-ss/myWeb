@@ -4,11 +4,12 @@ import {clubApi} from "../../lib/data-access";
 import Link from "next/link";
 import {cn} from "cn";
 import {AnimatePresence,motion} from "motion/react";
-import {toast} from "sonner";
+import {toast} from "../../components/ui/sonner";
 import {QuestionIcon} from "@phosphor-icons/react";
 import {PageLoader,LoadingState} from "../../components/feedback";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/button";
+import { Notice } from "../../components/ui/notice";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { NativeSelect, NativeSelectOption } from "../../components/ui/native-select";
@@ -22,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "../../components/ui/alert-dialog";
-import { ease, enter, glide, useMotion } from "../../components/ui/motion";
+import { glide, Reveal, useMotion, useMotionKind } from "../../components/ui/motion";
 import { useEffect, useState } from "react";
 import { fields, numericFields, validDate } from "../../domain/member";
 import { parseSource, mergePreview, MAX_SOURCE_BYTES, type ImportContext, type ConfirmedMember } from "./contract";
@@ -33,8 +34,7 @@ import { extractionPrompt } from "./prompt";
 import {useClubHref} from "../../lib/useClub";
 
 // A selectable card: the whole label is the click target, the brass edge marks the chosen option.
-const optionCard = "flex cursor-pointer items-start gap-3 rounded-sm border border-border bg-field p-4 transition-[border-color,background-color] duration-150 ease-club-feedback hover:border-gold has-[[data-state=checked]]:border-gold has-[[data-state=checked]]:bg-selected has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ring";
-const notice = "m-0 rounded-sm border px-4 py-3 text-sm leading-relaxed [overflow-wrap:anywhere] empty:hidden";
+const optionCard = "flex cursor-pointer items-start gap-3 rounded-sm border border-border bg-field p-4 transition-[border-color,background-color] ease-club-feedback hover:border-gold has-[[data-state=checked]]:border-gold has-[[data-state=checked]]:bg-selected has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-3 has-[:focus-visible]:outline-ring";
 
 export function ImportPage() {
   const href=useClubHref();
@@ -59,8 +59,7 @@ export function ImportPage() {
   const [discard, setDiscard] = useState(false);
   const [removed, setRemoved] = useState<{ row: Row; index: number } | null>(null);
   const [identityIndex, setIdentityIndex] = useState<number | null>(null);
-  const fade = useMotion(enter), stepGlide = useMotion(glide);
-  const listIn = useMotion({ duration: 0.26, ease: ease.enter }), listOut = useMotion({ duration: 0.2, ease: ease.feedback });
+  const stepGlide = useMotion(glide), listItem = useMotionKind("listItem");
   useEffect(() => {
     if (error || review || saved) document.getElementById(error ? "import-feedback" : saved ? "import-success" : "final-review")?.focus();
   }, [error, review, saved]);
@@ -150,7 +149,7 @@ export function ImportPage() {
       </CollapsibleContent></Collapsible>
       <Collapsible><CollapsibleTrigger>更多操作</CollapsibleTrigger><CollapsibleContent className="flex flex-col gap-3 pt-2">
         {match.reasons.map(reason => <p className="m-0 text-sm text-muted-foreground" key={reason}>{reason}</p>)}
-        {r.identity === "new" && match.candidates.length > 0 && <p className={cn(notice, "border-warning/40 bg-warning-bg text-warning")}>请确认不是上面的已有玩家，避免重复建档。</p>}
+        {r.identity === "new" && match.candidates.length > 0 && <Notice variant="warning" className="text-warning">请确认不是上面的已有玩家，避免重复建档。</Notice>}
         <Collapsible><CollapsibleTrigger>修正第 {i+1} 行数据</CollapsibleTrigger><CollapsibleContent className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 pt-2">{fields.map(k => <Field key={k}><FieldLabel htmlFor={`field-${i}-${k}`}>{labels[k]}</FieldLabel><Input id={`field-${i}-${k}`} aria-label={`第 ${i+1} 行${labels[k]}`} value={r.member[k] ?? ""} placeholder="null" inputMode={(numericFields as readonly string[]).includes(k) ? "numeric" : "text"} onChange={e => { const value=fieldValue(k,e.target.value); setRows(rows.map((x,j) => j === i ? { ...x, member: { ...x.member, [k]: value }, ...(k === "name" ? { identity: "", manual: false, remember: false } : {}) } : x)); invalidate(); }} /></Field>)}</CollapsibleContent></Collapsible>
         <Button variant="ghost" size="compact" className="self-start text-destructive" onClick={() => { setRemoved({ row: r, index: i }); setRows(rows.filter((_,j) => j !== i)); invalidate(); }}>移除此行</Button>
       </CollapsibleContent></Collapsible>
@@ -175,8 +174,8 @@ export function ImportPage() {
       </Popover>
       <p className="m-0 text-xs text-muted-foreground">* 建议使用<a className="text-muted-foreground" href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">豆包</a>，选择「专家」。</p>
     </div>}
-    <p role={saved?undefined:"status"} className={cn(notice, "border-success/40 bg-success-bg text-success")}>{saved?"":notice_}</p><p id="import-feedback" tabIndex={-1} role="alert" className={cn(notice, "border-destructive bg-error-bg text-destructive")}>{readableError(error)}</p>
-    {saved ? <motion.section className="m-0" id="import-success" tabIndex={-1} initial={{opacity:0,y:6}} animate={{opacity:1,y:0,transition:fade}}><LoadingState status="ready" title="今天的记录，保存好了。" detail={`${notice_} 可以放心离开这个页面，或继续导入其他日期的数据。`} action={<><Button onClick={reset}>开始另一批导入</Button><Link className="text-gold" href={href("/account")}>回到工作台</Link></>}/></motion.section> : <fieldset className="club-import-busy relative m-0 min-w-0 border-0 p-0" disabled={busy} aria-busy={busy}>
+    <Notice variant="success" role={saved?undefined:"status"} className="empty:hidden">{saved?"":notice_}</Notice><Notice variant="destructive" id="import-feedback" tabIndex={-1} role="alert" className="empty:hidden">{readableError(error)}</Notice>
+    {saved ? <Reveal as="section" className="m-0" id="import-success" tabIndex={-1}><LoadingState status="ready" title="今天的记录，保存好了。" detail={`${notice_} 可以放心离开这个页面，或继续导入其他日期的数据。`} action={<><Button onClick={reset}>开始另一批导入</Button><Link className="text-gold" href={href("/account")}>回到工作台</Link></>}/></Reveal> : <fieldset className="club-import-busy relative m-0 min-w-0 border-0 p-0" disabled={busy} aria-busy={busy}>
       {busy && <PageLoader className="club-import-processing invisible absolute inset-0 z-20 min-h-0 data-[visible=true]:visible data-[visible=true]:bg-[color-mix(in_srgb,var(--club-bg)_96%,transparent)] max-sm:min-h-0" title={review ? "正在保存记录…" : "正在读取数据…"} detail="请稍候，不要重复提交。" />}
       {!context ? <Card className="input-panel items-stretch gap-5">
         <Field className="max-w-60"><FieldLabel htmlFor="date">截图日期</FieldLabel><Input id="date" type="date" min="2000-01-01" max="2100-12-31" value={date} onChange={e => setDate(e.target.value)} /></Field>
@@ -190,16 +189,16 @@ export function ImportPage() {
         <div hidden={!!review} className="review-workspace mx-auto max-w-205">
         <div className="flex flex-wrap items-center gap-4 pb-4 text-sm text-muted-foreground"><span>{date} · {rows.length} 人</span>{newCount > 0 && <span>新增 {newCount} 人</span>}<Badge variant={pending ? "warning" : "success"} className="ml-auto px-3 py-1 text-sm">{pending ? `还有 ${pending} 人没对上` : "全部已对上"}</Badge></div>
         <div className="flex flex-col gap-3">
-        {context.baseline && rows.length < context.baseline.count && <p className={cn(notice, "border-warning/40 bg-warning-bg text-warning")}>比上次少 {context.baseline.count - rows.length} 人，请检查是否漏图。</p>}
+        {context.baseline && rows.length < context.baseline.count && <Notice variant="warning" className="text-warning">比上次少 {context.baseline.count - rows.length} 人，请检查是否漏图。</Notice>}
         {bulkNewCount > 0 && <Button variant="secondary" className="self-start" onClick={() => { setRows(rows.map((r,i) => !r.identity && matches[i].tier === "D" && r.member.name && !matches[i].reasons.length ? { ...r, identity: "new", manual: true } : r)); invalidate(); }}>确认这 {bulkNewCount} 人是新玩家</Button>}
-        {removed && <div className={cn(notice, "flex animate-[club-rise-in_220ms_var(--club-ease-enter)] flex-wrap items-center gap-3 border-border bg-card")}>已移除「{removed.row.member.name ?? "未识别昵称"}」。<Button variant="secondary" size="compact" onClick={() => { setRows([...rows.slice(0,removed.index),removed.row,...rows.slice(removed.index)]); setRemoved(null); invalidate(); }}>撤销移除</Button></div>}
+        {removed && <Notice as="div" className="flex animate-[club-rise-in_220ms_var(--club-ease-enter)] flex-wrap items-center gap-3">已移除「{removed.row.member.name ?? "未识别昵称"}」。<Button variant="secondary" size="compact" onClick={() => { setRows([...rows.slice(0,removed.index),removed.row,...rows.slice(removed.index)]); setRemoved(null); invalidate(); }}>撤销移除</Button></Notice>}
         {context.snapshot && <FieldSet className="rounded-sm border border-border bg-card p-4"><FieldLegend className="float-left mb-0 w-full">这天已有数据，怎么更新？</FieldLegend>
           <RadioGroup value={mode} onValueChange={value => { setMode(value as "merge" | "replace"); invalidate(); }} className="grid-cols-2 max-sm:grid-cols-1">{([
           ["merge", "只补充／修正部分玩家", "只更新本次玩家，其他人保留。当天名单人数不会减少。"],
           ["replace", "重新导入整份名单", "当天名单以本次为准。没导入的人不再显示在当天名单中。"],
         ] as const).map(([value, title, description]) => <label key={value} className={optionCard}><RadioGroupItem value={value} className="mt-0.5" /><span><strong className="block text-sm font-medium text-foreground">{title}</strong><small className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</small></span></label>)}</RadioGroup>
           <FieldDescription className="text-xs">两种方式都会保留旧版本，不删除历史记录。</FieldDescription></FieldSet>}
-        <section className="pending-list m-0 flex flex-col"><AnimatePresence initial={false}>{rows.map((r,i) => r.needsReview || !r.identity ? <motion.div key={r.uid ?? i} className="overflow-hidden" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto", transition: listIn }} exit={{ opacity: 0, height: 0, transition: listOut }}><div className="pb-2"><Button variant="secondary" className="identity-launcher min-h-14 w-full justify-between px-5 text-left text-foreground" onClick={() => openIdentity(i)}><strong className="mr-auto font-medium [overflow-wrap:anywhere]">{r.member.name ?? "昵称没看清"}</strong><Badge variant={r.identity ? "success" : "warning"}>{r.identity ? r.identity === "new" ? "新增玩家" : `已选：${context.players.find(p => p.id === r.identity)?.display_name}` : "选择玩家"}</Badge><span aria-hidden="true" className="text-gold">›</span></Button></div></motion.div> : null)}</AnimatePresence></section>
+        <section className="pending-list m-0 flex flex-col"><AnimatePresence initial={false}>{rows.map((r,i) => r.needsReview || !r.identity ? <motion.div key={r.uid ?? i} className="overflow-hidden" {...listItem}><div className="pb-2"><Button variant="secondary" className="identity-launcher min-h-14 w-full justify-between px-5 text-left text-foreground" onClick={() => openIdentity(i)}><strong className="mr-auto font-medium [overflow-wrap:anywhere]">{r.member.name ?? "昵称没看清"}</strong><Badge variant={r.identity ? "success" : "warning"}>{r.identity ? r.identity === "new" ? "新增玩家" : `已选：${context.players.find(p => p.id === r.identity)?.display_name}` : "选择玩家"}</Badge><span aria-hidden="true" className="text-gold">›</span></Button></div></motion.div> : null)}</AnimatePresence></section>
         {rows.some(r => !r.needsReview && r.identity) && <Collapsible className="matched-list"><CollapsibleTrigger>{rows.filter(r => !r.needsReview && r.identity).length} 人已自动对上</CollapsibleTrigger><CollapsibleContent className="grid gap-2 pt-2">{rows.map((r,i) => !r.needsReview && r.identity ? editRow(r,i,matches[i]) : null)}</CollapsibleContent></Collapsible>}
         {pending===0&&mode&&missing.length>0&&<Card className="absence-review items-stretch" aria-labelledby="absence-heading"><CardTitle id="absence-heading">核对缺席成员 · {missing.length} 人</CardTitle><p className="m-0 text-sm text-muted-foreground">{context.absence_context?.snapshot?.snapshot_date} 有记录，本次未出现。</p>{missingPending>0&&<Button variant="secondary" className="self-start" onClick={()=>{setAbsenceChoices(old=>({...old,...Object.fromEntries(missing.filter(p=>!old[p.player_id]).map(p=>[p.player_id,"uncertain" as const]))}));setComplete(false);invalidate();}}>其余待确认</Button>}
           {missing.map(p=><FieldSet className="absence-person rounded-sm border border-border p-4" key={p.player_id}><FieldLegend className="float-left w-full text-gold">{p.name}</FieldLegend>
@@ -208,7 +207,7 @@ export function ImportPage() {
         </div>
         <div className="mt-5 flex justify-end border-t border-border pt-6"><Button className="min-w-37.5" disabled={pending > 0 || !mode || missingPending>0} onClick={finalPreview}>下一步 →</Button></div>
         </div>
-        {review && <motion.section className="m-0 flex flex-col items-stretch gap-4 rounded-sm border border-border bg-card p-6 outline-none max-md:p-4" id="final-review" tabIndex={-1} initial={{opacity:0,y:6}} animate={{opacity:1,y:0,transition:fade}}>
+        {review && <Reveal as="section" className="m-0 flex flex-col items-stretch gap-4 rounded-sm border border-border bg-card p-6 outline-none max-md:p-4" id="final-review" tabIndex={-1}>
           <Button variant="ghost" size="compact" className="self-start" onClick={invalidate}>← 返回核对，继续修改</Button><h2 className="m-0 text-xl">最终预览 · {review.length} 人</h2>
           <p className="match-summary ornate m-0 rounded-sm border border-border p-4 font-heading text-lg text-gold">新增 {review.filter(r => r.player_id === null).length} 人 · 既有 {review.filter(r => r.player_id !== null).length} 人 · 待确认 0 人</p>
           <p className="m-0 text-sm leading-relaxed">{complete ? "已人工确认完整名单。" : "本次未确认完整，仅记录明确确认的退会。"}{mode === "replace" ? "本次保存这份名单，之前的版本仍会保留。" : "保留此前未提交的玩家，更新本次核对的记录。"}</p>
@@ -218,7 +217,7 @@ export function ImportPage() {
           <Field orientation="horizontal" className="rounded-sm border border-border bg-field p-4"><Checkbox id="complete-roster" disabled={!completeAllowed} checked={complete&&completeAllowed} onCheckedChange={v => { setComplete(v === true); setConfirmed(false); setRequestId(crypto.randomUUID()); setError(""); }} /><FieldLabel htmlFor="complete-roster">完整名单，没有漏人</FieldLabel></Field>{!completeAllowed&&<p className="m-0 -mt-2 text-sm text-muted-foreground">还有待确认的成员，暂时不能确认名单完整。</p>}
           <Field orientation="horizontal" className="rounded-sm border border-border bg-field p-4"><Checkbox id="confirm-review" checked={confirmed} onCheckedChange={v => setConfirmed(v === true)} /><FieldLabel htmlFor="confirm-review">我已核对名单，确认日期、成员身份和数据无误。</FieldLabel></Field>
           <Button className="self-start" disabled={!confirmed} loading={busy} loadingText="正在保存…" onClick={() => void save()}>确认导入</Button><p className="m-0 text-sm text-muted-foreground">连接失败可重试同一次提交，不会重复写入；若同日数据变化，请重新开始并核对最新预览。</p>
-        </motion.section>}
+        </Reveal>}
       </>}
     </fieldset>}
     <IdentityDialog index={identityIndex} rows={rows} matches={matches} players={context?.players ?? []} pending={pending}

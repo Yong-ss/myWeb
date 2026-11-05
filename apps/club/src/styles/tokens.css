@@ -1,22 +1,31 @@
-/* Approved Club theme; consumed by shared components on migrated account and members pages. */
+/* Club theme tokens: the single entry for appearance. This :root block is the default theme (the approved
+   Dark Victorian look). Other themes live in themes.css and override only what differs, keyed by
+   <html data-theme="…"> (registry: src/lib/theme.ts).
+   Rules: components use these through the Tailwind names in globals.css (bg-card, text-gold, shadow-overlay…),
+   never raw hex values. Business-specific colours (pathways) stay here so themes can retune them, but keep
+   their meaning: one colour per pathway. */
 :root {
+  /* Surfaces */
   --club-bg: #141718;
   --club-surface: #1b2021;
   --club-surface-elevated: #30312d;
   --club-surface-input: #111719;
   --club-surface-nav: #151b1d;
+  /* Text, accent and edges */
   --club-gold: #dbc08e;
   --club-border: #655943;
-  --club-divider: color-mix(in srgb, #655943 55%, transparent);
+  --club-divider: color-mix(in srgb, var(--club-border) 55%, transparent);
   --club-border-strong: #b5965f;
   --club-text: #d9d1bd;
   --club-text-secondary: #a8a294;
+  /* Interaction states (hover is mouse-only; see the `hover` variant in globals.css) */
   --club-hover: #292b25;
   --club-pressed: #353126;
   --club-selected: #302c23;
   --club-focus: #e6cb94;
   --club-disabled-text: #89877e;
   --club-disabled-bg: #232728;
+  /* Status pairs: foreground + tinted background */
   --club-success: #a7c4ad;
   --club-success-bg: #202c26;
   --club-warning: #e2be80;
@@ -25,13 +34,14 @@
   --club-error-bg: #332326;
   --club-info: #afc2cd;
   --club-info-bg: #202b32;
-  /* Muted pathway accents, readable on table, hover and selected surfaces. */
+  /* Business: muted pathway accents, readable on table, hover and selected surfaces. */
   --club-pathway-seer: #7087D1;
   --club-pathway-apprentice: #85c4d3;
   --club-pathway-spectator: #7EC0A7;
   --club-pathway-mystery-pryer: #A57BE1;
   --club-pathway-warrior: #dfa17e;
   --club-pathway-sun: #dec18a;
+  /* Typography */
   --club-font-heading: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif;
   --club-font-body: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
   --club-font-mono: Consolas, "Courier New", monospace;
@@ -41,6 +51,23 @@
   --club-text-lg: 1.25rem;
   --club-text-xl: 1.5rem;
   --club-text-title: clamp(1.5rem, 3vw, 2rem);
+  /* Shape and depth */
+  --club-radius: 2px;
+  --club-shadow-tooltip: 0 8px 24px rgb(0 0 0 / .35);
+  --club-shadow-overlay: 0 16px 40px rgb(0 0 0 / .45);
+  --club-shadow-dialog: 0 24px 64px rgb(0 0 0 / .5);
+  --club-shadow-drawer: -16px 0 48px rgb(0 0 0 / .45);
+  --club-shadow-selected: inset 0 0 0 1px var(--club-border-strong);
+  --club-backdrop: rgb(0 0 0 / .65);
+  /* Decorative effects. A theme turns one off with `none` (images, shadows) or `""` (the ◆ ornament). */
+  --club-effect-mist:
+    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--club-border) 19%, transparent), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--club-success-bg) 70%, transparent), transparent 50%);
+  --club-effect-panel: linear-gradient(135deg, var(--club-surface-elevated), var(--club-surface));
+  --club-effect-ornament: "◆";
+  --club-effect-title-glow: 0 0 20px color-mix(in srgb, var(--club-gold) 15%, transparent);
+  --club-effect-nav-active: linear-gradient(90deg, color-mix(in srgb, var(--club-gold) 13%, transparent), transparent);
+  /* Layout and sizing (cross-component only) */
   --club-space-1: 4px;
   --club-space-2: 8px;
   --club-space-3: 12px;
@@ -48,28 +75,31 @@
   --club-space-6: 24px;
   --club-space-8: 32px;
   --club-space-12: 48px;
-  --club-radius: 2px;
-  --club-border-width: 1px;
   --club-sidebar-width: 208px;
   --club-header-height: 64px;
   --club-content-max: 1280px;
+  --club-form-max: 40rem;
   --club-touch-target: 44px;
-  --club-motion: 150ms;
+  --club-workspace-gutter: clamp(var(--club-space-4), 3vw, var(--club-space-8));
+  --club-focus-width: 2px;
+  --club-focus-offset: 3px;
+  --club-z-sticky: 20;
+  --club-z-overlay: 30;
+  --club-z-dialog: 40;
+  --club-z-toast: 50;
+  /* CSS motion (hover, press, small state changes, tooltips). Motion-driven overlays, drawers, collapses and
+     content switches take their timing from the presets in components/ui/motion.tsx instead. */
+  --club-motion: 150ms;            /* default for every Tailwind transition-* utility */
+  --club-motion-press: 75ms;       /* the pressed state lands quickly */
   --club-motion-fast: 120ms;
   --club-motion-enter: 180ms;
   --club-motion-exit: 120ms;
   --club-motion-page: 240ms;
   --club-motion-icon: 200ms;
-  --club-form-max: 40rem;
-  --club-workspace-gutter: clamp(var(--club-space-4), 3vw, var(--club-space-8));
+  --club-motion-tooltip-in: 160ms;
+  --club-motion-tooltip-out: 100ms;
+  --club-press-scale: .98;
+  --club-motion-rise: 6px;         /* distance of CSS rise-in keyframes; 0 in fade-only presets */
   --club-ease-feedback: cubic-bezier(.2, 0, .2, 1);
   --club-ease-enter: cubic-bezier(.16, 1, .3, 1);
-  --club-dialog-offset: 6px;
-  --club-focus-width: 2px;
-  --club-focus-offset: 3px;
-  --club-backdrop: rgb(0 0 0 / .65);
-  --club-z-sticky: 20;
-  --club-z-overlay: 30;
-  --club-z-dialog: 40;
-  --club-z-toast: 50;
 }

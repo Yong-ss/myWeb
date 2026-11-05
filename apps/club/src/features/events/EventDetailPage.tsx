@@ -2,7 +2,7 @@
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {cn} from "cn";
-import {toast} from "sonner";
+import {toast} from "../../components/ui/sonner";
 import {clubApi} from "../../lib/data-access";
 import {useDataRefresh} from "../../lib/useDataRefresh";
 import {useClubCan,useClubHref} from "../../lib/useClub";
@@ -16,7 +16,7 @@ import {Tabs,TabsContent,TabsList,TabsTrigger} from "../../components/ui/tabs";
 import {Collapsible,CollapsibleContent,CollapsibleTrigger} from "../../components/ui/collapsible";
 import {Dialog,DialogContent,DialogDescription,DialogTitle} from "../../components/ui/dialog";
 import {AlertDialog,AlertDialogCancel,AlertDialogContent,AlertDialogDescription,AlertDialogFooter,AlertDialogTitle} from "../../components/ui/alert-dialog";
-import {Table,TableBody,TableCaption,TableCell,TableHead,TableHeader,TableRow} from "../../components/ui/table";
+import {Table,TableBody,TableCaption,TableCell,TableHead,TableHeader,TableRow,TableSortButton} from "../../components/ui/table";
 import {LoadingState,TableSkeleton} from "../../components/feedback";
 import type {NameAlias,NamedPlayer} from "../../domain/names";
 import {nameCandidates} from "../../domain/names";
@@ -29,7 +29,6 @@ type Identities={players:NamedPlayer[];aliases:NameAlias[];can_alias:boolean};
 type Action={kind:"score"|"date"|"add"|"void"|"restore"}|{kind:"metrics"|"rebind"|"remove";player:Player}|{kind:"version";version:number};
 const actionNames:Record<string,string>={create:"导入",score:"修改总积分",date:"修改比赛日期",metrics:"修改玩家数据",rebind:"改绑身份",add:"补录玩家",remove:"移除参赛记录",void:"作废",restore:"恢复"};
 const time=new Intl.DateTimeFormat("zh-CN",{timeZone:"Asia/Shanghai",dateStyle:"short",timeStyle:"short",hour12:false});
-const sortButton="club-table-sort -mx-2 inline-flex h-11 items-center gap-1 rounded-sm border-transparent bg-transparent px-2 font-[inherit] text-xs text-gold hover:text-ring";
 
 export function EventDetailPage(){
  const href=useClubHref(),can=useClubCan(),editor=can("events.edit");
@@ -67,7 +66,7 @@ export function EventDetailPage(){
  const shown=data.players.filter(p=>!search.trim()||p.display_name.includes(search.trim())||(p.output_name??"").includes(search.trim())||(p.strategy_name??"").includes(search.trim()))
   .sort((a,b)=>{const x=a[sort.key],y=b[sort.key];const c=typeof x==="number"&&typeof y==="number"?x-y:String(x).localeCompare(String(y),"zh-CN",{numeric:true});return (sort.desc?-c:c)||a.player_id.localeCompare(b.player_id);});
  const heading=(key:"display_name"|Metric,title:string)=><TableHead key={key} aria-sort={sort.key===key?(sort.desc?"descending":"ascending"):"none"} className={key==="display_name"?"sticky left-0 z-3 bg-secondary":undefined}>
-  <button type="button" className={sortButton} onClick={()=>setSort(s=>({key,desc:s.key===key?!s.desc:key!=="display_name"}))}>{title}<span aria-hidden="true">{sort.key===key?(sort.desc?"↓":"↑"):"↕"}</span></button></TableHead>;
+  <TableSortButton onClick={()=>setSort(s=>({key,desc:s.key===key?!s.desc:key!=="display_name"}))}>{title}<span aria-hidden="true">{sort.key===key?(sort.desc?"↓":"↑"):"↕"}</span></TableSortButton></TableHead>;
  const table=(fields:readonly Metric[])=><Table containerClassName="members-table-wrap max-h-[min(72dvh,48rem)] overflow-y-auto" className="[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-2"><TableCaption>{search?`找到 ${shown.length} 人`:`本场 ${data.players.length} 名参赛者 · 排序与搜索只改变显示`}</TableCaption>
   <TableHeader><TableRow>{heading("display_name","玩家")}{fields.map(k=>heading(k,metricLabels[k]))}{editor&&active&&<TableHead>操作</TableHead>}</TableRow></TableHeader>
   <TableBody>{shown.map(p=><TableRow key={p.player_id} id={`event-row-${p.player_id}`} className={cn(focus===p.player_id&&"bg-selected")}>

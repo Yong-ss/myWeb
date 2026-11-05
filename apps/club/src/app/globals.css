@@ -1,7 +1,8 @@
 /* Single CSS entry for Club, loaded once by the root layout. Components style themselves with Tailwind utilities
-   mapped to the --club-* tokens below; only the roster chart (SVG parts) keeps a small scoped stylesheet. */
+   mapped to the --club-* tokens (styles/tokens.css, themes in styles/themes.css). */
 @import "tailwindcss";
 @import "../styles/tokens.css";
+@import "../styles/themes.css";
 /* Club is always dark. shadcn's semantic variables are aliases of the approved --club-* tokens
    (tokens.css stays the single source of truth); @theme exposes them as Tailwind utilities. */
 :root {
@@ -91,6 +92,13 @@
   --radius-4xl: var(--radius);
   --ease-club-feedback: var(--club-ease-feedback);
   --ease-club-enter: var(--club-ease-enter);
+  /* Every transition-* utility without an explicit duration-* uses the shared feedback timing. */
+  --default-transition-duration: var(--club-motion);
+  --shadow-tooltip: var(--club-shadow-tooltip);
+  --shadow-overlay: var(--club-shadow-overlay);
+  --shadow-dialog: var(--club-shadow-dialog);
+  --shadow-drawer: var(--club-shadow-drawer);
+  --shadow-selected: var(--club-shadow-selected);
 }
 
 @theme inline {
@@ -110,12 +118,20 @@
   }
 }
 
+/* Shared press feedback for button-like controls: a slight shrink that lands fast and never applies when disabled. */
+@utility press-feedback {
+  &:active:not(:disabled, [aria-disabled="true"]) {
+    scale: var(--club-press-scale);
+    transition-duration: var(--club-motion-press);
+  }
+}
+
 /* Reference-panel brass ◆ corner ornaments over a soft elevated gradient. */
 /* Needs a positioned element (relative/fixed/absolute). */
 @utility ornate {
-  background-image: linear-gradient(135deg, var(--club-surface-elevated), var(--club-surface));
+  background-image: var(--club-effect-panel);
   &::before, &::after {
-    content: "◆";
+    content: var(--club-effect-ornament);
     position: absolute;
     top: -6px;
     color: var(--club-border-strong);
@@ -129,17 +145,15 @@
 /* Faint lantern-light mist behind the whole app (reference `.mist`). */
 @utility mist {
   background-color: var(--club-bg);
-  background-image:
-    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--club-border) 19%, transparent), transparent 55%),
-    radial-gradient(ellipse at 100% 100%, color-mix(in srgb, var(--club-success-bg) 70%, transparent), transparent 50%);
+  background-image: var(--club-effect-mist);
   background-attachment: fixed;
 }
 
 @keyframes club-fade-in { from { opacity: 0; } }
-@keyframes club-tooltip-in { from { opacity: 0; translate: 0 3px; scale: .97; } }
+@keyframes club-tooltip-in { from { opacity: 0; translate: 0 calc(var(--club-motion-rise) / 2); scale: .97; } }
 @keyframes club-tooltip-out { to { opacity: 0; translate: 0 2px; scale: .98; } }
 @keyframes club-pop-in { from { opacity: 0; scale: .6; } }
-@keyframes club-rise-in { from { opacity: 0; translate: 0 6px; } }
+@keyframes club-rise-in { from { opacity: 0; translate: 0 var(--club-motion-rise); } }
 
 @utility eyebrow {
   margin: 0;
@@ -149,7 +163,7 @@
 }
 @utility gold-title {
   color: var(--club-gold);
-  text-shadow: 0 0 20px color-mix(in srgb, var(--club-gold) 15%, transparent);
+  text-shadow: var(--club-effect-title-glow);
 }
 
 @layer base {
@@ -232,14 +246,14 @@
       border-radius: var(--club-radius);
       background: var(--club-surface);
       color: var(--club-text);
-      box-shadow: 0 12px 32px rgb(0 0 0 / .45);
+      box-shadow: var(--club-shadow-overlay);
       opacity: 0;
-      translate: 0 -4px;
+      translate: 0 calc(var(--club-motion-rise) / -1.5);
       transition: opacity var(--club-motion-fast) var(--club-ease-feedback), translate var(--club-motion-enter) var(--club-ease-enter);
     }
     [data-slot="native-select"]:open::picker(select) { opacity: 1; translate: 0 0; }
     @starting-style {
-      [data-slot="native-select"]:open::picker(select) { opacity: 0; translate: 0 -4px; }
+      [data-slot="native-select"]:open::picker(select) { opacity: 0; translate: 0 calc(var(--club-motion-rise) / -1.5); }
     }
     [data-slot="native-select"] option {
       min-height: var(--club-touch-target);

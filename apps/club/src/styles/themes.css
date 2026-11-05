@@ -1,0 +1,28 @@
+/* Extra themes. Each one overrides only the tokens.css values it changes and must also be registered in
+   src/lib/theme.ts (which decides its motion preset). `test` exists to prove switching works; it is not a product
+   theme and is only offered in the dev /showcase. */
+[data-theme="test"] {
+  --club-bg: #10141f;
+  --club-surface: #182033;
+  --club-surface-elevated: #24304a;
+  --club-surface-input: #0d111b;
+  --club-surface-nav: #121a2a;
+  --club-gold: #9cc3ff;
+  --club-border: #3d5279;
+  --club-border-strong: #6f93d0;
+  --club-focus: #b9d4ff;
+  --club-hover: #1f2a42;
+  --club-pressed: #283654;
+  --club-selected: #22304d;
+  --club-font-heading: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --club-radius: 6px;
+  --club-effect-mist: none;
+  --club-effect-panel: none;
+  --club-effect-ornament: "";
+  --club-effect-title-glow: none;
+}
+
+/* Fade-only motion preset: CSS keyframes stop moving; components/ui/motion.tsx drops offsets for Motion. */
+[data-motion="fade"] {
+  --club-motion-rise: 0px;
+}

@@ -41,7 +41,7 @@ export function ManageRoles({user,onSaved,children,returnFocus}:{user:{id:string
  }
  async function save(){if(busy||!operation||conflict)return;setBusy(true);setError('');try{await clubApi(operation.path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(operation.body)},'职位修改失败，请重试');setOpen(false);onSaved();}catch(e){setError(e instanceof Error?e.message:'职位修改失败，请重试');if((e as {status?:number})?.status===409)setConflict(true);}finally{setBusy(false);}}
  const destructive=operation&&operation.choice!=='grant-admin'&&operation.choice!=='grant-owner';
- return <Dialog open={open} onOpenChange={next=>{if(busy)return;if(next){setData(null);setClub('');setChoice('');setPrevious('');setError('');setConflict(false);setOperation(null);}setOpen(next);}}>{children}{user&&<DialogContent onCloseAutoFocus={event=>{event.preventDefault();returnFocus();}}>
+ return <Dialog open={open} onOpenChange={next=>{if(busy)return;if(next){setData(null);setClub('');setChoice('');setPrevious('');setError('');setConflict(false);setOperation(null);}setOpen(next);}}>{children}{user&&<DialogContent onCloseFocus={returnFocus}>
   <DialogTitle>{operation?'确认职位变更':'管理俱乐部职位'}</DialogTitle><DialogDescription className="[overflow-wrap:anywhere]">网站账户：{user.email??user.id}。同一俱乐部每人只能担任一个职位。这里只修改俱乐部职位，不修改游戏玩家身份或超级管理员身份。</DialogDescription>
   {loading?<p role="status">正在读取最新职位状态…</p>:data&&<>
    {operation?<div className="grid gap-2 text-sm"><p className="m-0">俱乐部：<strong>{selected?.name}</strong></p><p className="m-0">操作：<strong>{actionNames[operation.choice]}</strong></p>

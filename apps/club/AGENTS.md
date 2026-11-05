@@ -28,8 +28,8 @@
 ## UI/UX（已确认，不重新探索风格）
 
 - 唯一视觉方向：**Dark Victorian Occult Dashboard**。深色侧栏、铜金细边框、方角面板、衬线标题；20% 神秘学氛围、80% 实用。禁止浅绿白卡片、霓虹、大圆角胶囊、炫光和装饰性动画。改变风格需用户明确指示。
-- 颜色、字体、间距、时长用 `src/styles/tokens.css` 的 `--club-*` 变量，不硬编码，不各页重建主题。
-- 组件系统：shadcn/ui（Radix 实现）+ Radix Primitives + Motion + Tailwind（仅本应用）。复用 `components/ui` 的组件（`Button`／`ButtonLink`、`Field` 系列、`Input`／`Textarea`／`NativeSelect`、`Checkbox`／`RadioGroup`、`Card`、`Table`、`Badge`、`Tabs`、`Collapsible`、`Dialog`／`AlertDialog`／`Sheet`／`Popover`／`DropdownMenu`／`Tooltip`、`toast`），`components/layout` 的 `PageHeader`、`AppShell`，`components/feedback` 的 LoadingState 等；不另造同义组件，新组件先看开发专用 `/showcase`。反馈组件不含认证、缓存或业务逻辑；Lottie 只用本地 JSON，减少动态效果时不加载。
+- 颜色、字体、间距、阴影、时长用 `src/styles/tokens.css` 的 `--club-*` 变量，不硬编码，不各页重建主题；新主题加在 `styles/themes.css` 并登记 `src/lib/theme.ts`。弹层／折叠／内容切换动效用 `components/ui/motion.tsx` 的 `kinds`（页面用 `Reveal`），不在页面写 Motion 数值。入口表见 `docs/club-design-system.md` 15.0。
+- 组件系统：shadcn/ui（Radix 实现）+ Radix Primitives + Motion + Tailwind（仅本应用）。复用 `components/ui` 的组件（`Button`／`ButtonLink`、`Field` 系列、`Input`／`Textarea`／`NativeSelect`、`Checkbox`／`RadioGroup`、`Card`、`Table`、`Badge`、`Notice`、`Tabs`、`Collapsible`、`Dialog`／`AlertDialog`／`Sheet`／`Popover`／`DropdownMenu`／`Tooltip`、`components/ui/sonner` 的 `toast`），`components/layout` 的 `PageHeader`、`AppShell`，`components/feedback` 的 LoadingState 等；不另造同义组件，新组件先看开发专用 `/showcase`。反馈组件不含认证、缓存或业务逻辑；Lottie 只用本地 JSON，减少动态效果时不加载。
 - 样式用 Tailwind 工具类与映射到 `--club-*` 的语义色；`src/app/globals.css` 是唯一入口。需要额外样式表时（如图表），只有一个功能使用的选择器必须限定在该功能根类下，例如 `.club-app :where(.club-account) .club-chart-line`（`:where` 不增加优先级）。
 - 保留键盘操作、可见焦点、44px 触摸目标、手机输入至少 16px 和 `prefers-reduced-motion`；手机端不能简单隐藏导航。中文操作名要清晰，不用神秘学术语代替实际动作。
 - 简单反馈用 CSS transition；弹层、折叠和内容切换用 `components/ui` 中已接好的 Radix + Motion（焦点、Escape 交给 Radix，不手写焦点陷阱或延时关闭）。

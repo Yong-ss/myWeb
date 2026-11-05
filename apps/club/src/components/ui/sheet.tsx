@@ -5,31 +5,30 @@ import { cn } from "cn"
 import { Dialog as SheetPrimitive } from "radix-ui"
 import { AnimatePresence, motion } from "motion/react"
 
-import { DialogOverlay } from "./dialog"
-import { ease, useMotion, useOpen, withOpenState } from "./motion"
+import { closeFocus, DialogOverlay, type OverlayContentProps } from "./dialog"
+import { useMotionKind, useOpen, withOpenState } from "./motion"
 
 // Side drawer (the phone navigation). Same Radix Dialog behaviour as Dialog; it slides in from the right edge.
 const Sheet = withOpenState(SheetPrimitive.Root, "sheet")
 const SheetTrigger = SheetPrimitive.Trigger
 const SheetClose = SheetPrimitive.Close
 
-function SheetContent({ className, children, ...props }: Omit<React.ComponentProps<typeof SheetPrimitive.Content>, "asChild" | "forceMount">) {
+function SheetContent({ className, children, onCloseFocus, ...props }: OverlayContentProps) {
   const open = useOpen()
-  // iOS-like drawer curve: fast start, long gentle settle; closing accelerates out.
-  const slideIn = useMotion({ duration: 0.36, ease: ease.drawer }), slideOut = useMotion({ duration: 0.24, ease: [0.4, 0, 0.6, 1] })
+  const animation = useMotionKind("drawer")
   return (
     <AnimatePresence>
       {open && (
         <SheetPrimitive.Portal forceMount>
           <DialogOverlay />
-          <SheetPrimitive.Content asChild forceMount {...props}>
+          <SheetPrimitive.Content asChild forceMount onCloseAutoFocus={closeFocus(onCloseFocus)} {...props}>
             <motion.div
               data-slot="sheet-content"
               className={cn(
-                "fixed inset-y-0 right-0 z-40 flex h-dvh w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto overscroll-contain border-l border-brass bg-card pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-card-foreground shadow-[-16px_0_48px_rgb(0_0_0/.45)] outline-none data-[state=closed]:pointer-events-none",
+                "fixed inset-y-0 right-0 z-(--club-z-dialog) flex h-dvh w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto overscroll-contain border-l border-brass bg-card pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-card-foreground shadow-drawer outline-none data-[state=closed]:pointer-events-none",
                 className
               )}
-              initial={{ x: "100%", opacity: 0.6 }} animate={{ x: 0, opacity: 1, transition: slideIn }} exit={{ x: "100%", opacity: 0.6, transition: slideOut }}
+              {...animation}
             >
               {children}
             </motion.div>

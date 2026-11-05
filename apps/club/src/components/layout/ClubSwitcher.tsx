@@ -26,9 +26,9 @@ export function ClubSwitcher({club,clubName,clubs,pathname}:{club:string;clubNam
      <span className="grid min-w-0 flex-1 gap-0.5"><span className="truncate">{c.name}</span>{(role||current)&&<small className="text-xs text-muted-foreground">{[current&&"当前",role].filter(Boolean).join(" · ")}</small>}</span></>;
     return <li key={c.id}>{current
      ?<span aria-current="true" className={`${row} border-l-2 border-gold bg-selected text-gold`}>{body}</span>
-     :<Link href={clubHref(target,c.id)} onClick={()=>setOpen(false)} className={`${row} border-l-2 border-transparent text-foreground transition-[background-color,color] duration-150 ease-club-feedback hover:bg-hover hover:text-gold active:bg-pressed focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none`}>{body}</Link>}</li>;})}
+     :<Link href={clubHref(target,c.id)} onClick={()=>setOpen(false)} className={`${row} border-l-2 border-transparent text-foreground transition-[background-color,color] ease-club-feedback hover:bg-hover hover:text-gold active:bg-pressed focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none`}>{body}</Link>}</li>;})}
    </ul></nav>
-   <Link href={workspaceHome.hub} onClick={()=>setOpen(false)} className={`${row} mt-1 border-t border-divider text-muted-foreground transition-colors duration-150 ease-club-feedback hover:text-gold focus-visible:outline-2 focus-visible:outline-ring`}>查看全部俱乐部 →</Link>
+   <Link href={workspaceHome.hub} onClick={()=>setOpen(false)} className={`${row} mt-1 border-t border-divider text-muted-foreground transition-colors ease-club-feedback hover:text-gold focus-visible:outline-2 focus-visible:outline-ring`}>查看全部俱乐部 →</Link>
   </PopoverContent>
  </Popover>;
 }

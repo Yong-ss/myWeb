@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
-import {toast} from "sonner";
+import {toast} from "../../components/ui/sonner";
 import {clubApi} from "../../lib/data-access";
 import {useDataRefresh} from "../../lib/useDataRefresh";
 import {clubHref} from "../../lib/club-context";

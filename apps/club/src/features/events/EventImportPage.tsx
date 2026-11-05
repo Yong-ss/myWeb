@@ -5,6 +5,7 @@ import {clubApi} from "../../lib/data-access";
 import {useClubCan,useClubHref} from "../../lib/useClub";
 import {PageHeader} from "../../components/layout/PageHeader";
 import {Button,ButtonLink} from "../../components/ui/button";
+import {Notice} from "../../components/ui/notice";
 import {Input} from "../../components/ui/input";
 import {Textarea} from "../../components/ui/textarea";
 import {Badge} from "../../components/ui/badge";
@@ -15,14 +16,13 @@ import {Dialog,DialogContent,DialogDescription,DialogTitle} from "../../componen
 import {AlertDialog,AlertDialogCancel,AlertDialogContent,AlertDialogDescription,AlertDialogFooter,AlertDialogTitle} from "../../components/ui/alert-dialog";
 import {Table,TableBody,TableCaption,TableCell,TableHead,TableHeader,TableRow} from "../../components/ui/table";
 import {LoadingState} from "../../components/feedback";
-import {toast} from "sonner";
+import {toast} from "../../components/ui/sonner";
 import type {NameAlias,NamedPlayer} from "../../domain/names";
 import {eventToday,isNew,matchEntries,metricFields,metricLabels,pairEntries,parseEventSource,participantRow,tableNames,totalKills,type Entry,type Metric,type Table as Side} from "./contract";
 import {eventPrompt} from "./prompt";
 import {IdentityPicker,MetricInputs} from "./EventInputs";
 
 type Identities={players:NamedPlayer[];aliases:NameAlias[];can_alias:boolean};
-const notice="m-0 rounded-sm border px-4 py-3 text-sm leading-relaxed [overflow-wrap:anywhere]";
 
 export function EventImportPage(){
  const href=useClubHref(),can=useClubCan(),router=useRouter();
@@ -94,12 +94,12 @@ export function EventImportPage(){
    <div className="flex flex-wrap gap-3"><Button loading={busy&&!ids} loadingText="准备中…" onClick={prepare}>开始核对</Button>
     <Collapsible><CollapsibleTrigger className="px-0">复制给 AI 的提示词</CollapsibleTrigger><CollapsibleContent className="grid gap-2 pt-2"><Button variant="secondary" size="compact" className="self-start" onClick={()=>void navigator.clipboard?.writeText(eventPrompt).then(()=>toast.success("已复制提示词"))}>复制</Button><pre className="m-0 max-h-72 overflow-auto rounded-sm border border-border p-3 text-xs whitespace-pre-wrap">{eventPrompt}</pre></CollapsibleContent></Collapsible></div>
   </Card>
-  {error&&<p id="event-import-error" tabIndex={-1} role="alert" className={`${notice} border-destructive bg-error-bg text-destructive`}>{error}</p>}
+  {error&&<Notice variant="destructive" id="event-import-error" tabIndex={-1} role="alert">{error}</Notice>}
   {ids&&<>
    <Card className="w-full"><CardTitle>2. 核对身份</CardTitle>
     <CardDescription>两张表按玩家身份合并，不按排名或行号。只出现在一张表、同表重复或身份不明时不能保存；缺失的数值不会当作 0。</CardDescription>
-    {removed>0&&<p className={`${notice} border-info/40 bg-info-bg`}>已合并 {removed} 条完全相同的重复行（例如底部固定显示的本人行）。</p>}
-    {problems.length>0&&<ul className={`${notice} m-0 grid list-disc gap-1 border-warning/40 bg-warning-bg pl-8`} aria-label="需要处理的问题">{problems.map(p=><li key={p}>{p}</li>)}</ul>}
+    {removed>0&&<Notice variant="info">已合并 {removed} 条完全相同的重复行（例如底部固定显示的本人行）。</Notice>}
+    {problems.length>0&&<Notice as="ul" variant="warning" className="grid list-disc gap-1 pl-8" aria-label="需要处理的问题">{problems.map(p=><li key={p}>{p}</li>)}</Notice>}
     {unresolved.length>0&&<ul className="m-0 list-none p-0" aria-label="待确认身份">{unresolved.map(rowButton)}</ul>}
     {automatic.length>0&&<Collapsible><CollapsibleTrigger className="px-0">已自动匹配 {automatic.length} 行（可复查）</CollapsibleTrigger><CollapsibleContent><ul className="m-0 list-none p-0">{automatic.map(rowButton)}</ul></CollapsibleContent></Collapsible>}
    </Card>
@@ -111,7 +111,7 @@ export function EventImportPage(){
       <TableCell className="sticky left-0 z-1 bg-card font-medium"><span className="block text-gold">{name(p.identity)}</span>{(p.output.row.player_name!==p.strategy.row.player_name)&&<small className="block text-muted-foreground">输出「{p.output.row.player_name}」/ 战略「{p.strategy.row.player_name}」</small>}</TableCell>
       {metricFields.map(k=><TableCell key={k} className="tabular-nums">{p.values[k]==null?<Badge variant="warning">—</Badge>:p.values[k]}</TableCell>)}
       <TableCell><Button variant="ghost" size="compact" onClick={()=>{setEditing(p.identity);setDraft(p.values);}}>修改数据</Button></TableCell></TableRow>)}</TableBody></Table>
-    {missing>0&&<p className={`${notice} border-warning/40 bg-warning-bg`}>还有 {missing} 名玩家的数据未识别，请补全。</p>}
+    {missing>0&&<Notice variant="warning">还有 {missing} 名玩家的数据未识别，请补全。</Notice>}
     <div className="flex flex-wrap items-center gap-3"><Button disabled={!ready} loading={busy} loadingText="保存中…" onClick={()=>setConfirm(true)}>确认并保存</Button><span className="text-sm text-muted-foreground">新玩家 {participants.filter(p=>isNew(p.identity)).length} 人，将在保存时一起建档。</span></div>
    </Card>
   </>}

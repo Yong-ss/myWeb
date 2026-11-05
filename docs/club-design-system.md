@@ -303,10 +303,34 @@ Select 使用 CSS `appearance: base-select` 和 `::picker(select)` 在支持的�
 
 ## 15. 组件系统：shadcn/ui（Radix）+ Motion + Tailwind（2026-10-29，当前）
 
+### 15.0 共享层入口（2026-11-06）
+| 要改什么 | 去哪里改 |
+| --- | --- |
+| 颜色、字体、字号、圆角、阴影、遮罩、状态色、途径色、装饰效果（雾、面板渐变、◆ 角饰、标题光晕、导航高亮） | `src/styles/tokens.css`（默认主题，按用途分组）；Tailwind 名称映射在 `src/app/globals.css` 的 `@theme`（如 `shadow-overlay`、`shadow-selected`） |
+| 新主题 | `src/styles/themes.css` 加 `[data-theme="<id>"]`（只覆盖不同的变量）+ `src/lib/theme.ts` 的 `themes` 加一项（名称、动效预设 `rise`／`fade`） |
+| 按钮、输入、表格、弹窗等外观 | `src/components/ui/*`；`Button` 与 `ButtonLink` 共用 `buttonVariants` |
+| CSS 反馈动效（悬停、按下、提示框） | tokens 的 `--club-motion*`、`--club-press-scale`；所有 `transition-*` 默认时长 = `--club-motion`；按下用 `press-feedback` 工具类 |
+| 弹层、抽屉、折叠、内容切换动效 | `src/components/ui/motion.tsx` 的 `kinds`（overlay／surface／popover／menu／drawer／collapse／collapseContent／listItem／content／reveal／step／fade）；组件用 `useMotionKind(kind)`，页面用 `<Reveal kind>` |
+
+- 主题选择：`setTheme(id)` 立即应用并写入 `localStorage`（`club-theme`）；根布局 `<head>` 内联脚本在首次绘制前设置 `<html data-theme data-motion>`，无效值回到默认。默认主题不设属性。目前只在开发版 `/showcase` 提供切换；`test` 主题只用于验证。
+- 动效预设：`rise`（默认，淡入加轻微位移／缩放）与 `fade`（只淡入淡出）。`fade` 下抽屉滑动、折叠高度保留（它们的位移本身就是含义），CSS 的 `club-rise-in`／提示框位移也归零（`--club-motion-rise`）。减少动态效果时一律瞬间切换。
+- 页面不直接 import `sonner`，用 `components/ui/sonner` 的 `toast`（只支持 `message` + `description`）；内联提示用 `Notice`（neutral／info／success／warning／destructive）；可排序表头用 `TableSortButton`。
+- 弹层内容的属性已收窄为与底层库无关的接口：`OverlayContentProps`（Dialog／AlertDialog／Sheet：`className`、`aria-*`、`onCloseFocus`）和 `AnchoredProps`（Popover／DropdownMenu／Tooltip：`side`、`align`、`sideOffset`）；`Tooltip` 的延迟用 `delay`。
+
+**仍保留的耦合（替换组件库时需要处理）**
+- `asChild`（Radix Slot 写法）：约 30 处 Trigger／Close 调用。换成不支持 `asChild` 的库时，要么在共享层自己实现 Slot，要么逐个改调用。
+- Root 组件的 `open`／`onOpenChange`／`value`／`onValueChange` 沿用 Radix 命名；大多数库同名或接近，差异应在 `withOpenState` 和各组件内转换。
+- `data-[state=open]`、`data-[highlighted]` 等 Radix 数据属性只出现在 `components/ui` 内部样式，业务页面没有使用（`ImportPage` 的选项卡片用了 `has-[[data-state=checked]]`，是 1 处例外）；换库时主要改共享层的选择器。
+- Motion：`ImportPage` 的步骤高亮（`layoutId`）与待核对列表（`AnimatePresence`）、`AppShell` 导航高亮、`PathwayDonut` 环形图仍直接用 Motion；它们用共享的过渡定义，但组件 API 是 Motion 的。换动画库时需要改这 4 处。
+- `NativeSelect` 的弹出层样式在 `globals.css`（原生 `<select>`，与组件库无关）。
+- 发现的不一致（未改，保持现状）：导入页的警告提示文字为警告色，而四方联赛／高原竞逐导入页为正文色；两边都用 `Notice variant="warning"`，导入页额外加了 `text-warning`。需要统一时只改一处。
+
+**替换组件库的大致范围**：`components/ui/*.tsx`（各组件内部实现与样式选择器）、`motion.tsx` 的 `withOpenState`、`sonner.tsx`、`ClubFrame` 里的 Provider；外加上面列出的 `asChild` 调用和 4 处 Motion 页面代码。业务页面的其他调用（属性、变体、事件）应保持不变。
+
 ### 15.1 结构
 - 技术：shadcn/ui CLI 4.23（`-b radix`，样式 `radix-lyra` 方角）、`radix-ui` 1.8.1、`motion` 14.7.1、Tailwind CSS 4.3.3（仅 `apps/club`，`postcss.config.mjs`）、`sonner`（Toast）、`@phosphor-icons/react`、`cn`（类名合并）。版本均固定。
-- 唯一 CSS 入口 `src/app/globals.css`：shadcn 语义变量（`--background`、`--primary`、`--border`、`--ring` 等）全部指向 `tokens.css` 的 `--club-*`；另提供 `gold`、`brass`、`field`、`hover`、`pressed`、`selected`、`success/warning/info(-bg)` 等工具色。始终深色，没有 `.dark` 切换；圆角统一 2px。
-- 自定义工具类：`ornate`（◆ 角饰 + 灯光渐变，每页 1–2 个重点面板）、`mist`（整页背景）、`eyebrow`（小标）、`gold-title`（金色标题光晕）。`hover:` 只在鼠标设备生效，触屏点按不残留悬停色。
+- 唯一 CSS 入口 `src/app/globals.css`（引入 `tokens.css` 与 `themes.css`）：shadcn 语义变量（`--background`、`--primary`、`--border`、`--ring` 等）全部指向 `--club-*`；另提供 `gold`、`brass`、`field`、`hover`、`pressed`、`selected`、`success/warning/info(-bg)` 等工具色与 `shadow-*`。默认主题深色、圆角 2px；主题切换见 15.0。
+- 自定义工具类：`ornate`（◆ 角饰 + 灯光渐变，每页 1–2 个重点面板）、`mist`（整页背景）、`eyebrow`（小标）、`gold-title`（金色标题光晕）、`press-feedback`（按下缩小）。装饰效果的取值是 `--club-effect-*` 变量，主题可单独关闭。`hover:` 只在鼠标设备生效，触屏点按不残留悬停色。
 - 旧的 `legacy-base.css`／`components.css`／`loading.css` 已删除；只保留 `styles/chart.css`（人数图 SVG，限定 `.club-account`）。
 
 ### 15.2 组件清单（`src/components/ui`，每个职责一个实现）
@@ -320,12 +344,13 @@ Select 使用 CSS `appearance: base-select` 和 `::picker(select)` 在支持的�
 | 状态 | `Badge`、`Skeleton`、`Empty` | Badge 变体对应状态色对 |
 | 切换 / 折叠 | `Tabs`、`Collapsible` | Collapsible 替代 `<details>`，高度与透明度一起过渡；关闭时卸载内容，表单值放在父组件状态里 |
 | 弹层 | `Dialog`、`AlertDialog`、`Sheet`、`Popover`、`DropdownMenu`、`Tooltip` | 见 15.3 |
-| 轻提示 | `Toaster` + `toast()`（sonner） | 只用于无需操作的确认（如“已复制”）；需要阅读或处理的错误留在原位 |
+| 内联提示 | `Notice` | 页面内的统计、警告、请求错误；表单字段错误用 `FieldError` |
+| 轻提示 | `Toaster` + `toast()`（`components/ui/sonner`） | 只用于无需操作的确认（如“已复制”）；需要阅读或处理的错误留在原位 |
 | 反馈封装 | `components/feedback`：`LoadingState`、`PageLoader`、`TableSkeleton`、`ProfileSkeleton`、`LoadingSpinner` | 基于上述组件；不含认证、缓存或业务逻辑 |
 | 布局 | `AppShell`（手机导航为 `Sheet`）、`PageHeader`、`AccountControls` | 导航仍只来自 `lib/navigation.ts` |
 
 ### 15.3 弹层与动效约定
-- Radix 负责焦点陷阱与归还、Escape、遮罩点击、滚动锁和 ARIA；Motion 负责进入／退出（`components/ui/motion.tsx`：进入 180ms、退出 120ms，抽屉 240／180ms，与 tokens 一致）。不另写焦点陷阱，不用 `setTimeout` 延迟关闭。
+- Radix 负责焦点陷阱与归还、Escape、遮罩点击、滚动锁和 ARIA；Motion 负责进入／退出（`components/ui/motion.tsx` 的 `kinds`，见 15.0）。不另写焦点陷阱，不用 `setTimeout` 延迟关闭。
 - 实现方式：Radix `forceMount` 放在 Motion `AnimatePresence` 内，Root 由 `withOpenState` 包装以便内容知道开关状态；关闭瞬间 Radix 释放焦点和页面阻挡，退出中的层 `pointer-events: none`。
 - 选型：需要输入或选择 → `Dialog`；删除、放弃等确认 → `AlertDialog`（点遮罩不关闭，请求进行中不可取消）；手机导航 → `Sheet`；锚点帮助 → `Popover`；一组动作 → `DropdownMenu`；图标按钮名称 → `Tooltip`（不放唯一信息）。
 - CSS 只做 hover／focus／颜色反馈；减少动态效果时 Motion 过渡为 0、CSS 动画和过渡全部关闭。

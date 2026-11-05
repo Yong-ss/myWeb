@@ -10,9 +10,10 @@ import { Slot } from "radix-ui"
 import { cn } from "cn"
 import { LoadingSpinner } from "../feedback/LoadingSpinner"
 
-// Brass-edged square controls; hover is mouse-only and disabled-aware (`hover` variant in globals.css).
+// Brass-edged square controls; hover is mouse-only and disabled-aware (`hover` variant in globals.css). Button and
+// ButtonLink share these classes, so a change here reaches both. Timing: --club-motion, press: `press-feedback`.
 const buttonVariants = cva(
-  "relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm border font-sans text-sm leading-normal font-medium whitespace-nowrap no-underline select-none transition-[background-color,border-color,color,box-shadow,scale] duration-150 ease-club-feedback active:scale-[0.98] active:duration-75 disabled:active:scale-100 aria-pressed:border-gold aria-pressed:bg-selected aria-pressed:text-gold aria-pressed:shadow-[inset_0_0_0_1px_var(--club-border-strong)] disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground aria-disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm border font-sans text-sm leading-normal font-medium whitespace-nowrap no-underline select-none press-feedback transition-[background-color,border-color,color,box-shadow,scale] ease-club-feedback aria-pressed:border-gold aria-pressed:bg-selected aria-pressed:text-gold aria-pressed:shadow-selected disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground aria-disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

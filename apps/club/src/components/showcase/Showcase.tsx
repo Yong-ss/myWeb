@@ -2,11 +2,12 @@
 // Development-only component showcase (/showcase under `next dev`; never in the production export, see next.config.ts).
 // Synthetic content only. Each block shows the typical use first, then variants and pinned states.
 import { useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { toast } from "../ui/sonner";
 import { DotsThreeIcon, GearSixIcon, QuestionIcon, TrashIcon } from "@phosphor-icons/react";
 import { PageHeader } from "../layout/PageHeader";
 import { PathwayLabel } from "../PathwayLabel";
 import { pathways } from "../../lib/pathways";
+import { currentTheme, setTheme, themes, type ThemeId } from "../../lib/theme";
 import { LoadingSpinner, LoadingState, PageLoader, ProfileSkeleton, TableSkeleton } from "../feedback";
 import { Button, ButtonLink } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -53,11 +54,19 @@ const accents = [["金色 / 标题", "bg-gold"], ["黄铜 / 强边框", "bg-bras
 const statuses = [["成功", "success"], ["警告", "warning"], ["错误", "destructive"], ["信息", "info"]] as const;
 const rows = [["档案成员一", 72, "观众", 14097], ["档案成员二", 71, "战士", 14000], ["很长很长的档案成员昵称用于检查截断", 70, "—", 0]] as const;
 
+/** Explicit theme choice for checking themes; applies at once and is remembered (src/lib/theme.ts). */
+function ThemeSwitch() {
+  const [theme, choose] = useState<ThemeId>(currentTheme);
+  return <NativeSelect aria-label="主题" className="w-auto" value={theme} onChange={e => { const id = e.target.value as ThemeId; setTheme(id); choose(id); }}>
+    {Object.entries(themes).map(([id, t]) => <NativeSelectOption key={id} value={id}>{t.label}</NativeSelectOption>)}
+  </NativeSelect>;
+}
+
 export function Showcase() {
   const [loading, setLoading] = useState(false);
   const [radio, setRadio] = useState("merge");
   return <main className="club-workspace flex flex-col gap-10">
-    <PageHeader eyebrow="DEVELOPMENT ONLY / 组件陈列" title="Club 组件系统" actions={<Badge variant="warning">仅本地开发可见</Badge>} />
+    <PageHeader eyebrow="DEVELOPMENT ONLY / 组件陈列" title="Club 组件系统" actions={<><ThemeSwitch /><Badge variant="warning">仅本地开发可见</Badge></>} />
     <nav aria-label="陈列分区" className="-mt-6 flex flex-wrap gap-2">{sections.map(s => <a key={s} href={`#${s}`} className="rounded-sm border border-border px-3 py-1 text-sm text-muted-foreground no-underline hover:border-gold hover:text-gold">{s}</a>)}</nav>
 
     <Section id="基础" title="基础 · Tokens">

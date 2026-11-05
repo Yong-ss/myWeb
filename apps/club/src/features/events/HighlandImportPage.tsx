@@ -1,11 +1,12 @@
 "use client";
 import {useEffect,useMemo,useRef,useState} from "react";
 import {useRouter} from "next/navigation";
-import {toast} from "sonner";
+import {toast} from "../../components/ui/sonner";
 import {clubApi} from "../../lib/data-access";
 import {useClubCan,useClubHref} from "../../lib/useClub";
 import {PageHeader} from "../../components/layout/PageHeader";
 import {Button,ButtonLink} from "../../components/ui/button";
+import {Notice} from "../../components/ui/notice";
 import {Input} from "../../components/ui/input";
 import {Textarea} from "../../components/ui/textarea";
 import {Badge} from "../../components/ui/badge";
@@ -26,7 +27,6 @@ import {IdentityPicker,MetricInputs} from "./EventInputs";
 
 export type HighlandIdentities={players:RosterPlayer[];aliases:NameAlias[];can_alias:boolean;truncated:boolean;roster_date:string|null};
 type Values=Partial<Record<HighlandMetric,number|null>>;
-const notice="m-0 rounded-sm border px-4 py-3 text-sm leading-relaxed [overflow-wrap:anywhere]";
 
 /** Faction-wide board → this club's participants. The full AI output stays in this page; only the confirmed
  * participants of this club are sent (see worker/highland.ts). */
@@ -124,16 +124,16 @@ export function HighlandImportPage(){
    <div className="flex flex-wrap gap-3"><Button loading={busy&&!ids} loadingText="准备中…" onClick={prepare}>开始核对</Button>
     <Collapsible><CollapsibleTrigger className="px-0">复制给 AI 的提示词</CollapsibleTrigger><CollapsibleContent className="grid gap-2 pt-2"><Button variant="secondary" size="compact" className="self-start" onClick={()=>void navigator.clipboard?.writeText(highlandPrompt).then(()=>toast.success("已复制提示词"))}>复制</Button><pre className="m-0 max-h-72 overflow-auto rounded-sm border border-border p-3 text-xs whitespace-pre-wrap">{highlandPrompt}</pre></CollapsibleContent></Collapsible></div>
   </Card>
-  {error&&<p id="highland-import-error" tabIndex={-1} role="alert" className={`${notice} border-destructive bg-error-bg text-destructive`}>{error}</p>}
+  {error&&<Notice variant="destructive" id="highland-import-error" tabIndex={-1} role="alert">{error}</Notice>}
   {ids&&<>
    <Card className="w-full"><CardTitle>2. 找出本俱乐部的玩家</CardTitle>
     <CardDescription>只有名字或已记住的写法与<strong>最新成员名单</strong>（{ids.roster_date??"暂无名单"}）中某人完全一致，才会自动拟纳入；相似名字、已退会玩家、同名和重复都要你确认。拟排除的是名单里找不到对应的人，并不代表已证明是外部玩家，可以随时找回。</CardDescription>
     <dl className="m-0 flex flex-wrap gap-x-8 gap-y-2 text-sm" aria-label="核对进度">
      {([["势力数据",`输出 ${source.output.length} 行 · 战略 ${source.strategy.length} 行`],["拟纳入本俱乐部",`${participants.length} 人`],["待确认",`${review} 行`],["拟排除",`${excluded.length} 行`],["需要处理的问题",`${problems.length} 个`]] as const).map(([k,v])=><div key={k} className="grid gap-0.5"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="m-0 font-heading text-lg tabular-nums text-gold">{v}</dd></div>)}
     </dl>
-    {ids.truncated&&<p className={`${notice} border-warning/40 bg-warning-bg`}>本俱乐部玩家或别名超过一次可读取的上限，部分名字可能没有参与自动匹配；请仔细检查拟排除列表。</p>}
-    {removed>0&&<p className={`${notice} border-info/40 bg-info-bg`}>已合并 {removed} 条完全相同的重复行（滚动重叠或底部固定的本人行）。</p>}
-    {problems.length>0&&<ul className={`${notice} m-0 grid list-disc gap-1 border-warning/40 bg-warning-bg pl-8`} aria-label="需要处理的问题">{problems.map(p=><li key={p}>{p}</li>)}</ul>}
+    {ids.truncated&&<Notice variant="warning">本俱乐部玩家或别名超过一次可读取的上限，部分名字可能没有参与自动匹配；请仔细检查拟排除列表。</Notice>}
+    {removed>0&&<Notice variant="info">已合并 {removed} 条完全相同的重复行（滚动重叠或底部固定的本人行）。</Notice>}
+    {problems.length>0&&<Notice as="ul" variant="warning" className="grid list-disc gap-1 pl-8" aria-label="需要处理的问题">{problems.map(p=><li key={p}>{p}</li>)}</Notice>}
     {pending.length>0&&<section className="grid gap-2" aria-label="待确认"><h3 className="m-0 font-heading text-base text-gold">待确认 {pending.length} 行（每行选择玩家或排除）</h3>
      <ul className="m-0 list-none p-0">{pending.map(item)}</ul>
      <Button variant="ghost" size="compact" className="self-start" onClick={()=>setBulk(true)}>其余待确认全部排除…</Button></section>}
@@ -154,7 +154,7 @@ export function HighlandImportPage(){
       <TableCell className="sticky left-0 z-1 bg-card font-medium"><span className="block text-gold">{name(p.identity)}</span><small className="block text-muted-foreground">输出「{p.output.row.player_name}」/ 战略「{p.strategy.row.player_name}」</small></TableCell>
       {highlandFields.map(k=><TableCell key={k} className="tabular-nums">{p.values[k]==null?<Badge variant="warning">—</Badge>:p.values[k]}</TableCell>)}
       <TableCell><Button variant="ghost" size="compact" onClick={()=>{setEditing(p.identity);setDraft(p.values);}}>修改数据</Button></TableCell></TableRow>)}</TableBody></Table>
-    {missing>0&&<p className={`${notice} border-warning/40 bg-warning-bg`}>还有 {missing} 名玩家的数据未识别，请补全。</p>}
+    {missing>0&&<Notice variant="warning">还有 {missing} 名玩家的数据未识别，请补全。</Notice>}
     <div className="flex flex-wrap items-center gap-3"><Button disabled={!ready} loading={busy} loadingText="保存中…" onClick={()=>{setChecked(false);setConfirm(true);}}>核对名单并保存</Button>
      {!ready&&<span className="text-sm text-muted-foreground">{review?`还有 ${review} 行待确认。`:problems.length?"请先处理上面的问题。":!participants.length?"至少要纳入 1 名本俱乐部玩家。":missing?"请补全缺失的数据。":""}</span>}</div>
    </Card>

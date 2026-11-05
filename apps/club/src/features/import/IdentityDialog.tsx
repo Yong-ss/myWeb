@@ -1,13 +1,12 @@
 "use client";
 import { useId, useState } from "react";
-import { motion } from "motion/react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Field, FieldLabel } from "../../components/ui/field";
 import { Dialog, DialogContent, DialogTitle } from "../../components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
-import { enter, useMotion } from "../../components/ui/motion";
+import { Reveal } from "../../components/ui/motion";
 import { fields, numericFields, type Member, type Player } from "../../domain/member";
 import type { Match } from "./identity";
 import { labels, fieldValue, invalidCorrection, type Row } from "./workflow";
@@ -26,13 +25,12 @@ export function IdentityDialog(props: Props) {
   if (props.index !== null && props.index !== shown) setShown(props.index);
   const index = props.index ?? shown;
   const row = index === null ? null : props.rows[index];
-  const slide = useMotion(enter);
   return <Dialog open={props.index !== null} onOpenChange={open => { if (!open) props.onClose(); }}>
     <DialogContent aria-describedby={undefined} className="identity-dialog w-[min(32.5rem,calc(100vw-2rem))]">
       {/* Keyed by row: moving to the next player starts a fresh draft, which slides in to show the change. */}
-      {row && index !== null && <motion.div key={index} className="flex flex-col gap-4" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0, transition: slide }}>
+      {row && index !== null && <Reveal kind="step" key={index} className="flex flex-col gap-4">
         <Draft {...props} index={index} row={row} />
-      </motion.div>}
+      </Reveal>}
     </DialogContent>
   </Dialog>;
 }
