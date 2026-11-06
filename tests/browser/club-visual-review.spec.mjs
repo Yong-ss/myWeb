@@ -3,6 +3,36 @@ import {mkdirSync} from 'node:fs';
 import {ownerAccount,ownerPermissions} from './fixtures.mjs';
 
 const id='00000000-0000-4000-8000-000000000001';
+for(const width of [1440,390])test(`dragon pathway search visual review ${width}`,async({page})=>{
+ mkdirSync('.test-artifacts/club-review',{recursive:true});
+ await page.setViewportSize({width,height:900});
+ const players=[{player_id:id,display_name:'测试观众',read_name:'截图旧昵称',pathway:'观众'},{player_id:id.slice(0,-1)+'2',display_name:'测试战士',read_name:null,pathway:'战士'},{player_id:id.slice(0,-1)+'3',display_name:'未知途径玩家',read_name:null,pathway:null}];
+ await page.route('**/*',route=>{
+  const u=new URL(route.request().url());if(u.origin!=='http://127.0.0.1:8791')return route.abort();
+  if(!u.pathname.startsWith('/api/'))return route.continue();
+  return route.fulfill({json:u.pathname==='/api/account'?ownerAccount('test@example.invalid',{permissions:['dragon.read'],club_id:id,clubs:[{id,name:'测试俱乐部',roles:['owner']}]}):u.pathname==='/api/club-settings'?{name:'测试俱乐部'}:{event:{id,event_date:'2026-11-06',status:'active',version:1},players,roster:{date:'2026-11-06',revision:2,complete:false},absent:[{player_id:id.slice(0,-1)+'4',display_name:'当天未参加成员',pathway:'学徒'}]}});
+ });
+ await page.goto(`/dragon/event?id=${id}&club=${id}&player=${id}`);
+ await expect(page.getByRole('heading',{name:'2026-11-06 猎龙'})).toBeVisible();
+ await expect(page.getByRole('link',{name:'当天未参加成员 学徒',exact:true})).toBeVisible();
+ await expect(page.getByText('当天名单不完整，以下只列出已录入名单中未参加的人。',{exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'观众',exact:true}).getByRole('link',{name:'测试观众',exact:true})).toBeVisible();
+ await expect(page.getByRole('region',{name:'未识别途径',exact:true})).toBeVisible();
+ await expect(page.getByText('截图上的名字',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('截图旧昵称',{exact:true})).toHaveCount(0);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.evaluate(()=>window.scrollTo(0,0));
+ await page.screenshot({path:`.test-artifacts/club-review/dragon-${width}.png`,fullPage:true});
+ await page.getByLabel('搜索参加者').fill('截图旧昵称');
+ await expect(page.getByRole('status')).toContainText('显示 1 / 3 人');
+ await expect(page.getByRole('link',{name:'测试战士',exact:true})).toHaveCount(0);
+ await page.getByLabel('搜索参加者').fill('战士');
+ await expect(page.getByRole('link',{name:'测试战士',exact:true})).toBeVisible();
+ await page.getByLabel('搜索参加者').fill('不存在');
+ await expect(page.getByText('没有找到参加者',{exact:true})).toBeVisible();
+ await page.getByLabel('搜索参加者').fill('');
+ await expect(page.getByRole('status')).toContainText('显示 3 / 3 人');
+});
 const snapshot={id,snapshot_date:'2026-10-28',revision:1,is_current:true,is_complete_roster:true};
 const members=Array.from({length:8},(_,i)=>({player_id:i?id.slice(0,-1)+(i+1):id,name:`档案成员${i+1}`,position:'正式会员',level:70+i,pathway:'观众',extraordinary_score:14000+i*97,prosperity:1600+i*10,weekly_activity:i?120:0,group_name:'第一组',join_days:35+i,presence:'present'}));
 for(const width of [1440,390])test(`whole Club visual review ${width}`,async({page})=>{

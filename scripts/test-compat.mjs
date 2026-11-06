@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, existsSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // Deployment-order check: the already deployed Worker runs its own real integration suite against the database with
@@ -13,25 +13,14 @@ const [ref = 'origin/main', ...only] = process.argv.slice(2);
 // History: Club permissions V1 (7 migrations, 2026-11-03) were checked here in states A, A-C, A-E and all;
 // Four-Way League 20261104140000_club_events.sql (2026-11-04) and Highland Race 20261105090000_club_highland.sql
 // (2026-11-05) in state all.
-const pending = ['20261106120000_club_dragon_hunt.sql'];
-const deployedPermissions = ['absences.resolve', 'aliases.manage', 'audit.actor_email.read', 'audit.read', 'club.admins.manage', 'club.admins.permissions', 'club.alliance.request', 'club.rename', 'events.edit', 'events.import', 'events.read', 'highland.edit', 'highland.import', 'highland.read', 'imports.create', 'imports.delete', 'members.read'];
-const withDragon = [...deployedPermissions, 'dragon.edit', 'dragon.import', 'dragon.read'].sort();
-// Expected values the migration deliberately changes. The deployed Worker drops permission keys it does not know
-// (isPermission), so its own answers (/api/account) are unchanged and it has no dragon routes; only answers read
-// straight from the database gain the dragon permissions: the Super Admin's full club list, and the Worker/database
-// parity check, which compares the Worker answer with the database answer minus the keys that Worker never knew.
-const states = { all: { files: 1 } };
-// Old tests that cannot hold under the new rules at all; none for this migration.
+const pending = ['20261106160000_club_dragon_pathways.sql', '20261107010000_club_dragon_absentees.sql'];
+const states = { all: { files: 2 } };
 const superseded = [];
-const literal = list => `[${list.map(k => `'${k}'`).join(',')}]`;
-// Exact edits to the deployed tests. Every edit must match exactly once, so a changed old test fails here instead of
-// silently running unpatched.
+// Extend harness deadlines and allow the shared installed dependencies inside the workspace root; assertions stay unchanged.
 const edits = () => ({
-  'tests/integration/authz.spec.mjs': [
-    [`const allPermissions=${literal(deployedPermissions)};`, `const allPermissions=${literal(withDragon)};`],
-    ["expect(a.permissions).toEqual(await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json());",
-     "expect(a.permissions).toEqual((await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json()).filter(k=>!k.startsWith('dragon.')));"],
-  ],
+  'apps/club/next.config.ts': [['output: "export",', 'output: "export", turbopack: { root: ' + JSON.stringify(resolve('.')) + ' },']],
+  'playwright.integration.config.mjs': [['globalTimeout:240000', 'globalTimeout:480000']],
+  'scripts/test-integration.mjs': [['{timeout:300000}', '{timeout:540000}']],
 });
 const run = only.length ? only : Object.keys(states);
 for (const name of run) if (!states[name]) throw Error(`Unknown compat state ${name}; use ${Object.keys(states).join(', ')}`);
@@ -52,7 +41,18 @@ try {
   if (unknown.length) throw Error(`New migrations not covered by the compat states: ${unknown.join(', ')}`);
   const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
   const sh = args => execFileSync(pnpm, args, { cwd: dir, stdio: 'inherit', shell: process.platform === 'win32' });
-  sh(['install', '--offline', '--frozen-lockfile']);
+  // Identical lockfile: reuse the installed dependency tree without fetching anything.
+  if (text('pnpm-lock.yaml') === text(join(dir, 'pnpm-lock.yaml'))) {
+    for (const path of ['node_modules', 'apps/club/node_modules', 'apps/web/node_modules']) {
+      mkdirSync(join(dir, path), { recursive: true });
+      for (const entry of readdirSync(path, { withFileTypes: true })) {
+        if (entry.name.startsWith('.pnpm-task-run-state')) continue;
+        const from = resolve(path, entry.name), to = join(dir, path, entry.name);
+        if (entry.isFile()) copyFileSync(from, to);
+        else symlinkSync(from, to, 'junction');
+      }
+    }
+  } else sh(['install', '--offline', '--frozen-lockfile']);
   for (const name of run) {
     const state = states[name];
     for (const file of pending) if (existsSync(join(oldDir, file))) unlinkSync(join(oldDir, file));

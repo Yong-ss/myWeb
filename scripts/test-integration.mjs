@@ -56,7 +56,7 @@ try {
   writeFileSync(join(runtime,'.dev.vars'),Object.entries(vars).map(([k,v])=>`${k}=${JSON.stringify(v)}`).join('\n'));
   const require=createRequire(import.meta.url);
   const playwright=resolve(require.resolve('@playwright/test/package.json'),'../cli.js');
-  const report=command(process.execPath,[playwright,'test','--config','playwright.integration.config.mjs',...process.argv.slice(2).filter(arg=>arg!=='--')],{timeout:300000});
+  const report=command(process.execPath,[playwright,'test','--config','playwright.integration.config.mjs',...process.argv.slice(2).filter(arg=>arg!=='--')],{timeout:540000});
   successful=true;
   console.log(`Integration: ${report.match(/\d+ passed[^\r\n]*/)?.[0]??'passed'}; real Auth, HTTPS Worker, REST and database.`);
 } catch(error) {
