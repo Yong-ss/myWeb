@@ -46,7 +46,7 @@ begin
   -- x_namer: everything admin has plus rename, and the rename RPC now succeeds for this user.
   perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000b02',true);
   a := public.club_my_access(x);
-  if a->'permissions' <> '["absences.resolve","aliases.manage","audit.read","club.rename","events.edit","events.import","events.read","highland.edit","highland.import","highland.read","imports.create","imports.delete","members.read"]'::jsonb
+  if a->'permissions' <> '["absences.resolve","aliases.manage","audit.read","club.rename","dragon.edit","dragon.import","dragon.read","events.edit","events.import","events.read","highland.edit","highland.import","highland.read","imports.create","imports.delete","members.read"]'::jsonb
     or a->'roles' <> '["x_namer"]'::jsonb or (a->>'super_admin')::boolean or (a->>'super_admin_active')::boolean then raise exception 'Multi-role access wrong: %', a; end if;
   if public.club_rename(x,'Switch X2','Switch X')->>'name' <> 'Switch X2' then raise exception 'Merged rename permission not usable'; end if;
   -- Business RLS: own club only.
@@ -92,7 +92,7 @@ do $$ declare y uuid := '00000000-0000-4000-8000-000000000b11'; a jsonb; begin
   if public.club_my_access('ce0c7103-1cdf-4b08-8619-f71d4915f598')->'roles' <> '["owner"]' then raise exception 'Super Admin lost own owner role without MFA'; end if;
   perform set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000c001"}',true);
   a := public.club_my_access(y);
-  if not (a->>'super_admin_active')::boolean or jsonb_array_length(a->'permissions') <> 17 or a->'roles' <> '[]' then raise exception 'Super Admin aal2 state wrong: %', a; end if;
+  if not (a->>'super_admin_active')::boolean or jsonb_array_length(a->'permissions') <> 20 or a->'roles' <> '[]' then raise exception 'Super Admin aal2 state wrong: %', a; end if;
   if (select count(*) from public.club_players where club_id in ('00000000-0000-4000-8000-000000000b10',y)) <> 2 then raise exception 'Super Admin cannot read all clubs'; end if;
   if public.club_rename(y,'Switch Y2','Switch Y')->>'name' <> 'Switch Y2' then raise exception 'Super Admin cannot write'; end if;
   -- Unconfirmed or nonexistent identities never become Super Admin.

@@ -55,6 +55,6 @@ export function layerReason(p: Explained) {
   if (p.alliance && p.forced === false) return "超级管理员单独禁止（联盟会长只读也不生效）";
   if (p.alliance && p.allowed && !["forced_allow", "owner_allow", "club_allow", "default_allow"].includes(p.layer)) return "联盟会长只读";
   if (p.layer === "cap") return p.forced === true || p.owner_set === true ? "已单独允许，但超出该职位的权限上限，未生效" : "超出该职位的权限上限";
-  if (p.layer === "needs_read") return `已设置允许，但缺少「${p.key.startsWith("highland.") ? "查看高原竞逐战绩" : "查看四方联赛战绩"}」权限，暂不生效`;
+  if (p.layer === "needs_read") return `已设置允许，但缺少「${p.key.startsWith("highland.") ? "查看高原竞逐战绩" : p.key.startsWith("dragon.") ? "查看猎龙出勤" : "查看四方联赛战绩"}」权限，暂不生效`;
   return layerReasons[p.layer] ?? "未知原因（请查看高级详情）";
 }

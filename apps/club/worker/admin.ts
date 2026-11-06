@@ -89,20 +89,20 @@ export async function handleAdmin(request:Request,_club:string,rest:Rest,access:
     (!personal&&(!['platform_default','cap','club_default'].includes(input.layer)||!['owner','admin'].includes(input.role))))return reply({error:'权限设置参数无效'},400);
   if(personal){path='rpc/platform_set_personal_permission';body={p_club:input.club_id,p_user:input.user_id,p_permission:input.permission,p_value:input.value};}
   else{path='rpc/platform_set_role_permission';body={p_layer:input.layer,p_role:input.role,p_permission:input.permission,p_value:input.value,p_club:input.club_id??null};}
- }else if(url.pathname==='/api/admin/event-permissions'||url.pathname==='/api/admin/highland-permissions'){
+ }else if(url.pathname==='/api/admin/event-permissions'||url.pathname==='/api/admin/highland-permissions'||url.pathname==='/api/admin/dragon-permissions'){
   const club=p.get('club');if(!club||!uuid.test(club))return reply({error:'目标俱乐部无效'},400);
-  path=url.pathname==='/api/admin/event-permissions'?'rpc/platform_event_permissions':'rpc/platform_highland_permissions';body={p_club:club};
- }else if(url.pathname==='/api/admin/event-permission'||url.pathname==='/api/admin/highland-permission'){
+  path=url.pathname==='/api/admin/event-permissions'?'rpc/platform_event_permissions':url.pathname==='/api/admin/highland-permissions'?'rpc/platform_highland_permissions':'rpc/platform_dragon_permissions';body={p_club:club};
+ }else if(url.pathname==='/api/admin/event-permission'||url.pathname==='/api/admin/highland-permission'||url.pathname==='/api/admin/dragon-permission'){
   // The Four-Way League and the Highland Race each set only their own three permissions.
   // Exactly one of role (club role level) or user_id (personal); value null = follow the lower layers.
   const raw=await readBody(request,1024,{missing:'请选择要修改的权限'});if(raw instanceof Response)return raw;
   let input;try{input=JSON.parse(raw);}catch{return reply({error:'请求内容无效'},400);}
-  const highland=url.pathname==='/api/admin/highland-permission';
+  const kind=url.pathname==='/api/admin/highland-permission'?'highland':url.pathname==='/api/admin/dragon-permission'?'dragon':'events';
   const keys=input&&typeof input==='object'&&!Array.isArray(input)?Object.keys(input).sort().join():'';
-  if(keys!=='club_id,permission,role,user_id,value'||typeof input.club_id!=='string'||!uuid.test(input.club_id)||!(highland?['highland.read','highland.import','highland.edit']:['events.read','events.import','events.edit']).includes(input.permission)
+  if(keys!=='club_id,permission,role,user_id,value'||typeof input.club_id!=='string'||!uuid.test(input.club_id)||![`${kind}.read`,`${kind}.import`,`${kind}.edit`].includes(input.permission)
    ||!(typeof input.value==='boolean'||input.value===null)||(input.role===null)===(input.user_id===null)||(input.role!==null&&!['owner','admin'].includes(input.role))
    ||(input.user_id!==null&&(typeof input.user_id!=='string'||!uuid.test(input.user_id))))return reply({error:'权限设置参数无效'},400);
-  path=highland?'rpc/platform_set_highland_permission':'rpc/platform_set_event_permission';body={p_club:input.club_id,p_role:input.role,p_user:input.user_id,p_permission:input.permission,p_value:input.value};
+  path=kind==='events'?'rpc/platform_set_event_permission':`rpc/platform_set_${kind}_permission`;body={p_club:input.club_id,p_role:input.role,p_user:input.user_id,p_permission:input.permission,p_value:input.value};
  }else if(url.pathname==='/api/admin/permission-settings'){
   const club=p.get('club');if(club!==null&&!uuid.test(club))return reply({error:'目标俱乐部无效'},400);
   path='rpc/platform_permission_settings';body={p_club:club};

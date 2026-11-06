@@ -43,7 +43,7 @@ test('alliances: platform admin appoints, leader reads only its alliance read-on
   const leader=(await auth('outsider')).access_token;
   const mine=await (await get('alliance',leader)).json();expect(mine.clubs.map(c=>c.id)).toEqual([clubId]);
   // Read-only access to A through the normal club routes and RLS; nothing in B (no alliance) or C (other alliance).
-  expect((await (await get(`account?club=${clubId}`,leader)).json()).permissions).toEqual(['audit.read','events.read','highland.read','members.read']);
+  expect((await (await get(`account?club=${clubId}`,leader)).json()).permissions).toEqual(['audit.read','dragon.read','events.read','highland.read','members.read']);
   expect((await get(`members?club=${clubId}&player=${playerId}&paged=1`,leader)).status()).toBe(200);
   expect((await get(`activity?club=${clubId}`,leader)).status()).toBe(200);
   for(const club of [foreignClubId,C])for(const path of [`members?club=${club}`,`activity?club=${club}`])expect((await get(path,leader)).status(),path).toBe(403);
@@ -82,7 +82,7 @@ test('alliances: platform admin appoints, leader reads only its alliance read-on
   expect((await post('admin/personal-permission',pa,{club_id:clubId,user_id:users.outsider.id,permission:'audit.read',value:false})).status()).toBe(403); // platform admins cannot
   expect((await deny(true)).status()).toBe(409); // only a deny for a leader without a club role
   expect((await deny(false)).status()).toBe(200);
-  expect((await (await get(`account?club=${clubId}`,leader)).json()).permissions).toEqual(['events.read','highland.read','members.read']);
+  expect((await (await get(`account?club=${clubId}`,leader)).json()).permissions).toEqual(['dragon.read','events.read','highland.read','members.read']);
   expect((await get(`activity?club=${clubId}`,leader)).status()).toBe(403);
   expect((await (await rest('rpc/club_activity',leader,{p_club_id:clubId})).json()).events).toEqual([]);
   expect((await rest(`club_audit_events?select=id&club_id=eq.${clubId}`,leader)).status).toBe(403); // the table itself is closed to clients
@@ -92,12 +92,12 @@ test('alliances: platform admin appoints, leader reads only its alliance read-on
   // Leader and owner at once: foreign leads Two and owns B. B is theirs (full owner powers); C read-only; A nothing.
   const foreign=(await auth('foreign')).access_token;
   expect((await (await get(`account?club=${foreignClubId}`,foreign)).json()).permissions).toContain('club.rename');
-  expect((await (await get(`account?club=${C}`,foreign)).json()).permissions).toEqual(['audit.read','events.read','highland.read','members.read']);
+  expect((await (await get(`account?club=${C}`,foreign)).json()).permissions).toEqual(['audit.read','dragon.read','events.read','highland.read','members.read']);
   expect((await get(`members?club=${clubId}`,foreign)).status()).toBe(403);
   // A forced deny in the alliance club holds for the owner-leader too; their own club is unaffected, and they can
   // still decide join requests (below).
   expect((await post('admin/personal-permission',sa,{club_id:C,user_id:users.foreign.id,permission:'members.read',value:false})).status()).toBe(200);
-  expect((await (await get(`account?club=${C}`,foreign)).json()).permissions).toEqual(['audit.read','events.read','highland.read']);
+  expect((await (await get(`account?club=${C}`,foreign)).json()).permissions).toEqual(['audit.read','dragon.read','events.read','highland.read']);
   expect((await get(`members?club=${C}`,foreign)).status()).toBe(403);
   expect(await (await rest(`club_players?select=id&club_id=eq.${C}`,foreign)).json()).toEqual([]);
   expect((await (await get(`account?club=${foreignClubId}`,foreign)).json()).permissions).toContain('members.read');

@@ -43,7 +43,7 @@ end $$;
 
 -- 1. Registry: alliance permissions are read-only for club data; the leader role holds only reads and join decisions.
 do $$ begin
- if (select array_agg(permission_key order by permission_key) from public.auth_role_permissions where role_key='alliance_leader')<>array['alliance.joins.decide','audit.read','events.read','highland.read','members.read'] then raise exception 'Leader permissions wrong'; end if;
+ if (select array_agg(permission_key order by permission_key) from public.auth_role_permissions where role_key='alliance_leader')<>array['alliance.joins.decide','audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Leader permissions wrong'; end if;
  perform pg_temp.refused($q$insert into public.auth_permissions(key,kind,allowed_scopes,read_only,description) values('imports.alliance','action','{club,alliance}',false,'x')$q$,'23514');
  perform pg_temp.refused($q$insert into public.auth_permissions(key,kind,allowed_scopes,read_only,description) values('alliance.write_clubs','action','{club,alliance}',false,'x')$q$,'23514');
  perform pg_temp.refused($q$insert into public.auth_role_permissions values('alliance_leader','imports.create')$q$,'23514');
@@ -93,7 +93,7 @@ do $$ declare t text; begin
 end $$;
 -- 3. Reading: exactly the leader's alliance's clubs, read-only permissions only, no raw imports, no actor emails.
 do $$ declare ev jsonb; begin
- if pg_temp.perms(1,'x')<>array['audit.read','events.read','highland.read','members.read'] or pg_temp.perms(1,'y')<>array['audit.read','events.read','highland.read','members.read'] then raise exception 'Leader cannot read own alliance'; end if;
+ if pg_temp.perms(1,'x')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] or pg_temp.perms(1,'y')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Leader cannot read own alliance'; end if;
  if pg_temp.perms(1,'z')<>'{}' or pg_temp.perms(1,'w')<>'{}' then raise exception 'Leader reads another alliance or a club outside alliances'; end if;
  perform pg_temp.as_user(1);
  if (select count(*) from public.club_players where club_id in (pg_temp.c('x'),pg_temp.c('y')))<>2 or exists(select 1 from public.club_players where club_id in (pg_temp.c('z'),pg_temp.c('w'))) then raise exception 'RLS does not follow the alliance'; end if;
@@ -128,7 +128,7 @@ end $$;
 do $$ begin
  if not ('club.rename'=any(pg_temp.perms(2,'y'))) then raise exception 'Owner powers lost by also leading an alliance'; end if;
  perform pg_temp.as_user(2);perform public.club_rename(pg_temp.c('y'),'Renamed by owner','Alliance club y');
- if pg_temp.perms(2,'z')<>array['audit.read','events.read','highland.read','members.read'] then raise exception 'Leader read wrong for own alliance club'; end if;
+ if pg_temp.perms(2,'z')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Leader read wrong for own alliance club'; end if;
  perform pg_temp.refused(format($q$select public.club_rename(%L,'x','Alliance club z')$q$,pg_temp.c('z')),'42501');
  if pg_temp.perms(2,'x')<>'{}' then raise exception 'Leader of A2 reads A1'; end if;
 end $$;
@@ -153,7 +153,7 @@ do $$ declare a1 uuid:=pg_temp.alliance_of('x'); w uuid:=pg_temp.c('w'); begin
  if jsonb_array_length(public.club_my_alliance()->'requests')<>1 then raise exception 'Leader does not see the request'; end if;
  if pg_temp.perms(1,'w')<>'{}' then raise exception 'Read before approval'; end if;
  perform public.alliance_decide_request(pg_temp.request_of('w'),'approve');
- if pg_temp.perms(1,'w')<>array['audit.read','events.read','highland.read','members.read'] then raise exception 'Approval did not apply at once'; end if;
+ if pg_temp.perms(1,'w')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Approval did not apply at once'; end if;
  perform pg_temp.refused('select public.alliance_decide_request(null,''approve'')','22023');
  -- Withdraw and reject.
  perform pg_temp.as_pa();perform public.platform_set_club_alliance(w,null);
@@ -185,7 +185,7 @@ do $$ declare a1 uuid:=pg_temp.alliance_of('x'); a2 uuid:=pg_temp.alliance_of('z
  perform pg_temp.as_pa();perform public.platform_save_alliance(a2,'Alliance Two','disabled');
  if pg_temp.perms(2,'z')<>'{}' then raise exception 'Disabled alliance still readable'; end if;
  perform pg_temp.as_pa();perform public.platform_save_alliance(a2,'Alliance Two','active');
- if pg_temp.perms(2,'z')<>array['audit.read','events.read','highland.read','members.read'] then raise exception 'Re-enabled alliance not readable'; end if;
+ if pg_temp.perms(2,'z')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Re-enabled alliance not readable'; end if;
  perform pg_temp.as_user(2);perform public.club_rename(pg_temp.c('y'),'Still owner','Renamed by owner'); -- owner power unchanged by all of this
 end $$;
 reset role;
@@ -200,14 +200,14 @@ select club_private.trust_super_admin_factor('00000000-0000-4000-8000-00000000af
 create function pg_temp.as_sa() returns void language sql as $$ select set_config('request.jwt.claim.sub','d0ddb226-a10a-471c-be4b-d5e5153bd313',true),set_config('request.jwt.claims','{"aal":"aal2","session_id":"00000000-0000-4000-8000-00000000ac02"}',true) $$;
 set local role authenticated;
 do $$ declare z uuid:=pg_temp.c('z'); y uuid:=pg_temp.c('y'); a2 uuid:=pg_temp.alliance_of('z'); begin
- if pg_temp.perms(2,'z')<>array['audit.read','events.read','highland.read','members.read'] then raise exception 'Fixture: leader 2 should read Z'; end if;
+ if pg_temp.perms(2,'z')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Fixture: leader 2 should read Z'; end if;
  -- Only the active Super Admin sets it; only a deny is accepted for a leader without a club role there.
  perform pg_temp.as_pa();perform pg_temp.refused(format($q$select public.platform_set_personal_permission(%L,%L,'audit.read',false)$q$,z,pg_temp.u(2)),'42501');
  perform pg_temp.as_sa();
  perform pg_temp.refused(format($q$select public.platform_set_personal_permission(%L,%L,'audit.read',true)$q$,z,pg_temp.u(2)),'PT409');
  perform pg_temp.refused(format($q$select public.platform_set_personal_permission(%L,%L,'audit.read',false)$q$,z,pg_temp.u(7)),'PT409'); -- no role, no alliance
  perform public.platform_set_personal_permission(z,pg_temp.u(2),'audit.read',false);
- if pg_temp.perms(2,'z')<>array['events.read','highland.read','members.read'] then raise exception 'Forced deny bypassed through the alliance: %',pg_temp.perms(2,'z'); end if;
+ if pg_temp.perms(2,'z')<>array['dragon.read','events.read','highland.read','members.read'] then raise exception 'Forced deny bypassed through the alliance: %',pg_temp.perms(2,'z'); end if;
  perform pg_temp.as_user(2);
  if jsonb_array_length(public.club_activity(z)->'events')<>0 then raise exception 'Club log still readable through the alliance'; end if;
  if not exists(select 1 from public.club_players where club_id=z) then raise exception 'Unrelated alliance read lost'; end if;
@@ -221,12 +221,12 @@ do $$ declare z uuid:=pg_temp.c('z'); a2 uuid:=pg_temp.alliance_of('z'); w uuid:
  perform pg_temp.as_user(2);
  if jsonb_array_length(public.club_my_alliance()->'requests')<>1 then raise exception 'Leader lost the request list'; end if;
  perform public.alliance_decide_request(pg_temp.request_of('w'),'approve');
- if pg_temp.perms(2,'w')<>array['audit.read','events.read','highland.read','members.read'] then raise exception 'Normal alliance reads affected by a deny elsewhere'; end if;
+ if pg_temp.perms(2,'w')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Normal alliance reads affected by a deny elsewhere'; end if;
  -- Join decisions work while a deny is in force, and lifting it restores the read on the next statement.
  perform pg_temp.as_sa();perform public.platform_set_personal_permission(z,pg_temp.u(2),'audit.read',false);
- if pg_temp.perms(2,'z')<>array['events.read','highland.read','members.read'] then raise exception 'Deny not applied'; end if;
+ if pg_temp.perms(2,'z')<>array['dragon.read','events.read','highland.read','members.read'] then raise exception 'Deny not applied'; end if;
  perform pg_temp.as_sa();perform public.platform_set_personal_permission(z,pg_temp.u(2),'audit.read',null);
- if pg_temp.perms(2,'z')<>array['audit.read','events.read','highland.read','members.read'] then raise exception 'Lifting the deny did not restore the read'; end if;
+ if pg_temp.perms(2,'z')<>array['audit.read','dragon.read','events.read','highland.read','members.read'] then raise exception 'Lifting the deny did not restore the read'; end if;
  -- Owner who also leads their own club's alliance: a forced deny there holds, and cannot be handed to admins.
  perform pg_temp.as_pa();perform public.platform_set_club_alliance(pg_temp.c('y'),a2);
  perform pg_temp.as_sa();perform public.platform_set_personal_permission(pg_temp.c('y'),pg_temp.u(2),'audit.read',false);

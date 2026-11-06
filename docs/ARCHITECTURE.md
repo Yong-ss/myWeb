@@ -1,5 +1,12 @@
 # SquirrelAPI — Architecture
 
+## Dragon Hunt V1 (club events, attendance only) — 2026-11-06
+
+- Migration `20261106120000_club_dragon_hunt.sql` (additive). Owner-confirmed scope: one hunt per club and day; only who attended (grey cards count); every screenshot name is a member of this club, so names matching nobody are left out (not saved; the count is logged as `unmatched`); no corrections or versions beyond void — a wrong import is voided and imported again.
+- Permissions: `dragon.read` (club + alliance), `dragon.import`, `dragon.edit` (void only), same defaults and `needs_read` rule as the other event types; platform admins set them with `platform.dragon.permissions` (`platform_dragon_permissions` / `platform_set_dragon_permission`).
+- Data: `club_events.event_type` gains `dragon_hunt` (`total_score` 0, unused); `club_dragon_event_players(player_id, read_name)` references the typed event key. Writers `club_dragon_create` / `club_dragon_void` (shared `event_begin` lock and request ids); readers `club_dragon_list/detail/identities`, `club_player_dragon` via the shared `event_attendance`.
+- Worker `worker/dragon.ts` (`/api/dragon-events`, `/api/dragon-event`, `/api/player-dragon`, `/api/dragon-identities`) and two platform routes in `admin.ts`. Front end: `features/events` (`DragonPage`, `DragonImportPage`, `DragonDetailPage`, `dragon.ts`), routes `/dragon`, `/dragon/import`, `/dragon/event`, a 猎龙 card on the player profile and a platform tab.
+
 ## Highland Race V1 (club events) — 2026-11-05 (local, not yet deployed)
 
 - Requirements: `docs/CLUB_HIGHLAND_RACE_DISCUSSION.md` (§11 describes this implementation). Migration `20261105090000_club_highland.sql` (additive; Four-Way League functions keep their signatures).

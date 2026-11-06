@@ -24,7 +24,7 @@ export function EventAttendance({player,refresh,title="四方联赛",api="/api/p
   {error?<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/>:!data?<p role="status" className="m-0 text-sm text-muted-foreground">正在读取…</p>:<>
    <div className="flex flex-wrap gap-3">
     <Dialog><DialogTrigger asChild><Button variant="secondary">参加 <strong className="tabular-nums">{data.attended.length}</strong> 场</Button></DialogTrigger>
-     <DialogContent className="max-h-[90vh] w-[min(64rem,calc(100vw-2rem))] overflow-y-auto"><DialogTitle>参加的{title}</DialogTitle><DialogDescription>本俱乐部有效比赛中本人的输出和战略数据。点日期查看整场。</DialogDescription>
+     <DialogContent className="max-h-[90vh] w-[min(64rem,calc(100vw-2rem))] overflow-y-auto"><DialogTitle>参加的{title}</DialogTitle><DialogDescription>{fields.length?"本俱乐部有效比赛中本人的输出和战略数据。点日期查看整场。":"本俱乐部有效记录中本人参加的日期。点日期查看当天名单。"}</DialogDescription>
       {data.attended.length?<Table containerClassName="max-h-[60vh] overflow-auto"><TableHeader><TableRow><TableHead>比赛日期</TableHead>{fields.map(k=><TableHead key={k}>{labels[k]}</TableHead>)}</TableRow></TableHeader>
        <TableBody>{data.attended.map(r=><TableRow key={r.event_id}><TableCell>{eventLink(r.event_id,r.event_date)}</TableCell>{fields.map(k=><TableCell key={k} className="tabular-nums">{r[k]}</TableCell>)}</TableRow>)}</TableBody></Table>:<p className="m-0 text-sm text-muted-foreground">还没有参赛记录。</p>}
      </DialogContent></Dialog>

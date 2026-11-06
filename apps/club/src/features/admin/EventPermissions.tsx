@@ -21,8 +21,8 @@ const tri=(v:boolean|null|undefined)=>v==null?'follow':v?'allow':'deny';
 const names={follow:'跟随下层设置',allow:'允许',deny:'禁止'} as const;
 
 /** kind: which event type's three permissions (each has its own platform permission, RPCs and settings). */
-export function EventPermissions({kind="events"}:{kind?:"events"|"highland"}){
- const t=kind==="events"?{name:"四方联赛",read:"/api/admin/event-permissions",write:"/api/admin/event-permission",id:"event"}:{name:"高原竞逐",read:"/api/admin/highland-permissions",write:"/api/admin/highland-permission",id:"highland"};
+export function EventPermissions({kind="events"}:{kind?:"events"|"highland"|"dragon"}){
+ const t=kind==="events"?{name:"四方联赛",read:"/api/admin/event-permissions",write:"/api/admin/event-permission",id:"event"}:kind==="highland"?{name:"高原竞逐",read:"/api/admin/highland-permissions",write:"/api/admin/highland-permission",id:"highland"}:{name:"猎龙",read:"/api/admin/dragon-permissions",write:"/api/admin/dragon-permission",id:"dragon"};
  const [club,setClub]=useState(''),[data,setData]=useState<Data|null>(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const [clubs,setClubs]=useState<{id:string;name:string}[]|null>(null);
  useEffect(()=>{let active=true;clubApi<{clubs:{id:string;name:string}[]}>('/api/admin/overview',undefined,'俱乐部读取失败').then(d=>{if(active){setClubs(d.clubs);setClub(c=>c||d.clubs[0]?.id||'');}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[]);

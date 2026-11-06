@@ -11,13 +11,14 @@ import { join, resolve } from 'node:path';
 const [ref = 'origin/main', ...only] = process.argv.slice(2);
 // Pending migrations, in order. Each state applies a prefix of this list (one migration: one state).
 // History: Club permissions V1 (7 migrations, 2026-11-03) were checked here in states A, A-C, A-E and all;
-// Four-Way League 20261104140000_club_events.sql (2026-11-04) in state all.
-const pending = ['20261105090000_club_highland.sql'];
-const deployedPermissions = ['absences.resolve', 'aliases.manage', 'audit.actor_email.read', 'audit.read', 'club.admins.manage', 'club.admins.permissions', 'club.alliance.request', 'club.rename', 'events.edit', 'events.import', 'events.read', 'imports.create', 'imports.delete', 'members.read'];
-const withHighland = [...deployedPermissions, 'highland.edit', 'highland.import', 'highland.read'].sort();
+// Four-Way League 20261104140000_club_events.sql (2026-11-04) and Highland Race 20261105090000_club_highland.sql
+// (2026-11-05) in state all.
+const pending = ['20261106120000_club_dragon_hunt.sql'];
+const deployedPermissions = ['absences.resolve', 'aliases.manage', 'audit.actor_email.read', 'audit.read', 'club.admins.manage', 'club.admins.permissions', 'club.alliance.request', 'club.rename', 'events.edit', 'events.import', 'events.read', 'highland.edit', 'highland.import', 'highland.read', 'imports.create', 'imports.delete', 'members.read'];
+const withDragon = [...deployedPermissions, 'dragon.edit', 'dragon.import', 'dragon.read'].sort();
 // Expected values the migration deliberately changes. The deployed Worker drops permission keys it does not know
-// (isPermission), so its own answers (/api/account) are unchanged and it has no highland routes; only answers read
-// straight from the database gain the highland permissions: the Super Admin's full club list, and the Worker/database
+// (isPermission), so its own answers (/api/account) are unchanged and it has no dragon routes; only answers read
+// straight from the database gain the dragon permissions: the Super Admin's full club list, and the Worker/database
 // parity check, which compares the Worker answer with the database answer minus the keys that Worker never knew.
 const states = { all: { files: 1 } };
 // Old tests that cannot hold under the new rules at all; none for this migration.
@@ -27,9 +28,9 @@ const literal = list => `[${list.map(k => `'${k}'`).join(',')}]`;
 // silently running unpatched.
 const edits = () => ({
   'tests/integration/authz.spec.mjs': [
-    [`const allPermissions=${literal(deployedPermissions)};`, `const allPermissions=${literal(withHighland)};`],
+    [`const allPermissions=${literal(deployedPermissions)};`, `const allPermissions=${literal(withDragon)};`],
     ["expect(a.permissions).toEqual(await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json());",
-     "expect(a.permissions).toEqual((await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json()).filter(k=>!k.startsWith('highland.')));"],
+     "expect(a.permissions).toEqual((await (await rest('rpc/club_my_permissions',admin,{p_club:clubId})).json()).filter(k=>!k.startsWith('dragon.')));"],
   ],
 });
 const run = only.length ? only : Object.keys(states);
