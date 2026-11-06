@@ -40,7 +40,7 @@ test('highland race: faction-wide import keeps only our player, separate from th
   await expect(page.getByLabel('待确认').getByText('不在最新成员名单')).toHaveCount(2);
   // The departed name on the board is another club's player here: exclude both rows.
   await page.getByRole('button',{name:'其余待确认全部排除…'}).click();await page.getByRole('alertdialog').getByRole('button',{name:'全部排除'}).click();
-  await page.getByRole('button',{name:'核对名单并保存'}).click();
+  await page.getByRole('button',{name:'下一步 →'}).click();await page.getByRole('button',{name:'核对名单并保存'}).click();
   const confirm=page.getByRole('alertdialog');await confirm.getByText(/我已核对/).click();await confirm.getByRole('button',{name:'确认保存'}).click();
   await expect(page).toHaveURL(/\/highland\/event\?/);
   await expect(page.getByRole('heading',{name:`高原竞逐 · ${D}`})).toBeVisible();

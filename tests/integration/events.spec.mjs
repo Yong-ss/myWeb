@@ -37,7 +37,7 @@ test('four-way league: import through the page, read/import/edit separation, all
    else await dialog.getByRole('button',{name:'新增玩家'}).click();
    await dialog.getByRole('button',{name:'确认',exact:true}).click();
   }
-  await page.getByRole('button',{name:'确认并保存'}).click();await page.getByRole('alertdialog').getByRole('button',{name:'确认保存'}).click();
+  await page.getByRole('button',{name:'下一步 →'}).click();await page.getByRole('button',{name:'确认并保存'}).click();await page.getByRole('alertdialog').getByRole('button',{name:'确认保存'}).click();
   await expect(page).toHaveURL(/\/event\?/);
   await expect(page.getByRole('heading',{name:`四方联赛 · ${D}`})).toBeVisible();
   const owner=(await auth('owner')).access_token,admin=(await auth('admin')).access_token,leader=(await auth('outsider')).access_token,foreign=(await auth('foreign')).access_token;

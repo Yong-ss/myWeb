@@ -5,7 +5,7 @@ import Link from "next/link";
 import {cn} from "cn";
 import {AnimatePresence,motion} from "motion/react";
 import {toast} from "../../components/ui/sonner";
-import {QuestionIcon} from "@phosphor-icons/react";
+import {ImportStepper,PromptBar} from "../../components/ImportSteps";
 import {PageLoader,LoadingState} from "../../components/feedback";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/button";
@@ -20,10 +20,9 @@ import { Card, CardTitle } from "../../components/ui/card";
 import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "../../components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "../../components/ui/alert-dialog";
-import { glide, Reveal, useMotion, useMotionKind } from "../../components/ui/motion";
+import { Reveal, useMotionKind } from "../../components/ui/motion";
 import { useEffect, useState } from "react";
 import { fields, numericFields, validDate } from "../../domain/member";
 import { parseSource, mergePreview, MAX_SOURCE_BYTES, type ImportContext, type ConfirmedMember } from "./contract";
@@ -59,7 +58,7 @@ export function ImportPage() {
   const [discard, setDiscard] = useState(false);
   const [removed, setRemoved] = useState<{ row: Row; index: number } | null>(null);
   const [identityIndex, setIdentityIndex] = useState<number | null>(null);
-  const stepGlide = useMotion(glide), listItem = useMotionKind("listItem");
+  const listItem = useMotionKind("listItem");
   useEffect(() => {
     if (error || review || saved) document.getElementById(error ? "import-feedback" : saved ? "import-success" : "final-review")?.focus();
   }, [error, review, saved]);
@@ -161,19 +160,8 @@ export function ImportPage() {
     <PageHeader eyebrow="03 / DAILY RECORD" title={saved ? "导入完成" : review ? "确认保存" : context ? "核对成员" : "导入每日数据"} />
     {!context && !saved && <p className="m-0 -mt-4 text-sm text-muted-foreground">上传识别结果，再核对名单。</p>}
     {context && !review && !saved && <p className="m-0 -mt-4 text-sm text-muted-foreground">把识别结果对上已有玩家，避免重复新增。点开下面的名字，选已有玩家或新增。</p>}
-    <ol className="stepper my-2 grid list-none grid-cols-3 overflow-hidden rounded-sm border border-border bg-card p-0" aria-label="导入进度">{["准备数据", "核对成员", "确认保存"].map((label,i) => <li key={label} aria-current={i === step ? "step" : undefined}
-      className={cn("relative flex items-center gap-3 px-5 py-4 text-sm text-muted-foreground transition-colors duration-300 max-sm:justify-center max-sm:gap-1.5 max-sm:px-2 max-sm:text-xs aria-[current=step]:text-gold", i > 0 && "border-l border-divider", i < step && "text-foreground")}>
-      {i === step && <motion.span layoutId="import-step" aria-hidden="true" className="absolute inset-0 bg-selected" transition={stepGlide} />}
-      <span className={cn("relative grid size-7 shrink-0 place-items-center rounded-sm border border-border font-heading text-xs transition-colors duration-300 max-sm:size-6", (i <= step) && "border-brass text-gold")}>{i < step ? "✓" : String(i+1).padStart(2,"0")}</span><span className="relative">{label}</span></li>)}</ol>
-    {!context && !saved && <div className="flex flex-wrap items-center gap-3">
-      <Button variant="secondary" onClick={() => void copyPrompt()}>复制AI识别提示词</Button>
-      <Popover><PopoverTrigger asChild><Button variant="secondary" size="icon" aria-label="查看截图识别方法"><QuestionIcon /></Button></PopoverTrigger>
-        <PopoverContent className="flex flex-col gap-3"><h3 className="m-0 text-lg">怎么导入？</h3><ol className="m-0 grid gap-1 pl-5 text-sm leading-relaxed"><li>复制AI识别提示词，粘贴给 AI。</li><li>上传游戏成员截图。</li><li>把 AI 返回的 JSON 粘贴或上传到这里。</li></ol><a className="text-sm text-gold" href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">打开豆包 ↗</a>
-          <Collapsible><CollapsibleTrigger className="-mx-3 w-[calc(100%+1.5rem)]">完整AI识别提示词</CollapsibleTrigger><CollapsibleContent><pre className="prompt m-0 mt-2 max-h-60 overflow-y-auto rounded-sm border border-border bg-field p-4 text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{extractionPrompt}</pre></CollapsibleContent></Collapsible>
-        </PopoverContent>
-      </Popover>
-      <p className="m-0 text-xs text-muted-foreground">* 建议使用<a className="text-muted-foreground" href="https://www.doubao.com/chat/" target="_blank" rel="noopener noreferrer">豆包</a>，选择「专家」。</p>
-    </div>}
+    <ImportStepper steps={["准备数据", "核对成员", "确认保存"]} step={step} />
+    {!context && !saved && <PromptBar prompt={extractionPrompt} onCopy={() => void copyPrompt()} howTo={<><li>复制AI识别提示词，粘贴给 AI。</li><li>上传游戏成员截图。</li><li>把 AI 返回的 JSON 粘贴或上传到这里。</li></>} />}
     <Notice variant="success" role={saved?undefined:"status"} className="empty:hidden">{saved?"":notice_}</Notice><Notice variant="destructive" id="import-feedback" tabIndex={-1} role="alert" className="empty:hidden">{readableError(error)}</Notice>
     {saved ? <Reveal as="section" className="m-0" id="import-success" tabIndex={-1}><LoadingState status="ready" title="今天的记录，保存好了。" detail={`${notice_} 可以放心离开这个页面，或继续导入其他日期的数据。`} action={<><Button onClick={reset}>开始另一批导入</Button><Link className="text-gold" href={href("/account")}>回到工作台</Link></>}/></Reveal> : <fieldset className="club-import-busy relative m-0 min-w-0 border-0 p-0" disabled={busy} aria-busy={busy}>
       {busy && <PageLoader className="club-import-processing invisible absolute inset-0 z-20 min-h-0 data-[visible=true]:visible data-[visible=true]:bg-[color-mix(in_srgb,var(--club-bg)_96%,transparent)] max-sm:min-h-0" title={review ? "正在保存记录…" : "正在读取数据…"} detail="请稍候，不要重复提交。" />}

@@ -59,9 +59,10 @@ test('import: two tables join by identity, gaps block saving, nothing is sent be
  await prepare(page);
  await expect(page.getByText('战略第 3 行「北丶忧」尚未确认身份')).toBeVisible();
  await expect(page.getByText(/「北忧」只出现在输出表/)).toBeVisible();
- await expect(page.getByRole('button',{name:'确认并保存'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'下一步 →'})).toBeDisabled();
  await resolve(page);
  await expect(page.getByLabel('需要处理的问题')).toHaveCount(0);
+ await page.getByRole('button',{name:'下一步 →'}).click();
  // 阿乙's 治疗 was unreadable: still blocked, and the gap is shown as —, never 0.
  await expect(page.getByText('还有 1 名玩家的数据未识别')).toBeVisible();
  await expect(page.getByRole('button',{name:'确认并保存'})).toBeDisabled();
@@ -85,7 +86,7 @@ test('import: two tables join by identity, gaps block saving, nothing is sent be
 
 test('import: a failed save retries with the same request id; an existing date is refused before review',async({page})=>{
  const {posts}=await mock(page,{fail:[[502,'连接失败']]});
- await prepare(page);await resolve(page);
+ await prepare(page);await resolve(page);await page.getByRole('button',{name:'下一步 →'}).click();
  await page.getByRole('row',{name:/阿乙/}).getByRole('button',{name:'修改数据'}).click();
  await page.getByRole('dialog').getByLabel('治疗').fill('0');await page.getByRole('dialog').getByRole('button',{name:'确认'}).click();
  for(let i=0;i<2;i++){await page.getByRole('button',{name:'确认并保存'}).click();await page.getByRole('alertdialog').getByRole('button',{name:'确认保存'}).click();if(!i)await expect(page.locator('#event-import-error')).toContainText('同一份内容只会保存一次');}

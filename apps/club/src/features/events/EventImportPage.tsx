@@ -21,6 +21,7 @@ import type {NameAlias,NamedPlayer} from "../../domain/names";
 import {eventToday,isNew,matchEntries,metricFields,metricLabels,pairEntries,parseEventSource,participantRow,tableNames,totalKills,type Entry,type Metric,type Table as Side} from "./contract";
 import {eventPrompt} from "./prompt";
 import {IdentityPicker,MetricInputs} from "./EventInputs";
+import {ImportStepper,PromptBar} from "../../components/ImportSteps";
 
 type Identities={players:NamedPlayer[];aliases:NameAlias[];can_alias:boolean};
 
@@ -30,7 +31,7 @@ export function EventImportPage(){
  const [ids,setIds]=useState<Identities|null>(null),[entries,setEntries]=useState<Record<Side,Entry[]>>({output:[],strategy:[]}),[removed,setRemoved]=useState(0);
  const [values,setValues]=useState<Record<string,Partial<Record<Metric,number|null>>>>({}),[remember,setRemember]=useState<Record<string,boolean>>({});
  const [picker,setPicker]=useState<{table:Side;index:number}|null>(null),[editing,setEditing]=useState<string|null>(null),[draft,setDraft]=useState<Partial<Record<Metric,number|null>>>({});
- const [busy,setBusy]=useState(false),[error,setError]=useState(""),[confirm,setConfirm]=useState(false);
+ const [busy,setBusy]=useState(false),[error,setError]=useState(""),[confirm,setConfirm]=useState(false),[preview,setPreview]=useState(false);
  const attempt=useRef<{key:string;id:string}|null>(null);
  useEffect(()=>{if(error)document.getElementById("event-import-error")?.focus();},[error]);
  const name=(identity:string)=>isNew(identity)?`${identity.slice(4)}（新玩家）`:ids?.players.find(p=>p.id===identity)?.display_name??identity;
@@ -50,7 +51,7 @@ export function EventImportPage(){
   try{
    const [identities,list]=await Promise.all([clubApi<Identities>("/api/event-identities",undefined,"身份资料读取失败"),clubApi<{events:{event_date:string}[]}>("/api/events",undefined,"赛事列表读取失败")]);
    if(list.events.some(e=>e.event_date===date)){setError(`${date} 已有四方联赛记录，请到赛事详情逐项修正`);return;}
-   setIds(identities);setRemoved(parsed.removed);setValues({});setRemember({});
+   setIds(identities);setPreview(false);setRemoved(parsed.removed);setValues({});setRemember({});
    setEntries({output:matchEntries("output",parsed.output,identities.players,identities.aliases),strategy:matchEntries("strategy",parsed.strategy,identities.players,identities.aliases)});
   }catch(e){setError(e instanceof Error?e.message:"读取失败，请重试");}
   finally{setBusy(false);}
@@ -83,27 +84,29 @@ export function EventImportPage(){
   <span className="[overflow-wrap:anywhere]"><Badge variant="outline">{tableNames[e.table]}</Badge> <strong className="text-gold">{e.row.player_name??"昵称没看清"}</strong>{e.identity&&<> → {name(e.identity)}</>}{e.reasons.length>0&&!e.identity&&<small className="block text-muted-foreground">{e.reasons.join("；")}</small>}</span>
   <Button variant="secondary" size="compact" onClick={()=>setPicker({table:e.table,index:e.index})}>{e.identity?"修改":"确认身份"}</Button></li>;
  return <main className="club-workspace club-events flex max-w-300 flex-col gap-6">
-  <PageHeader eyebrow="FOUR-WAY LEAGUE / 导入比赛" title="导入四方联赛" actions={<ButtonLink variant="secondary" href={href("/events")}>返回赛事列表</ButtonLink>}/>
-  <Card className="w-full"><CardTitle>1. 填写比赛信息并粘贴 JSON</CardTitle>
+  <PageHeader eyebrow="FOUR-WAY LEAGUE / 导入比赛" title={preview?"确认保存":ids?"核对身份":"导入四方联赛"} actions={<ButtonLink variant="secondary" href={href("/events")}>返回赛事列表</ButtonLink>}/>
+  <ImportStepper steps={["准备数据","核对身份","确认保存"]} step={preview?2:ids?1:0}/>
+  {!ids&&<PromptBar prompt={eventPrompt} onCopy={()=>void navigator.clipboard?.writeText(eventPrompt).then(()=>toast.success("AI识别提示词已复制"),()=>setError("复制失败，请点问号查看完整提示词手动复制。"))} howTo={<><li>在游戏里筛选本俱乐部。</li><li>复制AI识别提示词，和「输出」「战略」两类截图一起发给 AI。</li><li>把 AI 返回的 JSON 粘贴到这里。</li></>}/>}
+  {!ids&&  <Card className="w-full"><CardTitle>填写比赛信息并粘贴 JSON</CardTitle>
    <CardDescription>先在游戏里筛选本俱乐部，把「输出」「战略」两类截图一起交给站外 AI，再把它输出的 JSON 粘贴到这里。保存前不会写入任何数据。</CardDescription>
    <div className="flex flex-wrap gap-4">
     <Field className="max-w-56"><FieldLabel htmlFor="event-date">比赛日期</FieldLabel><Input id="event-date" type="date" max={eventToday()} value={date} onChange={e=>{setDate(e.target.value);setIds(null);}}/></Field>
     <Field className="max-w-56"><FieldLabel htmlFor="event-score">本俱乐部总积分</FieldLabel><Input id="event-score" inputMode="numeric" value={score} placeholder="例如 3000" onChange={e=>setScore(e.target.value)}/><FieldDescription>总击杀按参赛玩家「击败」自动合计。</FieldDescription></Field>
    </div>
    <Field><FieldLabel htmlFor="event-json">AI 输出的 JSON</FieldLabel><Textarea id="event-json" rows={8} value={raw} onChange={e=>{setRaw(e.target.value);setIds(null);}} placeholder='{"schema_version":1,"event_type":"four_way_league","output":[…],"strategy":[…]}'/></Field>
-   <div className="flex flex-wrap gap-3"><Button loading={busy&&!ids} loadingText="准备中…" onClick={prepare}>开始核对</Button>
-    <Collapsible><CollapsibleTrigger className="px-0">复制给 AI 的提示词</CollapsibleTrigger><CollapsibleContent className="grid gap-2 pt-2"><Button variant="secondary" size="compact" className="self-start" onClick={()=>void navigator.clipboard?.writeText(eventPrompt).then(()=>toast.success("已复制提示词"))}>复制</Button><pre className="m-0 max-h-72 overflow-auto rounded-sm border border-border p-3 text-xs whitespace-pre-wrap">{eventPrompt}</pre></CollapsibleContent></Collapsible></div>
-  </Card>
+   <div className="flex flex-wrap gap-3"><Button loading={busy&&!ids} loadingText="准备中…" onClick={prepare}>开始核对</Button></div>
+  </Card>}
   {error&&<Notice variant="destructive" id="event-import-error" tabIndex={-1} role="alert">{error}</Notice>}
   {ids&&<>
-   <Card className="w-full"><CardTitle>2. 核对身份</CardTitle>
+   {!preview&&<Card className="w-full"><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>核对身份</CardTitle><Button variant="ghost" size="compact" onClick={()=>setIds(null)}>← 返回修改比赛信息</Button></div>
     <CardDescription>两张表按玩家身份合并，不按排名或行号。只出现在一张表、同表重复或身份不明时不能保存；缺失的数值不会当作 0。</CardDescription>
     {removed>0&&<Notice variant="info">已合并 {removed} 条完全相同的重复行（例如底部固定显示的本人行）。</Notice>}
     {problems.length>0&&<Notice as="ul" variant="warning" className="grid list-disc gap-1 pl-8" aria-label="需要处理的问题">{problems.map(p=><li key={p}>{p}</li>)}</Notice>}
     {unresolved.length>0&&<ul className="m-0 list-none p-0" aria-label="待确认身份">{unresolved.map(rowButton)}</ul>}
     {automatic.length>0&&<Collapsible><CollapsibleTrigger className="px-0">已自动匹配 {automatic.length} 行（可复查）</CollapsibleTrigger><CollapsibleContent><ul className="m-0 list-none p-0">{automatic.map(rowButton)}</ul></CollapsibleContent></Collapsible>}
-   </Card>
-   <Card className="w-full"><CardTitle>3. 预览本场战绩</CardTitle>
+   <div className="flex justify-end border-t border-border pt-6"><Button className="min-w-37.5" disabled={problems.length>0||unresolved.length>0||!participants.length} onClick={()=>setPreview(true)}>下一步 →</Button></div>
+   </Card>}
+   {preview&&<Card className="w-full"><Button variant="ghost" size="compact" className="self-start" onClick={()=>setPreview(false)}>← 返回核对，继续修改</Button><CardTitle>预览本场战绩</CardTitle>
     <CardDescription>{date} · 总积分 {scoreValue??"—"} · 参赛 {participants.length} 人 · 总击杀（个人击败合计）{totalKills(merged.map(p=>({kills:p.values.kills??0})))}</CardDescription>
     <Table containerClassName="members-table-wrap max-h-[60dvh] overflow-y-auto"><TableCaption>— 表示未识别，必须补全后才能保存</TableCaption>
      <TableHeader><TableRow><TableHead>玩家</TableHead>{metricFields.map(k=><TableHead key={k}>{metricLabels[k]}</TableHead>)}<TableHead>操作</TableHead></TableRow></TableHeader>
@@ -113,7 +116,7 @@ export function EventImportPage(){
       <TableCell><Button variant="ghost" size="compact" onClick={()=>{setEditing(p.identity);setDraft(p.values);}}>修改数据</Button></TableCell></TableRow>)}</TableBody></Table>
     {missing>0&&<Notice variant="warning">还有 {missing} 名玩家的数据未识别，请补全。</Notice>}
     <div className="flex flex-wrap items-center gap-3"><Button disabled={!ready} loading={busy} loadingText="保存中…" onClick={()=>setConfirm(true)}>确认并保存</Button><span className="text-sm text-muted-foreground">新玩家 {participants.filter(p=>isNew(p.identity)).length} 人，将在保存时一起建档。</span></div>
-   </Card>
+   </Card>}
   </>}
   {ids&&current&&<IdentityPicker open title={`${tableNames[current.table]}第 ${current.index+1} 行是谁？`} sourceName={current.row.player_name} players={ids.players} candidates={current.candidates}
    used={new Set(entries[current.table].filter(e=>e.index!==current.index&&e.identity).map(e=>e.identity))} current={current.identity}

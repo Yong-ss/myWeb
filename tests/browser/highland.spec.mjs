@@ -40,11 +40,12 @@ async function mock(page,{perms=all,events=[],fail=[]}={}){
  });
  return {posts,reads};
 }
-async function prepare(page,date='2026-10-04'){
+async function prepare(page,date='2026-10-04',before){
  await page.goto(`/highland/import?club=${club}`);
  await page.getByLabel('比赛日期').fill(date);
  await page.getByLabel('本俱乐部总积分').fill('3000');
  await page.getByLabel('AI 输出的 JSON').fill(raw);
+ await before?.();
  await page.getByRole('button',{name:'开始核对'}).click();
  await expect(page.getByText('已合并 1 条完全相同的重复行')).toBeVisible();
 }
@@ -58,7 +59,7 @@ test('import: only exact names of current members are proposed; a person resolve
  const pending=page.getByLabel('待确认');
  await expect(pending.getByText('不在最新成员名单')).toHaveCount(2);
  await expect(pending.getByText('相似不代表是同一人')).toBeVisible();
- await expect(page.getByRole('button',{name:'核对名单并保存'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'下一步 →'})).toBeDisabled();
  // Resolve one by one: the picker moves on to the next waiting row; no new identity can be created here.
  await pending.getByRole('listitem').filter({hasText:'北丶忧'}).getByRole('button',{name:'是本俱乐部玩家'}).click();
  for(const who of ['北忧','旧人','旧人']){
@@ -70,6 +71,7 @@ test('import: only exact names of current members are proposed; a person resolve
  }
  await expect(page.getByRole('dialog')).toHaveCount(0);
  await expect(progress(page)).toContainText('拟纳入本俱乐部3 人');await expect(progress(page)).toContainText('待确认0 行');
+ await page.getByRole('button',{name:'下一步 →'}).click();
  // 阿乙's 治疗 is unreadable: still blocked, shown as —, never 0.
  await expect(page.getByText('还有 1 名玩家的数据未识别')).toBeVisible();
  await page.getByRole('row',{name:/阿乙/}).getByRole('button',{name:'修改数据'}).click();
@@ -98,18 +100,18 @@ test('import: only exact names of current members are proposed; a person resolve
 
 test('import: a player in one table only blocks; a wrongly excluded row is found and included; faction and rank are sent',async({page})=>{
  const {posts}=await mock(page);
- await prepare(page);
- await page.getByLabel('所属势力（可留空）').selectOption('血皇帝势力');await page.getByLabel('势力名次（可留空）').selectOption('2');
+ await prepare(page,undefined,async()=>{await page.getByLabel('所属势力（可留空）').selectOption('血皇帝势力');await page.getByLabel('势力名次（可留空）').selectOption('2');});
  // Exclude everything still waiting: 北忧 is then only in the output table.
  await page.getByRole('button',{name:'其余待确认全部排除…'}).click();await page.getByRole('alertdialog').getByRole('button',{name:'全部排除'}).click();
  await expect(page.getByText(/「北忧」只在输出表纳入/)).toBeVisible();
- await expect(page.getByRole('button',{name:'核对名单并保存'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'下一步 →'})).toBeDisabled();
  // Find 北丶忧 among the excluded rows and include it as 北忧.
  await page.getByRole('button',{name:/拟排除 \d+ 行/}).click();
  await page.getByLabel('搜索昵称').fill('北丶忧');
  await page.getByRole('listitem').filter({hasText:'北丶忧'}).getByRole('button',{name:'是本俱乐部玩家'}).click();
  await page.getByRole('dialog').getByRole('button',{name:/^北忧/}).click();await page.getByRole('dialog').getByRole('button',{name:'确认',exact:true}).click();
  await expect(page.getByText(/只在输出表纳入/)).toHaveCount(0);
+ await page.getByRole('button',{name:'下一步 →'}).click();
  await page.getByRole('row',{name:/阿乙/}).getByRole('button',{name:'修改数据'}).click();
  await page.getByRole('dialog').getByLabel('治疗').fill('0');await page.getByRole('dialog').getByRole('button',{name:'确认'}).click();
  await page.getByRole('button',{name:'核对名单并保存'}).click();

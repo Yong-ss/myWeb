@@ -24,6 +24,7 @@ import {highlandFactions,highlandFields,highlandLabels,highlandOutputFields,high
 import {eventToday} from "./contract";
 import {applyChoices,classifyRows,entryKey,highlandParticipantRow,highlandPrompt,pairHighland,parseHighlandSource,sideNames,sourceSummary,type Choice,type Entry,type HighlandRow,type RosterPlayer,type Side} from "./highland";
 import {IdentityPicker,MetricInputs} from "./EventInputs";
+import {ImportStepper,PromptBar} from "../../components/ImportSteps";
 
 export type HighlandIdentities={players:RosterPlayer[];aliases:NameAlias[];can_alias:boolean;truncated:boolean;roster_date:string|null};
 type Values=Partial<Record<HighlandMetric,number|null>>;
@@ -39,7 +40,7 @@ export function HighlandImportPage(){
  const [picker,setPicker]=useState<Entry|null>(null),[renaming,setRenaming]=useState<Entry|null>(null),[newName,setNewName]=useState("");
  const [editing,setEditing]=useState<string|null>(null),[draft,setDraft]=useState<Values>({});
  const [search,setSearch]=useState(""),[bulk,setBulk]=useState(false);
- const [busy,setBusy]=useState(false),[error,setError]=useState(""),[confirm,setConfirm]=useState(false),[checked,setChecked]=useState(false);
+ const [busy,setBusy]=useState(false),[error,setError]=useState(""),[confirm,setConfirm]=useState(false),[preview,setPreview]=useState(false),[checked,setChecked]=useState(false);
  const attempt=useRef<{key:string;id:string}|null>(null);
  useEffect(()=>{if(error)document.getElementById("highland-import-error")?.focus();},[error]);
 
@@ -71,7 +72,7 @@ export function HighlandImportPage(){
   try{
    const [identities,list]=await Promise.all([clubApi<HighlandIdentities>("/api/highland-identities",undefined,"身份资料读取失败"),clubApi<{events:{event_date:string}[]}>("/api/highland-events",undefined,"赛事列表读取失败")]);
    if(list.events.some(e=>e.event_date===date)){setError(`${date} 已有高原竞逐记录，请到赛事详情逐项修正`);return;}
-   setIds(identities);setSource({output:parsed.output,strategy:parsed.strategy});setRemoved(parsed.removed);
+   setIds(identities);setPreview(false);setSource({output:parsed.output,strategy:parsed.strategy});setRemoved(parsed.removed);
    setNames({});setChoices({});setValues({});setRemember({});setSearch("");
   }catch(e){setError(e instanceof Error?e.message:"读取失败，请重试");}
   finally{setBusy(false);}
@@ -109,8 +110,10 @@ export function HighlandImportPage(){
  const found=excluded.filter(e=>!search.trim()||(e.row.player_name??"").includes(search.trim()));
 
  return <main className="club-workspace club-events flex max-w-300 flex-col gap-6">
-  <PageHeader eyebrow="HIGHLAND RACE / 导入比赛" title="导入高原竞逐" actions={<ButtonLink variant="secondary" href={href("/highland")}>返回赛事列表</ButtonLink>}/>
-  <Card className="w-full"><CardTitle>1. 填写比赛信息并粘贴 JSON</CardTitle>
+  <PageHeader eyebrow="HIGHLAND RACE / 导入比赛" title={preview?"确认保存":ids?"找出本俱乐部玩家":"导入高原竞逐"} actions={<ButtonLink variant="secondary" href={href("/highland")}>返回赛事列表</ButtonLink>}/>
+  <ImportStepper steps={["准备数据","找出本俱乐部玩家","确认保存"]} step={preview?2:ids?1:0}/>
+  {!ids&&<PromptBar prompt={highlandPrompt} onCopy={()=>void navigator.clipboard?.writeText(highlandPrompt).then(()=>toast.success("AI识别提示词已复制"),()=>setError("复制失败，请点问号查看完整提示词手动复制。"))} howTo={<><li>打开本势力的「数据统计」。</li><li>复制AI识别提示词，和「输出」「战略」两类全部截图一起发给 AI。</li><li>把 AI 返回的 JSON 粘贴到这里。</li></>}/>}
+  {!ids&&  <Card className="w-full"><CardTitle>填写比赛信息并粘贴 JSON</CardTitle>
    <CardDescription>在游戏里打开本势力的「数据统计」，把「输出」「战略」两类全部截图交给站外 AI，再粘贴它输出的 JSON。截图里混有其他俱乐部的玩家，下一步由你确认哪些是本俱乐部的；完整的势力数据只在本页使用，不会上传或保存。</CardDescription>
    <div className="flex flex-wrap gap-4">
     <Field className="max-w-56"><FieldLabel htmlFor="highland-date">比赛日期</FieldLabel><Input id="highland-date" type="date" max={eventToday()} value={date} onChange={e=>{setDate(e.target.value);setIds(null);}}/></Field>
@@ -121,12 +124,11 @@ export function HighlandImportPage(){
      <FieldDescription>本势力在本场四个势力中的排名。</FieldDescription></Field>
    </div>
    <Field><FieldLabel htmlFor="highland-json">AI 输出的 JSON</FieldLabel><Textarea id="highland-json" rows={8} value={raw} onChange={e=>{setRaw(e.target.value);setIds(null);}} placeholder='{"schema_version":1,"event_type":"highland_race","output":[…],"strategy":[…]}'/></Field>
-   <div className="flex flex-wrap gap-3"><Button loading={busy&&!ids} loadingText="准备中…" onClick={prepare}>开始核对</Button>
-    <Collapsible><CollapsibleTrigger className="px-0">复制给 AI 的提示词</CollapsibleTrigger><CollapsibleContent className="grid gap-2 pt-2"><Button variant="secondary" size="compact" className="self-start" onClick={()=>void navigator.clipboard?.writeText(highlandPrompt).then(()=>toast.success("已复制提示词"))}>复制</Button><pre className="m-0 max-h-72 overflow-auto rounded-sm border border-border p-3 text-xs whitespace-pre-wrap">{highlandPrompt}</pre></CollapsibleContent></Collapsible></div>
-  </Card>
+   <div className="flex flex-wrap gap-3"><Button loading={busy&&!ids} loadingText="准备中…" onClick={prepare}>开始核对</Button></div>
+  </Card>}
   {error&&<Notice variant="destructive" id="highland-import-error" tabIndex={-1} role="alert">{error}</Notice>}
   {ids&&<>
-   <Card className="w-full"><CardTitle>2. 找出本俱乐部的玩家</CardTitle>
+   {!preview&&<Card className="w-full"><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>找出本俱乐部的玩家</CardTitle><Button variant="ghost" size="compact" onClick={()=>setIds(null)}>← 返回修改比赛信息</Button></div>
     <CardDescription>只有名字或已记住的写法与<strong>最新成员名单</strong>（{ids.roster_date??"暂无名单"}）中某人完全一致，才会自动拟纳入；相似名字、已退会玩家、同名和重复都要你确认。拟排除的是名单里找不到对应的人，并不代表已证明是外部玩家，可以随时找回。</CardDescription>
     <dl className="m-0 flex flex-wrap gap-x-8 gap-y-2 text-sm" aria-label="核对进度">
      {([["势力数据",`输出 ${source.output.length} 行 · 战略 ${source.strategy.length} 行`],["拟纳入本俱乐部",`${participants.length} 人`],["待确认",`${review} 行`],["拟排除",`${excluded.length} 行`],["需要处理的问题",`${problems.length} 个`]] as const).map(([k,v])=><div key={k} className="grid gap-0.5"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="m-0 font-heading text-lg tabular-nums text-gold">{v}</dd></div>)}
@@ -145,8 +147,9 @@ export function HighlandImportPage(){
       <ul className="m-0 list-none p-0">{found.slice(0,200).map(item)}</ul>
       {found.length>200&&<p className="m-0 text-xs text-muted-foreground">只显示前 200 行，请输入昵称缩小范围。</p>}
      </CollapsibleContent></Collapsible>
-   </Card>
-   <Card className="w-full"><CardTitle>3. 预览本俱乐部本场战绩</CardTitle>
+   <div className="flex justify-end border-t border-border pt-6"><Button className="min-w-37.5" disabled={review>0||problems.length>0||!participants.length} onClick={()=>setPreview(true)}>下一步 →</Button></div>
+   </Card>}
+   {preview&&<Card className="w-full"><Button variant="ghost" size="compact" className="self-start" onClick={()=>setPreview(false)}>← 返回核对，继续修改</Button><CardTitle>预览本俱乐部本场战绩</CardTitle>
     <CardDescription>{date} · 总积分 {scoreValue??"—"} · {faction||"势力未填写"} · {rank?`第 ${rank} 名`:"名次未填写"} · 本俱乐部 {participants.length} 人{shownFactions.length>0&&<> · 截图显示所属势力：{shownFactions.join("、")}</>}</CardDescription>
     <Table containerClassName="members-table-wrap max-h-[60dvh] overflow-y-auto"><TableCaption>两张表按玩家身份合并；— 表示未识别，必须补全后才能保存；0 是有效值</TableCaption>
      <TableHeader><TableRow><TableHead>玩家</TableHead>{highlandFields.map(k=><TableHead key={k}>{highlandLabels[k]}</TableHead>)}<TableHead>操作</TableHead></TableRow></TableHeader>
@@ -157,7 +160,7 @@ export function HighlandImportPage(){
     {missing>0&&<Notice variant="warning">还有 {missing} 名玩家的数据未识别，请补全。</Notice>}
     <div className="flex flex-wrap items-center gap-3"><Button disabled={!ready} loading={busy} loadingText="保存中…" onClick={()=>{setChecked(false);setConfirm(true);}}>核对名单并保存</Button>
      {!ready&&<span className="text-sm text-muted-foreground">{review?`还有 ${review} 行待确认。`:problems.length?"请先处理上面的问题。":!participants.length?"至少要纳入 1 名本俱乐部玩家。":missing?"请补全缺失的数据。":""}</span>}</div>
-   </Card>
+   </Card>}
   </>}
   {ids&&picker&&<IdentityPicker open allowNew={false} title={`${sideNames[picker.side]}第 ${picker.index+1} 行是本俱乐部的谁？`} sourceName={picker.row.player_name} players={[...ids.players].sort((a,b)=>Number(b.current)-Number(a.current))} candidates={picker.candidates}
    note={p=>(p as RosterPlayer).current?"":"不在最新名单"}
