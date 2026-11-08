@@ -16,3 +16,8 @@ test('history rejects invalid parameters and excessive member counts explicitly'
  assert.equal((await handleMembers(new Request('https://club.invalid/api/members?trend=1&date=bad'),'club',async()=>{throw Error('must not call');})).status,400);
  const result=await handleMembers(new Request('https://club.invalid/api/members?trend=1'),'club',async()=>Response.json([{rows:Array.from({length:201},()=>({extraordinary_score:1}))}]));assert.equal(result.status,413);
 });
+
+test('each historical snapshot returns its own highest 30 total',async()=>{
+ const result=await handleMembers(new Request('https://club.invalid/api/members?trend=1'),'club',async()=>Response.json([{snapshot_date:'2026-11-01',is_complete_roster:true,rows:Array.from({length:40},(_,i)=>({extraordinary_score:i+1}))}]));
+ const {points}=await result.json();assert.equal(points[0].score,820);assert.equal(points[0].top30Score,765);assert.equal(points[0].partial,false);
+});

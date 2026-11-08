@@ -1,6 +1,6 @@
 "use client";
 import {presenceText} from "../../domain/presence";
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {usePathname,useRouter,useSearchParams} from 'next/navigation';
 import Link from 'next/link';
 import {clubApi} from '../../lib/data-access';
@@ -21,6 +21,8 @@ type Page={points:ScorePoint[];next:string|null};
 export function ClubScoreTrend(){
  const returnFocus=useRef<HTMLElement|null>(null);
  const params=useSearchParams(),router=useRouter(),pathname=usePathname(),href=useClubHref();
+ const scope=params.get('scoreScope')==='top30'?'top30':'all';
+ const trendTitle=scope==='top30'?'前 30 人总评分趋势':'俱乐部总评分趋势';
  const raw=params.get('period'),unit:Granularity=raw==='week'||raw==='month'||raw==='year'?raw:'day';
  const selected=params.get('date')??params.get('to')??'',chosenRef=params.get('ref')??params.get('from')??'';
  const [points,setPoints]=useState<ScorePoint[]>([]),[next,setNext]=useState<string|null>(null),[busy,setBusy]=useState(true),[error,setError]=useState(''),[retry,setRetry]=useState(0);
@@ -37,7 +39,8 @@ export function ClubScoreTrend(){
   setPoints(old=>[...new Map([...old,...data.points].map(p=>[p.date,p])).values()]);setNext(data.next);
   if(selected&&chosenRef==='unavailable'){const found=referenceDate(selected,mode,[...points,...data.points].map(p=>p.date));if(found)update({ref:found});}
  }catch(e){setError(e instanceof Error?e.message:'读取失败');}finally{setBusy(false);}}
- const displayed=groupScores(points,unit),selectedPoint=points.find(p=>p.date===selected);
+ const chartPoints=useMemo(()=>scope==='top30'?points.map(p=>({...p,score:p.top30Score??null})):points,[points,scope]);
+ const displayed=groupScores(chartPoints,unit),selectedPoint=chartPoints.find(p=>p.date===selected);
  const previous=displayed.filter(p=>p.date<selected).at(-1)?.date??'';
  const reference=chosenRef==='unavailable'?'':chosenRef||previous;
  const date=selected||inspection.date,ref=selected?reference:inspection.ref;
@@ -64,8 +67,10 @@ export function ClubScoreTrend(){
  const list=(rows:ScoreMember[],endOnly:boolean)=><ul className="m-0 flex list-none flex-wrap gap-x-3 gap-y-1 p-0 text-sm">{rows.map(r=><li key={r.player_id} className="max-w-full"><Link className="group/member inline-flex min-h-11 max-w-full items-center gap-2 rounded-sm px-2 py-1 text-foreground no-underline transition-[background-color,color] ease-club-feedback hover:bg-hover active:bg-pressed focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none" href={href(`/players?id=${r.player_id}`)}><PathwayIcon pathway={r.pathway}/><span className="grid min-w-0 flex-1 gap-1"><span className="truncate transition-colors group-hover/member:text-gold group-focus-visible/member:text-gold">{r.name??'未识别昵称'}</span>{(endOnly?detail?.a:detail?.b)?.members.some(m=>m.player_id===r.player_id&&m.presence!=='present')&&<span className="text-xs text-muted-foreground">{endOnly?'上次'+presenceText(detail?.a.members.find(m=>m.player_id===r.player_id)?.presence==='left'?'left':'unconfirmed',detail?.a.members.find(m=>m.player_id===r.player_id)?.absence_decision):presenceText(detail?.b.members.find(m=>m.player_id===r.player_id)?.presence==='left'?'left':'unconfirmed',detail?.b.members.find(m=>m.player_id===r.player_id)?.absence_decision)}</span>}{(endOnly?detail?.a:detail?.b)?.members.find(m=>m.player_id===r.player_id)?.absence_reason&&<span className="max-w-48 whitespace-normal text-xs text-muted-foreground">{(endOnly?detail?.a:detail?.b)?.members.find(m=>m.player_id===r.player_id)?.absence_reason}</span>}</span><span aria-hidden="true" className="text-muted-foreground transition-transform ease-club-feedback group-hover/member:translate-x-0.5 group-hover/member:text-gold group-focus-visible/member:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none">→</span></Link></li>)}{!rows.length&&<li className="text-muted-foreground">暂无</li>}</ul>;
 
  return <div className="grid min-w-0 gap-4">
+  <Field className="w-full max-w-80"><FieldLabel htmlFor="club-score-scope">评分范围</FieldLabel><NativeSelect id="club-score-scope" value={scope} onChange={e=>update({scoreScope:e.target.value==='top30'?'top30':''})}><NativeSelectOption value="all">全部成员总评分</NativeSelectOption><NativeSelectOption value="top30">前 30 人总评分</NativeSelectOption></NativeSelect></Field>
+  {scope==='top30'&&<p className="m-0 text-xs text-muted-foreground">每天按当日评分重新取最高的 30 人；不足 30 人取全部已知评分。成员变化详情仍按全体在会成员分析。</p>}
   {error&&<p role="alert">{error} <Button size="compact" onClick={()=>setRetry(n=>n+1)}>重试评分历史</Button></p>}
-  {busy&&!points.length?<p role="status">正在读取评分历史…</p>:<ScoreTrend title="俱乐部总评分趋势" showSummary={false} points={points} unit={unit} onUnit={period=>update({period})} selected={selected}
+  {busy&&!points.length?<p role="status">正在读取评分历史…</p>:<ScoreTrend title={trendTitle} showSummary={false} points={chartPoints} unit={unit} onUnit={period=>update({period})} selected={selected}
     onInspect={(p,prior)=>setInspection({date:p.date,ref:prior?.date??''})}
     onSelect={(p,prior)=>{returnFocus.current=document.activeElement as HTMLElement;setMode('previous');setFilter('all');update({date:p.date,ref:prior?.date??''});}}
     info={()=>detailError?<span className="text-xs text-muted-foreground">{detailError}</span>:growth?<div className="grid gap-3 border-t border-border pt-3">
@@ -81,7 +86,7 @@ export function ClubScoreTrend(){
   <Sheet open={Boolean(selected)} onOpenChange={open=>{if(!open)update({date:'',ref:''});}}><SheetContent onCloseFocus={()=>returnFocus.current?.focus()} className="w-[min(48rem,100vw)]" aria-describedby="score-detail-description">
    <SheetHeader><SheetTitle>{selected} · 评分详情</SheetTitle><SheetClose asChild><Button variant="secondary" size="compact">关闭</Button></SheetClose></SheetHeader>
    <div className="grid min-w-0 gap-5 px-4"><strong className="font-heading text-3xl font-medium text-gold tabular-nums">{scoreText(selectedPoint?.score??null)}</strong><SheetDescription id="score-detail-description">{selectedPoint?.partial?'资料没录全 · ':''}{reference?`和 ${reference} 相比`:'还没有更早的记录'}</SheetDescription>
-    <p className="m-0 text-sm">总评分变化：{scoreDifference(points.find(p=>p.date===reference),selectedPoint)===null?'资料没录全，暂时没法比较':scoreDifference(points.find(p=>p.date===reference),selectedPoint)!.toLocaleString()}</p>
+    <p className="m-0 text-sm">{scope==='top30'?'前 30 人总评分变化':'总评分变化'}：{scoreDifference(chartPoints.find(p=>p.date===reference),selectedPoint)===null?'资料没录全，暂时没法比较':scoreDifference(chartPoints.find(p=>p.date===reference),selectedPoint)!.toLocaleString()}</p>
     <Collapsible><CollapsibleTrigger>换个日期比较</CollapsibleTrigger><CollapsibleContent className="grid gap-3 pt-2">
     <Field><FieldLabel htmlFor="score-reference-mode">和哪天比</FieldLabel><NativeSelect id="score-reference-mode" value={mode} onChange={e=>{setMode(e.target.value);if(e.target.value!=='custom')update({ref:e.target.value==='previous'?previous:referenceDate(selected,e.target.value,points.map(p=>p.date))||'unavailable'});}}>{[['previous','图上前一个点'],['available','最近一次记录'],['week','上一周'],['month','上一月'],['custom','自己选日期']].map(([value,label])=><NativeSelectOption key={value} value={value}>{label}</NativeSelectOption>)}</NativeSelect></Field>
     {mode==='custom'&&<Field><FieldLabel htmlFor="score-reference-date">选择日期</FieldLabel><NativeSelect id="score-reference-date" value={reference} onChange={e=>update({ref:e.target.value})}><NativeSelectOption value="">请选择日期</NativeSelectOption>{points.filter(p=>p.date<selected).sort((a,b)=>b.date.localeCompare(a.date)).map(p=><NativeSelectOption key={p.date} value={p.date}>{p.date}</NativeSelectOption>)}</NativeSelect></Field>}

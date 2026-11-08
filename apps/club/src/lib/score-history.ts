@@ -1,5 +1,5 @@
 export type Granularity='day'|'week'|'month'|'year';
-export type ScorePoint={date:string;score:number|null;partial:boolean;missing:number;snapshotId?:string;revision?:number};
+export type ScorePoint={date:string;score:number|null;top30Score?:number|null;partial:boolean;missing:number;snapshotId?:string;revision?:number};
 export function period(date:string,unit:Granularity){
  if(unit==='day')return date;
  if(unit==='year')return date.slice(0,4);

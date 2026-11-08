@@ -1,5 +1,12 @@
 # SquirrelAPI — Architecture
 
+## 总览评分统计 — 2026-11-08
+
+- 总览用最新记录当天明确在会、且数据日期匹配的成员计算总评分、最高前 30 人总评分和平均评分；平均分只除以实际有评分的人数，缺失／不完整名单明确标注，不补零。
+- 趋势通过 `scoreScope=top30` 切换各日重新排名的前 30 人总分；不足 30 人取全部已知评分。Worker 在原有有界查询内计算 `top30Score`，不增加请求或修改权限。周期仍取期内最后实际记录；资料不完整时不宣称准确变化。成员变化详情保留全体成员口径并注明。
+- 移除总览的「共同成员评分成长」指标，成员变化详情与近期提示仍保留原逻辑。
+
+
 ## Dragon Hunt V1 (club events, attendance only) — 2026-11-06
 
 - Migration `20261106120000_club_dragon_hunt.sql` (additive). Owner-confirmed scope: one hunt per club and day; only who attended (grey cards count); every screenshot name is a member of this club, so names matching nobody are left out (not saved; the count is logged as `unmatched`); no corrections or versions beyond void — a wrong import is voided and imported again.

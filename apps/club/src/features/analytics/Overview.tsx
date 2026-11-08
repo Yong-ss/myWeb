@@ -1,4 +1,5 @@
 "use client";
+import {scoreSummary} from "../../domain/score-summary";
 import {LoadingState} from "../../components/feedback";
 import {scoreGrowth,validComparison} from "./score-growth";
 import Link from "next/link";
@@ -38,6 +39,9 @@ export function Overview({view}:{view?:"growth"|"pathways"}){
   const date=data?.snapshot?.snapshot_date,priorDate=previous?.snapshot?.snapshot_date;
   const present=(d:Data|null)=>d?.members.filter(r=>r.presence==='present').length??0;
   const strength=date&&priorDate&&validComparison(priorDate,date)?scoreGrowth(previous!,data!):null;
+  const summary=data?.snapshot?scoreSummary(data.members.filter(r=>r.presence==='present'&&(!r.data_date||r.data_date===date)).map(r=>r.extraordinary_score)):null;
+  const scoreValue=(n:number|null|undefined)=>n==null?'—':n.toLocaleString('zh-CN',{maximumFractionDigits:0});
+  const scoreNote=summary?(summary.missing?`仅 ${summary.count} 人有评分，缺 ${summary.missing} 人`:!data?.snapshot?.is_complete_roster?'名单未确认完整':undefined):undefined;
   const countChange=previous?.snapshot?present(data)-present(previous):null;
   const insights=data?.snapshot?clubInsights({complete:data.snapshot.is_complete_roster,hasPrior:data.snapshots.length>1,comparing,comparisonError:Boolean(comparisonError),growth:strength,from:priorDate,to:date}):[];
   const metric=(label:string,value:string|number,note?:string)=><div className="grid gap-1"><span className="text-xs text-muted-foreground">{label}</span><strong className="font-heading text-2xl font-medium text-foreground tabular-nums">{value}</strong>{note&&<span className="text-xs text-muted-foreground">{note}</span>}</div>;
@@ -47,7 +51,9 @@ export function Overview({view}:{view?:"growth"|"pathways"}){
       <div className="grid gap-1"><span className="eyebrow">明确在会</span><strong className="gold-title font-heading text-5xl leading-none font-medium tabular-nums">{data?present(data):"—"}<span className="ml-1 font-sans text-sm text-muted-foreground">人</span></strong></div>
       <div className="flex flex-wrap gap-x-10 gap-y-4">
         {metric("比上次记录",countChange===null?"—":countChange===0?"持平":signed(countChange),priorDate?`对比 ${priorDate}`:comparing?"读取中…":"暂无上次记录")}
-        {strength?.rows.length?metric("共同成员评分成长",signed(strength.netGrowth),strength.exact?`${strength.rows.length} 位共同成员`:`${strength.rows.length} 位共同成员 · 仅已知评分`):null}
+        {metric("总评分",scoreValue(summary?.total),scoreNote)}
+        {metric("前 30 人总评分",scoreValue(summary?.top30),summary?`评分最高的 ${Math.min(30,summary.count)} 人${scoreNote?' · '+scoreNote:''}`:undefined)}
+        {metric("所有成员平均评分",scoreValue(summary?.average),summary?`${summary.count} 人参与计算${scoreNote?' · '+scoreNote:''}`:undefined)}
       </div>
     </Card>
     {data?.snapshot&&<section aria-label="最近值得关注" className="grid gap-2"><h2 className="m-0 text-sm font-medium text-muted-foreground">最近值得关注</h2>

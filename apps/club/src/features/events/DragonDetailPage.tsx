@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {toast} from "../../components/ui/sonner";
 import {clubApi} from "../../lib/data-access";
+import {loadClubSettings} from "../../lib/club-brand";
 import {useDataRefresh} from "../../lib/useDataRefresh";
 import {useClubCan,useClubHref} from "../../lib/useClub";
 import {PageHeader} from "../../components/layout/PageHeader";
@@ -16,23 +17,25 @@ import {Field,FieldLabel} from "../../components/ui/field";
 import {PathwayLabel} from "../../components/PathwayLabel";
 import {pathways} from "../../lib/pathways";
 import {LoadingState,TableSkeleton} from "../../components/feedback";
+import {dragonExcel,dragonPrint} from "./dragon-export";
 
 type Detail={event:{id:string;event_date:string;status:"active"|"voided";version:number};players:{player_id:string;display_name:string;read_name:string|null;pathway?:string|null}[];roster?:{date:string;revision:number;complete:boolean}|null;absent?:{player_id:string;display_name:string;pathway:string|null}[]};
 
 export function DragonDetailPage(){
  const href=useClubHref(),can=useClubCan();
- const [data,setData]=useState<Detail|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0),[focus,setFocus]=useState("");
+ const [data,setData]=useState<(Detail&{club_name:string})|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0),[focus,setFocus]=useState("");
  const [busy,setBusy]=useState(false),[voidError,setVoidError]=useState(""),[open,setOpen]=useState(false);
  const attempt=useRef("");
  const [search,setSearch]=useState("");
  useDataRefresh(()=>setRetry(n=>n+1));
  useEffect(()=>{let active=true;const q=new URLSearchParams(window.location.search);
-  clubApi<Detail>(`/api/dragon-event?id=${encodeURIComponent(q.get("id")??"")}`,undefined,"猎龙记录读取失败").then(d=>{if(active){setData(d);setError("");setFocus(q.get("player")??"");}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
+  Promise.all([clubApi<Detail>(`/api/dragon-event?id=${encodeURIComponent(q.get("id")??"")}`,undefined,"猎龙记录读取失败"),loadClubSettings()]).then(([d,settings])=>{if(active){setData({...d,club_name:settings.name});setError("");setFocus(q.get("player")??"");}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[retry]);
  useEffect(()=>{if(focus&&data)document.getElementById(`dragon-row-${focus}`)?.scrollIntoView({block:"center"});},[focus,data]);
  const header=(title:string)=><PageHeader eyebrow="DRAGON HUNT / 记录详情" title={title} actions={<ButtonLink variant="secondary" href={href("/dragon")}>返回猎龙记录</ButtonLink>}/>;
  if(error)return <main className="club-workspace club-events flex flex-col gap-6">{header("猎龙")}<LoadingState status="error" detail={error} onRetry={()=>{setError("");setRetry(n=>n+1);}}/></main>;
  if(!data)return <main className="club-workspace club-events flex flex-col gap-6">{header("猎龙")}<TableSkeleton columns={2} label="正在读取猎龙记录…"/></main>;
  const e=data.event,active=e.status==="active";
+ const reportColors=()=>Object.fromEntries(Object.values(pathways).map(p=>[p.name,getComputedStyle(document.documentElement).getPropertyValue(p.accent.slice(4,-1)).trim()]));
  const query=search.trim().toLocaleLowerCase();
  const visible=data.players.filter(p=>[p.display_name,p.read_name,p.pathway].some(v=>v?.toLocaleLowerCase().includes(query)));
  const groups=new Map<string,typeof visible>();
@@ -48,6 +51,11 @@ export function DragonDetailPage(){
  }
  return <main className="club-workspace club-events flex max-w-300 flex-col gap-6">
   {header(`${e.event_date} 猎龙`)}
+  <div className="flex flex-wrap items-center gap-3">
+   <Button variant="secondary" onClick={()=>{const report=window.open("","_blank");if(!report){toast.error("请允许弹出窗口后重试");return;}report.opener=null;report.document.write(dragonPrint(data,reportColors()));report.document.close();void report.document.fonts.ready.then(()=>{report.focus();report.print();});}}>打印 / 保存 PDF</Button>
+   <Button variant="secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([dragonExcel(data,reportColors())],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));const a=document.createElement("a");a.href=url;a.download=`${data.club_name.replace(/[<>:"/\\|?*]/g,"_")}-猎龙-${e.event_date}.xlsx`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}>导出 Excel</Button>
+   <span className="text-xs text-muted-foreground">导出当天完整名单，不受搜索影响。</span>
+  </div>
   <Card className="w-full">
    <div className="flex flex-wrap items-center justify-between gap-3"><p className="m-0 text-sm">参加 <strong className="tabular-nums text-gold">{data.players.length}</strong> 人 {!active&&<Badge variant="warning">已作废</Badge>}</p>
     {active&&can("dragon.edit")&&<AlertDialog open={open} onOpenChange={o=>{if(!busy)setOpen(o);}}><AlertDialogTrigger asChild><Button variant="destructive" size="compact">作废这次记录</Button></AlertDialogTrigger>
