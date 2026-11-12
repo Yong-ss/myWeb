@@ -34,6 +34,11 @@ export async function handleDragon(request: Request, club: string, rest: Rest) {
         || typeof input.request_id !== "string" || !uuid.test(input.request_id)) return reply({ error: "请确认猎龙日期和参加者" }, 400);
       path = "rpc/club_dragon_create";
       body = { p_club: club, p_date: input.event_date, p_players: input.players, p_unmatched: input.unmatched, p_request: input.request_id };
+    } else if (input && typeof input === "object" && "action" in input) {
+      const change = input as Record<string,unknown>;
+      if (!exact(change,["action","event_id","expected_version","player_id","request_id"]) || !["add","remove"].includes(String(change.action)) || typeof change.event_id!=="string" || !uuid.test(change.event_id) || typeof change.player_id!=="string" || !uuid.test(change.player_id) || !Number.isSafeInteger(change.expected_version) || (change.expected_version as number)<1 || typeof change.request_id!=="string" || !uuid.test(change.request_id)) return reply({error:"出勤修改参数无效"},400);
+      path="rpc/club_dragon_attendance_edit";
+      body={p_club:club,p_event:change.event_id,p_expected:change.expected_version,p_request:change.request_id,p_action:change.action,p_player:change.player_id};
     } else {
       if (!exact(input, ["event_id", "expected_version", "request_id"]) || typeof input.event_id !== "string" || !uuid.test(input.event_id)
         || !Number.isSafeInteger(input.expected_version) || typeof input.request_id !== "string" || !uuid.test(input.request_id)) return reply({ error: "修改参数无效" }, 400);

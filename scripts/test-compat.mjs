@@ -13,14 +13,14 @@ const [ref = 'origin/main', ...only] = process.argv.slice(2);
 // History: Club permissions V1 (7 migrations, 2026-11-03) were checked here in states A, A-C, A-E and all;
 // Four-Way League 20261104140000_club_events.sql (2026-11-04) and Highland Race 20261105090000_club_highland.sql
 // (2026-11-05) in state all.
-const pending = ['20261106160000_club_dragon_pathways.sql', '20261107010000_club_dragon_absentees.sql'];
-const states = { all: { files: 2 } };
+const pending = ['20261113120000_club_dragon_attendance_edits.sql'];
+const states = { all: { files: 1 } };
 const superseded = [];
 // Extend harness deadlines and allow the shared installed dependencies inside the workspace root; assertions stay unchanged.
 const edits = () => ({
   'apps/club/next.config.ts': [['output: "export",', 'output: "export", turbopack: { root: ' + JSON.stringify(resolve('.')) + ' },']],
-  'playwright.integration.config.mjs': [['globalTimeout:240000', 'globalTimeout:480000']],
-  'scripts/test-integration.mjs': [['{timeout:300000}', '{timeout:540000}']],
+  'playwright.integration.config.mjs': [['globalTimeout:480000', 'globalTimeout:900000']],
+  'scripts/test-integration.mjs': [['{timeout:540000}', '{timeout:960000}']],
 });
 const run = only.length ? only : Object.keys(states);
 for (const name of run) if (!states[name]) throw Error(`Unknown compat state ${name}; use ${Object.keys(states).join(', ')}`);

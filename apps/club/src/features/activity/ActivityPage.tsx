@@ -12,7 +12,7 @@ type Event={id:string;actor_id:string|null;actor_label:string|null;actor_kind:'m
 const roleName=(e:Event)=>e.actor_kind==='super_admin'?'超级管理员':e.actor_role==='owner'?'公会长':e.actor_role==='admin'?'管理员':e.details.by==='platform'?'平台管理员':'历史记录';
 type Cursor={before:string;id:string};
 const actions:Record<string,string>={club_initialized:'建立俱乐部',import_committed:'导入数据',import_date_deleted:'删除当天数据',alias_confirmed:'记住 AI 错名',alias_revoked:'解除错名关联',club_renamed:'修改俱乐部名称',player_renamed:'更正玩家昵称',absence_resolved:'处理待确认成员',absence_reviewed:'核对缺席成员',admin_appointed:'任命管理员',admin_revoked:'撤销管理员职位',admin_removed:'移出管理员',admin_default_changed:'修改管理员默认权限',admin_permission_changed:'修改管理员个人权限',event_permission_changed:'平台设置四方联赛权限',event_created:'导入四方联赛',event_score:'修改联赛总积分',event_date:'修改联赛日期',event_metrics:'修改联赛玩家数据',event_rebind:'联赛改绑身份',event_add:'联赛补录玩家',event_remove:'联赛移除参赛记录',event_void:'作废四方联赛',event_restore:'恢复四方联赛',
- highland_permission_changed:'平台设置高原竞逐权限',dragon_permission_changed:'平台设置猎龙权限',dragon_created:'导入猎龙出勤',dragon_void:'作废猎龙记录',highland_created:'导入高原竞逐',highland_score:'修改高原总积分',highland_date:'修改高原日期',highland_faction:'修改高原势力或名次',highland_metrics:'修改高原玩家数据',highland_rebind:'高原改绑身份',highland_add:'高原补录玩家',highland_remove:'高原移除参赛记录',highland_void:'作废高原竞逐',highland_restore:'恢复高原竞逐'};
+ highland_permission_changed:'平台设置高原竞逐权限',dragon_permission_changed:'平台设置猎龙权限',dragon_created:'导入猎龙出勤',dragon_void:'作废猎龙记录',dragon_attendance_add:'补录猎龙参加者',dragon_attendance_remove:'移除猎龙出勤',highland_created:'导入高原竞逐',highland_score:'修改高原总积分',highland_date:'修改高原日期',highland_faction:'修改高原势力或名次',highland_metrics:'修改高原玩家数据',highland_rebind:'高原改绑身份',highland_add:'高原补录玩家',highland_remove:'高原移除参赛记录',highland_void:'作废高原竞逐',highland_restore:'恢复高原竞逐'};
 function description(e:Event){const d=e.details;switch(e.action){
  case 'absence_resolved':return d.decision==='temporary'?`暂离 · ${d.reason??''}`:'已确认退会';
  case 'absence_reviewed':return `${d.date} · 核对 ${Array.isArray(d.decisions)?d.decisions.length:0} 人`;
@@ -25,7 +25,7 @@ function description(e:Event){const d=e.details;switch(e.action){
  case 'event_created':return `${d.date} · 总积分 ${d.total_score} · ${d.participants} 人`;
  case 'highland_created':return `${d.date} · 总积分 ${d.total_score} · ${d.faction??'势力未填写'} · ${d.faction_rank?`第 ${d.faction_rank} 名`:'名次未填写'} · 本俱乐部 ${d.participants} 人`;
  case 'dragon_created':return `${d.date} · 参加 ${d.participants} 人${d.unmatched?` · 未计入 ${d.unmatched} 人`:''}`;
- case 'dragon_void':return `${d.event_date} · 第 ${d.version} 版`;
+ case 'dragon_attendance_add':case 'dragon_attendance_remove':case 'dragon_void':return `${d.event_date} · 第 ${d.version} 版`;
  case 'highland_faction':return `${d.event_date} · 第 ${d.version} 版`;
  case 'event_score':case 'event_date':case 'highland_score':case 'highland_date':return `${d.event_date} · ${d.old} → ${d.new}`;
  case 'event_metrics':case 'event_rebind':case 'event_add':case 'event_remove':case 'event_void':case 'event_restore':

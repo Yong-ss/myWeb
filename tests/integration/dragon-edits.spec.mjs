@@ -1,0 +1,27 @@
+import {test,expect} from '@playwright/test';
+import {randomUUID} from 'node:crypto';
+import {auth,sql,baseURL,users,password,clubId,playerId} from './local.mjs';
+test('manual dragon corrections persist, replay safely and update daily absences',async({page,request})=>{
+ test.setTimeout(90000);
+ const D='2018-06-15',imp=randomUUID(),snap=randomUUID(),friend=randomUUID();
+ sql(`insert into public.club_players(id,club_id,display_name,match_name) values('${friend}','${clubId}','手动补录成员','手动补录成员');
+ insert into public.club_imports(id,club_id,submitted_by,raw_text,schema_version,request_id) values('${imp}','${clubId}','${users.owner.id}','{}',1,'${randomUUID()}');
+ insert into public.club_snapshots(id,club_id,snapshot_date,revision,import_id,is_complete_roster) values('${snap}','${clubId}','${D}',1,'${imp}',true);
+ insert into public.club_snapshot_players(club_id,snapshot_id,player_id,name) values('${clubId}','${snap}','${playerId}','集成测试玩家'),('${clubId}','${snap}','${friend}','手动补录成员');`);
+ const token=(await auth('owner')).access_token;
+ const headers={Cookie:`__Host-club_access=${token}`,Origin:baseURL};
+ const created=await request.post(`${baseURL}/api/dragon-events?club=${clubId}`,{headers,data:{event_date:D,request_id:randomUUID(),players:[{player_id:playerId}],unmatched:0}});expect(created.ok()).toBe(true);
+ const {event_id}=await created.json();
+ await page.goto('/login');await page.getByLabel('邮箱',{exact:true}).fill(users.owner.email);await page.getByLabel('密码',{exact:true}).fill(password);await page.getByRole('button',{name:'登录',exact:true}).click();await expect(page).toHaveURL(/admin/);
+ await page.goto(`/dragon/event?id=${event_id}&club=${clubId}`);
+ const absent=page.getByRole('main').getByLabel('当日未参加');
+ await absent.getByRole('button',{name:'添加参加'}).click();await page.getByRole('alertdialog').getByRole('button',{name:'确认修改'}).click();
+ await expect(page.getByRole('button',{name:'移除 手动补录成员 的本次出勤'})).toBeVisible();
+ await page.reload();await page.getByRole('button',{name:'移除 手动补录成员 的本次出勤'}).click();await page.getByRole('alertdialog').getByRole('button',{name:'确认修改'}).click();
+ await expect(absent.getByRole('link',{name:/手动补录成员/})).toBeVisible();
+ const body={event_id,expected_version:3,request_id:randomUUID(),action:'add',player_id:friend};
+ const add=()=>request.post(`${baseURL}/api/dragon-event?club=${clubId}`,{headers,data:body});
+ expect((await add()).ok()).toBe(true);expect((await (await add()).json()).replayed).toBe(true);
+ const detail=await (await request.get(`${baseURL}/api/dragon-event?id=${event_id}&club=${clubId}`,{headers})).json();
+ expect(detail.players).toHaveLength(2);expect(detail.event.version).toBe(4);expect(detail.absent).toHaveLength(0);
+});

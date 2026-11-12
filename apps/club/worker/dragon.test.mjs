@@ -73,3 +73,13 @@ test('platform dragon settings accept dragon keys only and use their own RPC', a
   assert.equal((await handleRequest(get(`admin/dragon-permissions?club=${club}`), env, network(granted, calls))).status, 200);
   assert.equal(calls.at(-1)[0], '/rest/v1/rpc/platform_dragon_permissions');
 });
+
+test('attendance edits require dragon.edit and forward only validated fields to the scoped RPC',async()=>{
+ const body={...voidIt,action:'add',player_id:id},calls=[];
+ assert.equal((await handleRequest(post('dragon-event',body),env,network(access(['dragon.read']),[]))).status,403);
+ assert.equal((await handleRequest(post('dragon-event',body),env,network(access(all),calls))).status,200);
+ assert.deepEqual(calls[0],['/rest/v1/rpc/club_dragon_attendance_edit',{p_club:club,p_event:id,p_expected:1,p_request:id,p_action:'add',p_player:id}]);
+ for(const change of [{action:'void'},{player_id:'bad'},{expected_version:0},{extra:true}]){
+  const blocked=[];assert.equal((await handleRequest(post('dragon-event',{...body,...change}),env,network(access(all),blocked))).status,400);assert.equal(blocked.length,0);
+ }
+});

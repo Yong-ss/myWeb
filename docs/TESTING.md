@@ -21,6 +21,13 @@
 
 迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上。基线必须是正式 Club Worker 实际部署的提交（查最近一次成功且执行了 Club 发布的 main 运行），作为参数传入：`pnpm test:compat <提交>`；默认的 `origin/main` 可能含未部署的提交，不能未经核实就当作线上版本。当前待部署的是高原竞逐迁移 `20261105090000_club_highland.sql`（单个文件，一种状态 `all`）；2026-11-05 核实的线上 Club 版本为 `c8f30c0`（运行 41855401309，Cloudflare 版本 6cc26d27），其后 main 只有文档提交。旧测试中只因迁移有意改变的期望值（超管完整权限列表多了 `highland.*`、Worker／数据库权限一致性检查去掉旧 Worker 不认识的 `highland.*`）精确替换，每处替换必须恰好匹配一次，否则直接失败；没有整条排除的旧测试。（Club 权限 V1 的 7 个迁移曾按 A／A～C／A～E／全部四种状态检查，见 Git 历史。）已应用的迁移若被改动则直接失败。
 
+## 猎龙手动出勤修正 — 2026-11-13（本地验证）
+
+- `pnpm test:affected` 完整通过：219 项单元测试、代码／类型检查、两个应用构建、Club 发布预检、19 组 SQL 检查与 5 项并发测试、139 项浏览器测试、40 项真实本地 Supabase 集成测试。
+- `pnpm test:compat 56598074cf739d9eec872cded91dbbf767693096`：线上旧 Worker 加新增迁移 `20261113120000_club_dragon_attendance_edits.sql`，39 项原版真实集成测试通过，没有排除断言。基线由成功 main 运行 42488912906 的 Club 发布步骤确认；兼容性工具已更新待迁移文件清单与本地测试等待时限。
+- SQL 使用一次性本地 PostgreSQL 容器；真实集成与兼容性检查各自使用隔离 Supabase，不访问正式数据。
+- 尚未执行正式迁移，仓库 `CLUB_SCHEMA_VERSION` 仍为 `20261107010000`；新代码发布应保持被版本检查拦截，直到原始迁移被单独授权执行并完成校验。以上记录覆盖本次应用／迁移／测试代码，后续仅补充本段文档。
+
 ## 猎龙 V1 本地验收（2026-11-06）
 
 - 迁移 `20261106120000_club_dragon_hunt.sql`（只新增）。`pnpm test:unit` 210 项通过（新增 `features/events/dragon.test.mjs`、`worker/dragon.test.mjs`）。

@@ -93,3 +93,31 @@ for(const width of [1440,390])test(`whole Club visual review ${width}`,async({pa
   }
   expect(errors).toEqual([]);
 });
+
+for(const width of [1440,390])test(`dragon manual attendance controls ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:900});
+ const member={player_id:id,display_name:'补录成员',pathway:'观众',read_name:null};let joined=false,version=1;
+ await page.route('**/api/**',async route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path==='/api/account')return route.fulfill({json:ownerAccount('edit@example.invalid',{permissions:['dragon.read','dragon.edit'],club_id:id,clubs:[{id,name:'出勤测试',roles:['owner']}]})});
+  if(path==='/api/club-settings')return route.fulfill({json:{name:'出勤测试'}});
+  if(route.request().method()==='POST'){
+   const body=route.request().postDataJSON();expect(body.expected_version).toBe(version);expect(body.player_id).toBe(id);joined=body.action==='add';version++;
+   return route.fulfill({json:{version}});
+  }
+  return route.fulfill({json:{can_edit_attendance:true,event:{id,event_date:'2026-11-06',version,status:'active'},players:joined?[member]:[],roster:{date:'2026-11-06',revision:1,complete:true},absent:joined?[]:[member]}});
+ });
+ await page.goto(`/dragon/event?id=${id}&club=${id}`);
+ await page.getByRole('button',{name:'添加参加',exact:true}).click();
+ const confirm=page.getByRole('alertdialog');await expect(confirm).toContainText('不删除成员档案');
+ await page.screenshot({path:`.test-artifacts/club-review/dragon-edit-dialog-${width}.png`,fullPage:true});
+ await confirm.getByRole('button',{name:'确认修改'}).click();
+ await expect(page.getByRole('button',{name:'移除 补录成员 的本次出勤'})).toBeVisible();
+ await page.screenshot({path:`.test-artifacts/club-review/dragon-edit-${width}.png`,fullPage:true});
+ await page.getByRole('button',{name:'移除 补录成员 的本次出勤'}).click();await confirm.getByRole('button',{name:'确认修改'}).click();
+ await expect(page.getByRole('button',{name:'添加参加',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'手动添加参加者'}).click();await page.getByLabel('搜索当天名单').fill('补录');
+ await page.getByRole('button',{name:'添加参加',exact:true}).first().click();await confirm.getByRole('button',{name:'确认修改'}).click();
+ await expect(page.getByRole('button',{name:'移除 补录成员 的本次出勤'})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
