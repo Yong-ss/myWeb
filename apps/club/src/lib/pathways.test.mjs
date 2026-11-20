@@ -1,16 +1,20 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {existsSync,readFileSync} from 'node:fs';
+import {statSync,readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {getPathway,pathways} from './pathways.ts';
 
 test('stored names resolve to supplied artwork without renaming 歌颂者',()=>{
- const expected={'占卜家':'seer','学徒':'apprentice','观众':'spectator','窥秘人':'mystery-pryer','战士':'warrior','歌颂者':'sun'};
+ const expected={'占卜家':'seer-f3155962252b','学徒':'apprentice','观众':'spectator-c617261c48b5','窥秘人':'mystery-pryer','战士':'warrior','歌颂者':'sun'};
  assert.deepEqual(Object.keys(pathways),Object.keys(expected));
  for(const [name,file] of Object.entries(expected)){
   assert.equal(getPathway(name).name,name);
-  const icon = ["seer","spectator"].includes(file) ? `/pathways/${file}.png` : `/pathway/${file}.webp`;
+  const icon = `/pathway/${file}.webp`;
   assert.equal(getPathway(name).icon,icon);
-  assert.ok(existsSync(new URL(`../../public${icon}`,import.meta.url)));
+  const asset=new URL(`../../public${icon}`,import.meta.url);
+  assert.ok(statSync(asset).size < 100_000, name+' is rendered as a small icon');
+  const version=file.match(/-([a-f0-9]{12})$/)?.[1];
+  if(version) assert.equal(createHash('sha256').update(readFileSync(asset)).digest('hex').slice(0,12),version);
  }
 });
 

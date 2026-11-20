@@ -1,5 +1,93 @@
 # 数据读取与性能规范
 
+## 全站性能审查与零新增成本优化 — 2026-11-20
+
+### 环境与范围
+
+- 基线为已部署 Club 提交 6cdbf33。GitHub 运行 43280579862 的 Club 发布步骤成功。本地在独立 worktree 开发，正式环境只做公开静态请求及 Supabase 汇总统计读取。[部署记录](https://github.com/Yong-ss/myWeb/actions/runs/43280579862)
+- Windows、i5-14600KF、Node 24.19.0、pnpm 12.15.0。Playwright Chromium 测两个 Next.js 静态导出及 Wrangler。桌面和 Pixel 7 模拟各跑每路由 5 组冷、热浏览器缓存，使用回环网络、无 CPU 或网络限速；热访问用同一浏览器上下文开新页。CLS 按窗口最大值统计。TTFB 是本地 HTTP 往返，LCP、FCP 无法代替真机访客指标。
+- 私有读基准使用真实本地 Supabase Auth/PostgREST/PostgreSQL 17 与 HTTPS Worker。单 Club 100 个合成身份，1,000 天、80,100 条成员观察、三类赛事各 1,000 场；高原和四方的出勤测例为未直接参赛，猎龙含 500 条直接出勤。每个 API 和 SQL 保留首个观察样本，另取 20 个热样本算中位数和最近秩 P95。首个样本之前已建夹具及登录。并发试验用 Owner 和 Admin 两个独立会话并行读取同一档案，5 轮。记录响应字节、Server-Timing 和本地 EXPLAIN (ANALYZE, BUFFERS)。依次读压测，无正式负载测试。
+- SQL 计时为数据库内部执行；Worker 的 database 项含 PostgREST、等待及网络，独立请求并发时累计耗时可超过 Worker 总耗时。API 结果为回环网络上的端到端等待时间，受本机容器调度影响。当前没有生产浏览器 RUM、真实移动网 INP、跨地区对照、生产 Worker CPU P95 或对生产 Auth/PostgREST 吞吐量的测量。
+
+### 哪些路径最值得优化
+
+| 路径 | 代码与现状 | 证据与决定 |
+|---|---|---|
+| 主站首页、登录、账户 | Next 静态导出，只有账户 Worker 调用 Auth；账户响应不缓存，Cookie 路径和域由主站控制 | 公开首页与 Club 登录均从 Cloudflare KUL 返回边缘 HIT。回环冷首页的压缩静态资源约 143 KB，首屏脚本和样式解码后约 468 KB。主站本轮留用 CDN 和 ETag |
+| Club 登录、会话、切换 Club、平台和管理员 | Worker 校验会话和目标 Club；数据库实时检查权限和可信 MFA；平台列表和审计已有游标；账号上下文只列本人有权进入的 Club | 生产权限与上下文是调用最多的 RPC 组。账户上下文改为检查是否存在可用权限；仍调用同一套 can()，每次请求按当下权限计算 |
+| 总览、成员、途径、评分趋势 | 当天和趋势独立读取，先显示当天，比较数据补入；成员筛选、搜索和排序在客户端处理。名单两阶段、三次 REST，日期、评分和档案为有界游标 | 两个 20 px 途径图标原本发送 3.83 MB，是有明确下载成本的静态热点。评分趋势不引入额外查询 |
+| 每日导入、历史处理、操作日志 | 导入身份及同日版本／缺席资料并行，确认后一次事务写入；审计可用 Club + 时间 + ID 索引翻页 | 导入准备约 56 KB，包含身份、现有记录和缺席对照；留用实时读，避免使用失效的核对资料。写路径由本地集成及锁竞争测试验证 |
+| 玩家档案 | 100 天一页，旧 RPC 为每一天分别求缺席决定和理由 | 命中 100 天观察时，缺席函数调用由页内 200 次降至 0 次，只在缺失日计算一次，边界仍用原逻辑 |
+| 四方联赛、高原竞逐、猎龙 | 赛事列表先限 100，详情和版本按请求读取。修改与导入共用已有事务、俱乐部锁和幂等记录 | 个人出勤原来每场重扫观察日期。现在对未直接出勤的赛事和观察日排序，通过正序和倒序两次窗口计算最近观察，保留日期相同、暂离、漏录和证据不足的语义 |
+
+生产只读汇总中，授权／上下文累计 9,862 次、平均 53.8 ms，名单 2,647 次、平均 32.9 ms，玩家历史 158 次、平均 59.6 ms，个人赛事出勤 371 次、平均 9.7 ms（最大 248.4 ms）。其他分组为赛事列表 282 次／9.1 ms，平台读取 163 次／19.0 ms，日志 144 次／13.4 ms，导入准备 93 次／30.8 ms。以上来自 pg_stat_statements 对 authenticated 调用的聚合，统计起止时间未核实，没有读取记录、邮箱或 SQL 参数，不用于推算日用量或用户数量。数据库约 16.5 MB，取样时 12 个连接、配置上限 60。顾问提示 20 组外键缺索引和 2 个当前统计未用的索引，尚无这些索引在读热点或写锁上的瓶颈证据，本次索引改动数为 0。[Supabase 数据库顾问](https://supabase.com/docs/guides/database/database-linter)
+
+### 本地前后对照
+
+| 读路径 | PostgreSQL p50 / p95 | HTTPS Worker p50 / p95 | 响应体 |
+|---|---:|---:|---:|
+| 玩家历史，100 天都有观察 | 25.1 / 31.0 → 16.6 / 24.2 ms | 137.3 / 166.3 → 141.3 / 257.4 ms | 46,102 B |
+| 玩家历史，每十天一次观察 | 26.5 / 35.1 → 21.6 / 35.9 ms | 155.6 / 318.3 → 169.8 / 285.5 ms | 14,550 B |
+| 玩家猎龙出勤，1,000 场 | 130.8 / 186.3 → 5.6 / 10.0 ms | 391.9 / 519.2 → 255.2 / 369.0 ms | 78,039 B |
+| 玩家四方联赛出勤，1,000 场 | — | 319.9 / 369.0 → 127.3 / 149.9 ms | 78,040 B |
+| 玩家高原竞逐出勤，1,000 场 | — | 312.3 / 389.4 → 120.5 / 145.4 ms | 78,040 B |
+| Club 账户 | — | 209.1 / 239.4 → 101.1 / 120.2 ms | 663 B |
+
+- 前后各次取样的 API 响应体大小一致。历史分页 SQL 更快，端到端中位数和尾延迟没有一致改善。Worker 每个私有历史请求仍要实时查 Auth 和 Club 权限。赛事相关体感改善主要落在打开个人档案后出勤卡片的等待时间，大样本的赛事负载是合成的，线上有多少收益需部署后观测。
+- 导入准备 API 的首轮 p50 曾从 202.7 增至 421.9 ms，11 月 21 日复测为 111.4 ms，p95 为 120.5 ms，响应仍为 56,364 B。升高未复现。该路径仍使用原有 Auth、club_my_access、club_identity_context、club_absence_context 和名单读取；同一复测中 Auth、权限和数据库阶段也普遍变快，这组跨批次差异不能归因于迁移。
+- 两个原 PNG 为 2,103,764 B 和 1,722,148 B。相同图案转为 128×128 透明 WebP，共 50,004 B，首次显示两图少传 3,775,908 B（98.7%）。编码验证缩小后的可见像素和透明度完全相同。原图路径仍可供已有链接使用。Chrome 在成员页首次实际传输两个新图标共 50,604 B（含资源计时估算头），导航到玩家页复用其中一张，传输 0 B。
+- 这两个新图标的文件名带 SHA-256 前 12 位，Cloudflare Static Assets 只给这两个精确路径设置一年 immutable。替换图案时发布新哈希、更新映射和对应规则；单元测试会检查文件名哈希和文件大小。其余公开页面由默认 ETag 重验证。
+- 试验中曾对整个 /_next/static/* 启用 immutable。热访问主站省下 8–9 次静态重验证，Club 省下 15–16 次，冷 JS/CSS 负载相同。Chrome 桌面 Club 登录热 LCP 样本的中位数为 104 → 68 ms，Pixel 7 模拟为 80 → 72 ms。这次试验也让缺失脚本的 404 获得一年缓存，已撤回规则；上述试验数值不能作为本次发布收益。两站公开页面本机基线中位数 CLS 为 0；冷 Club 登录 LCP 约 104 ms、压缩 JS/CSS 约 283 KB，回环 TTFB 约 5–6 ms。
+- 1,000 与 10,000 个历史身份的单 Club 请求均明确得到 413，证实 1,000 历史身份保护上限。当前名单支持最多 200 条当日观察。赛事与历史的夹具只证明这次测到的容量；让一个 Club 处理万级身份需要分页和重新验证查询模型。
+
+### 免费方案比较与保留的边界
+
+| 方案 | 现有能力和可解决的问题 | 证据或预期节省 | 免费条件、代价与一致性 |
+|---|---|---|---|
+| 浏览器 Cache-Control、ETag | Cloudflare 静态资源默认 ETag；小图内容稳定 | 两张图回访省传输，详见实测；全目录 304 重验证试验已撤回 | 精确哈希资源规则属于 Static Assets，无新增设施；改图用新 URL，公开 HTML、404 和 API 按各自默认规则 |
+| CDN 与 Workers Cache API | 公开 HTML 和资源两站均从 CDN HIT；无独立公开数据库读取热点 | 为已命中的资源再加 Cache API 无实测节省 | Static Assets 直接请求免费且不限，Worker Cache API 与子请求用同一额度，且缓存按数据中心维护；保留直接静态分发，敏感数据不进共享 CDN。[Cloudflare Static Assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/) · [Workers Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/) |
+| 客户端缓存与合并 | 现有 40 条、30 秒的内存缓存，合并同 URL 在途请求；每次复用都实时读 /api/account，scope 有用户、Club 和有效权限 | 并发同 URL 在现有单元测试只发一次业务请求；有效命中省下原业务读，仍有权限验证成本 | 无新服务；403/401 清空；写开始／结束清空并通过 BroadcastChannel 通知其他标签，旧请求不能回填 |
+| Stale-While-Revalidate | 已缓存的少量 Club GET 超过 5 秒时，校验后可后台刷新 | 可保留已显示的内容；某些场景会产生账户门禁、刷新和订阅方重读，未证明扩大范围的收益 | 保持现有范围；后台拒绝、跨 Club 或 scope 不匹配时不会继续复用缓存；新缓存仅用于公开的内容哈希资源 |
+| Prefetch 与 Lazy Loading | Next 路由资源已有自动预取；图片原生延后读取，Lottie 在需要且允许动效时动态加载 | 主要私有页一次加载观察到 59–80 个本地静态请求，包含 Next 路由预取；没有本轮点击延迟 A/B 证据支持调整整站策略 | 保持静态路由预取；逐成员／逐赛事发私有预取会额外使用 Worker 和 Supabase，租户切换及写入同步也会复杂 |
+| PostgreSQL 索引和查询优化 | 日期、玩家、赛事及审计已有关键索引；保留两阶段有界读取 | 出勤和玩家历史优化有 SQL 数据；无新增索引、额外写放大或索引存储 | 同一 SQL/RPC/事务/RLS。以 EXPLAIN 和受控负载先验证热点，顾问提示作为排查入口 |
+| 连接池 | Worker 已用 HTTP 调用 Auth 与 PostgREST，Supabase 的这些服务维护数据库连接池 | 生产单点 12/60 配置连接，尚无等待池耗尽的证据 | Supavisor 共享池可供未来的直接数据库客户端使用；当前改为直连会引入数据库凭据和权限映射，保留 REST。[Supabase 连接池与限制](https://supabase.com/docs/guides/database/connecting-to-postgres/pooling-and-limits) |
+| Cloudflare KV | 公开静态内容已有边缘分发，权限由 PostgreSQL 实时决定 | 无已证实的适用热点；冷缓存仍可能多一次远程读取 | 免费 100,000 读／日、1,000 写／日、1 GB；跨地点最终一致性，适合未来允许过时的公开数据。[KV 限制](https://developers.cloudflare.com/kv/platform/limits/) · [一致性](https://developers.cloudflare.com/kv/concepts/how-kv-works/) |
+| Redis 或托管缓存 | PostgreSQL、浏览器和 CDN 已覆盖现有三类重复工作 | 缓存命中率与跨区命中延迟未量出，预计首要收益来自当前 SQL 优化 | 例如 Upstash 免费 256 MB、50 万命令／月；需要凭据、新网络往返、缓存填充和一致性管理，不建立实例。[Upstash Redis 定价](https://upstash.com/pricing/redis) |
+
+身份、Cookie 和权限边界仍由现有逻辑处理。Club 私有 API 保持 no-store，Cookie 经原入口设置 HttpOnly、SameSite=Strict 和 HTTPS Secure。切换 Club 会按 URL 重建页面上下文，缓存按 Club 校验。别处撤销角色或过期会话会在下次真实检查时生效；已渲染页面在没有新请求或本地变更通知时无法即时感知外部撤销。此次没有添加轮询、保活请求、持久化私人缓存或付费资源。
+
+### 复测与扩展条件
+
+- 真实合成数据：在本机运行 CLUB_PERFORMANCE=1 对应的 PowerShell 写法是 $env:CLUB_PERFORMANCE='1'，再运行 pnpm test:integration -- performance.spec.mjs。报告在 .test-artifacts/performance.json；新的分项在 current，roster.before 仍是 2026-10-28 的历史实现，不是本轮基线。静态基准用 node tests/performance/static.mjs，两个本地 Wrangler 端口为 8811、8812，输出 .test-artifacts/static-performance.json。
+- 上线后用已有 Server-Timing 比较同地区、同路由下真实 Auth、membership 和 data P95，至少 20 个样本再看 P95。用 Cloudflare Workers 控制台看真正的 CPU、请求量和错误，结合 Supabase 按数据库大小、连接占用、磁盘、egress 与 pg_stat_statements 执行时间观察。按需从实际用户请求采样，没有后台保活流量。
+- Cloudflare Workers Free 为 100,000 次脚本请求／日、10 ms CPU／请求、50 个外部子请求／请求。Supabase Free 有 500 MB 数据库、5 GB egress、5 GB cached egress、50,000 MAU，共享 CPU 和 500 MB RAM，非活跃免费项目按提供方策略暂停。[Cloudflare Workers 限制](https://developers.cloudflare.com/workers/platform/limits/) · [Supabase 定价](https://supabase.com/pricing)
+- 接近 200／1,000 名单保护上限时先测归档身份的检索和按需分页。赛事体积随着历史仍增长，实际详情响应趋大时先增加统计头和出勤分页。若平台总览在多 Club 下成为热点，先考虑有边界的俱乐部分页和同事务可维护的数据库摘要。
+- 第一时间按真实用量验证扩容。CDN 规则或 KV 只应为反复读取且容许迟滞的公开对象引入。Redis 需要有长期测得的热点、命中率和失效契约，且跨区额外往返仍能获得净收益。查询、压缩和分页后仍持续接近免费配额，或者业务需要可靠的自动备份和明确的可用性目标时，再评估升级。
+- 发布对象为增量迁移 20261120012000_club_read_efficiency.sql 与 Club 静态产物。三项原 RPC 的函数签名、权限、搜索路径及响应保持原契约。正式发布按原人工迁移门禁，使用原文件并核对函数校验和，更新 CLUB_SCHEMA_VERSION 至 20261120012000 后再由现有 CI 发布。此处记录的是本地优化，未发布到生产。
+
+
+
+### 追加复测 — 2026-11-21
+
+在同一个隔离数据库和同一份合成数据上，对新旧定义分别取 20 个热 SQL 样本。测试通过事务保存点临时加载旧函数，采样后回滚。下表给出中位数和 P95，单位为毫秒。
+
+| SQL 情形 | 旧版 p50 / p95 | 新版 p50 / p95 |
+|---|---:|---:|
+| 猎龙，1,000 场且有稠密观察 | 117.63 / 122.62 | 4.82 / 5.03 |
+| 猎龙，每十天一次观察 | 43.33 / 45.21 | 14.88 / 16.82 |
+| 猎龙，从未观察该玩家 | 32.57 / 34.48 | 29.04 / 30.80 |
+| 账户上下文 | 21.72 / 22.54 | 1.70 / 1.92 |
+
+玩家历史的 SQL p50 在复测为 15.11 ms（稠密）和 19.12 ms（稀疏），初始基线分别为 25.09 和 26.46 ms。该轮 Worker 端到端数据整体更快，未修改的导入接口也有变化，因此用同库 SQL 对照作为主要收益证据。原始读数在 worktree 的 `.test-artifacts/performance.json`。
+
+### 本地验证记录
+
+- 工作区为 %TEMP%\myWeb-full-performance-optimization，分支 codex/full-performance-optimization，基线 6cdbf33。工作内容保存在该 worktree，主工作区原有的 apps/club/next-env.d.ts 改动保留。
+- 已通过 219 项仓库单元测试、主站 lint／类型检查／构建和 6 项 Worker 认证测试、Club lint／类型检查／197 项单元测试／构建／Wrangler dry-run，以及最终迁移的 19 组 SQL、2 个升级对照和 5 项真实连接锁竞争测试。真实隔离集成的大规模性能规格在基线和候选上各通过 1 项。候选包含最终版 SQL 和指纹图标，使用当时的基准脚本。原始数据保存在 worktree 的 .test-artifacts/performance-before.json 和 performance.json，静态缓存试验另存为 static-performance-wildcard-experiment.json。
+- pnpm test:affected 两次分别在主站、Club 构建遇到 Next.js 16.4.3 安全升级提示而提前结束，相关构建按提示单独重试成功。框架依赖升级需另行评估。[Next.js 安全发布](https://nextjs.org/blog/november-2026-security-release)
+- 11 月 21 日复跑 219 项单元测试和 139 项浏览器测试全部通过，已检查 1440 px 与 390 px 的猎龙详情截图。更新后的可选性能规格通过 1 项，覆盖同库 A/B、游标连续性及跨 Club 隔离。
+- 新 Worker 的完整真实集成通过 40 项。`pnpm test:compat 6cdbf33a6e4e744775666d82a4dccc2813435429` 使用生产旧 Worker 和新迁移，也通过 40 项。两轮默认套件按配置跳过可选的大规模规格，该规格已独立通过。兼容性 worktree 独立按锁文件离线安装依赖，并按 Next.js 提示在同一 worktree 内重试构建。
+
 ## 前 30 人评分 — 2026-11-08
 
 评分历史在原有单次有界 REST 请求的评分数组上计算 `top30Score`，不增加数据库查询或逐人请求；全部／前 30 人切换在客户端完成，沿用分页及实时权限检查。

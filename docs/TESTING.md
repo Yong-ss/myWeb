@@ -19,7 +19,7 @@
 
 **Club 权限 V1 的 7 个迁移例外：不用 `supabase db push`**（它逐个文件提交，中途失败会留下半个迁移），改按 `docs/CLUB_PERMISSIONS_PLAN.md` 7.3 用 `psql --single-transaction` 执行 7 个原始文件加 `scripts/club-v1-structure-check.mjs` 生成的检查，成功后才运行 `supabase migration repair --status applied <7 个版本号>`。执行前的只读预检查是 `scripts/club-v1-precheck.sql`（只读事务，结束时回滚，每行 `ok` 都应为 true）。
 
-迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上。基线必须是正式 Club Worker 实际部署的提交（查最近一次成功且执行了 Club 发布的 main 运行），作为参数传入：`pnpm test:compat <提交>`；默认的 `origin/main` 可能含未部署的提交，不能未经核实就当作线上版本。当前待部署的是高原竞逐迁移 `20261105090000_club_highland.sql`（单个文件，一种状态 `all`）；2026-11-05 核实的线上 Club 版本为 `c8f30c0`（运行 41855401309，Cloudflare 版本 6cc26d27），其后 main 只有文档提交。旧测试中只因迁移有意改变的期望值（超管完整权限列表多了 `highland.*`、Worker／数据库权限一致性检查去掉旧 Worker 不认识的 `highland.*`）精确替换，每处替换必须恰好匹配一次，否则直接失败；没有整条排除的旧测试。（Club 权限 V1 的 7 个迁移曾按 A／A～C／A～E／全部四种状态检查，见 Git 历史。）已应用的迁移若被改动则直接失败。
+迁移先于 Worker 发布，期间（以及发布失败或回滚时）正式环境是“旧 Worker + 新数据库”。含迁移的改动在 Push 前运行 `pnpm test:compat`：用已部署版本的 Worker 和它自己的真实集成测试，跑在加上全部新迁移的本地隔离 Supabase 上。基线必须是正式 Club Worker 实际部署的提交（查最近一次成功且执行了 Club 发布的 main 运行），作为参数传入：`pnpm test:compat <提交>`；默认的 `origin/main` 可能含未部署的提交，不能未经核实就当作线上版本。本批性能优化的待发布迁移是 `20261120012000_club_read_efficiency.sql`。已部署的 Club 基线为 `6cdbf33a6e4e744775666d82a4dccc2813435429`，由 [成功发布记录](https://github.com/Yong-ss/myWeb/actions/runs/43280579862) 确认。兼容测试在独立 worktree 用锁文件从本机 pnpm 内容存储安装依赖。旧测试中只因迁移有意改变的期望值（超管完整权限列表多了 `highland.*`、Worker／数据库权限一致性检查去掉旧 Worker 不认识的 `highland.*`）精确替换，每处替换必须恰好匹配一次，否则直接失败；没有整条排除的旧测试。（Club 权限 V1 的 7 个迁移曾按 A／A～C／A～E／全部四种状态检查，见 Git 历史。）已应用的迁移若被改动则直接失败。
 
 ## 猎龙手动出勤修正 — 2026-11-13（本地验证）
 

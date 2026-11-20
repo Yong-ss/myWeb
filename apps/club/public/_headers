@@ -1,0 +1,6 @@
+# Only these content-versioned icons receive long-lived caching.
+/pathway/seer-f3155962252b.webp
+  Cache-Control: public, max-age=31536000, immutable
+
+/pathway/spectator-c617261c48b5.webp
+  Cache-Control: public, max-age=31536000, immutable

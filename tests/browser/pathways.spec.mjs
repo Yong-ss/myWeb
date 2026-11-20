@@ -20,7 +20,7 @@ test('profile name uses the latest observed pathway even after an absent day',as
 
 test('pathway artwork preserves stored names, neutral values and member search on desktop and mobile',async({page})=>{
  const names=['占卜家','学徒','观众','窥秘人','战士','歌颂者','未知途径',null];
- const files=['seer','apprentice','spectator','mystery-pryer','warrior','sun'];
+ const files=['seer-f3155962252b','apprentice','spectator-c617261c48b5','mystery-pryer','warrior','sun'];
  const snapshot={id:'00000000-0000-4000-8000-000000000001',snapshot_date:'2026-10-30',revision:1,is_current:true,is_complete_roster:true};
  await page.route('**/api/account*',r=>r.fulfill({json:ownerAccount('pathways@example.invalid')}));
  await page.route('**/api/club-settings*',r=>r.fulfill({json:{name:'途径视觉核对'}}));
@@ -32,7 +32,7 @@ test('pathway artwork preserves stored names, neutral values and member search o
   await expect(cell).toHaveText(names[i]??'—');
   if(i<6){
    const icon=cell.locator('img');
-   await expect(icon).toHaveAttribute('src',[0,2].includes(i) ? `/pathways/${files[i]}.png` : `/pathway/${files[i]}.webp`);
+   await expect(icon).toHaveAttribute('src',`/pathway/${files[i]}.webp`);
    await expect(icon).toHaveAttribute('alt','');
    await expect.poll(()=>icon.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
    expect(await icon.evaluate(img=>img.getBoundingClientRect().width)).toBe(20);
